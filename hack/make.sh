@@ -23,22 +23,9 @@ export SKOPEO_PKG='github.com/containers/skopeo'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 
-# We're a nice, sexy, little shell script, and people might try to run us;
-# but really, they shouldn't. We want to be in a container!
-# The magic value is defined inside our Dockerfile.
-if [[ "$container_magic" != "85531765-346b-4316-bdb8-358e4cca9e5d" ]]; then
-	{
-		echo "# WARNING! I don't seem to be running in a Docker container."
-		echo "# The result of this command might be an incorrect build, and will not be"
-		echo "# officially supported."
-		echo "#"
-		echo "# Try this instead: make all"
-		echo "#"
-	} >&2
-else
-    echo "# I appear to be running inside my designated container image, good!"
-    export SKOPEO_CONTAINER_TESTS=1
-fi
+# Override this to "0" to disable tests which may fail w/o
+# having applied hack/test_env_setup.sh
+export SKOPEO_CONTAINER_TESTS=${SKOPEO_CONTAINER_TESTS:-1}
 
 echo
 

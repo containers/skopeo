@@ -25,52 +25,43 @@ OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
 
 export "PATH=$PATH:$GOPATH/bin"
 
-podmanmake() {
-    req_env_vars GOPATH SKOPEO_PATH SKOPEO_CI_CONTAINER_FQIN
-    warn "Accumulated technical-debt requires execution inside a --privileged container.  This is very likely hiding bugs!"
-    showrun podman run -it --rm --privileged \
-        -e GOPATH=$GOPATH \
-        -v $GOPATH:$GOPATH:Z \
-        -w $SKOPEO_PATH \
-        $SKOPEO_CI_CONTAINER_FQIN \
-            make "$@"
-}
-
 _run_setup() {
     if [[ "$OS_RELEASE_ID" == "fedora" ]]; then
         # This is required as part of the standard Fedora VM setup
         growpart /dev/sda 1
         resize2fs /dev/sda1
 
-        # VM's come with the distro. skopeo pre-installed
+        # VM's come with the distro. skopeo package pre-installed
         dnf erase -y skopeo
+
+        bash ./hack/test_env_setup.sh
     else
         die "Unknown/unsupported distro. $OS_REL_VER"
     fi
 }
 
 _run_vendor() {
-    podmanmake vendor BUILDTAGS="$BUILDTAGS"
+    make vendor BUILDTAGS="$BUILDTAGS"
 }
 
 _run_build() {
-    podmanmake bin/skopeo BUILDTAGS="$BUILDTAGS"
+    make bin/skopeo BUILDTAGS="$BUILDTAGS"
 }
 
 _run_cross() {
-    podmanmake local-cross BUILDTAGS="$BUILDTAGS"
+    make local-cross BUILDTAGS="$BUILDTAGS"
 }
 
 _run_validate() {
-    podmanmake validate-local BUILDTAGS="$BUILDTAGS"
+    make validate-local BUILDTAGS="$BUILDTAGS"
 }
 
 _run_unit() {
-    podmanmake test-unit-local BUILDTAGS="$BUILDTAGS"
+    make test-unit-local BUILDTAGS="$BUILDTAGS"
 }
 
 _run_integration() {
-    podmanmake test-integration-local BUILDTAGS="$BUILDTAGS"
+    make test-integration-local BUILDTAGS="$BUILDTAGS"
 }
 
 _run_system() {

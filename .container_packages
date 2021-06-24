@@ -1,0 +1,43 @@
+# general deps
+git
+golang
+golang-github-cpuguy83-md2man
+make
+
+# storage deps
+btrfs-progs-devel
+device-mapper-devel
+
+# gpgme bindings deps
+libassuan-devel
+gnupg
+gpgme-devel
+
+# htpasswd for system tests
+httpd-tools
+
+# OpenShift deps
+bats
+bsdtar
+device-mapper
+docker
+e2fsprogs
+ethtool
+findutils
+golint
+hostname
+iproute
+iptables
+jq
+lsof
+nmap-ncat
+openssl
+podman
+runc
+socat
+tar
+tree
+util-linux
+wget
+which
+xfsprogs
