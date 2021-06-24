@@ -29,7 +29,7 @@ env:
     PRIOR_UBUNTU_NAME: "ubuntu-2010"
 
     # Google-cloud VM Images
-    IMAGE_SUFFIX: "c6248193773010944"
+    IMAGE_SUFFIX: "c6294674244632576"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
@@ -41,8 +41,8 @@ env:
     UBUNTU_CONTAINER_FQIN: "quay.io/libpod/ubuntu_podman:${IMAGE_SUFFIX}"
     PRIOR_UBUNTU_CONTAINER_FQIN: "quay.io/libpod/prior-ubuntu_podman:${IMAGE_SUFFIX}"
 
-    # Equivilent to image produced by 'make build-container'
-    SKOPEO_CI_CONTAINER_FQIN: "quay.io/skopeo/ci:${DEST_BRANCH}"
+    # Built along with the standard PR-based workflow in c/automation_images
+    SKOPEO_CIDEV_CONTAINER_FQIN: "quay.io/libpod/skopeo_cidev:${IMAGE_SUFFIX}"
 
 
 # Default timeout for each task
@@ -57,8 +57,8 @@ validate_task:
     # under Cirrus-CI, due to challenges obtaining the starting commit ID.
     # Only do validation for PRs.
     only_if: $CIRRUS_PR != ''
-    container:  &build_container
-        image: "${SKOPEO_CI_CONTAINER_FQIN}"
+    container:
+        image: '${SKOPEO_CIDEV_CONTAINER_FQIN}'
         cpu: 4
         memory: 8
     script: |
@@ -145,7 +145,7 @@ test_skopeo_task:
         disk: 200
         image_name: ${FEDORA_CACHE_IMAGE_NAME}
     matrix:
-        - name: "Skopeo Test"
+        - name: "Skopeo Test"  # N/B: Name ref. by hack/get_fqin.sh
           env:
               BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove'
         - name: "Skopeo Test w/ opengpg"

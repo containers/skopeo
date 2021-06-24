@@ -1,4 +1,4 @@
-.PHONY: all binary build-container docs docs-in-container build-local clean install install-binary install-completions shell test-integration .install.vndr vendor vendor-in-container
+.PHONY: all binary docs docs-in-container build-local clean install install-binary install-completions shell test-integration .install.vndr vendor vendor-in-container
 
 export GOPROXY=https://proxy.golang.org
 
@@ -29,12 +29,10 @@ ifeq ($(GOBIN),)
 GOBIN := $(GOPATH)/bin
 endif
 
-# Required for integration-tests to detect they are running inside a specific
-# container image.  Env. var defined in image, make does not automatically
-# pass to children unless explicitly exported
-export container_magic
-CONTAINER_RUNTIME := $(shell command -v podman 2> /dev/null || echo docker)
-GOMD2MAN ?= $(shell command -v go-md2man || echo '$(GOBIN)/go-md2man')
+# Multiple scripts are sensitive to this value, make sure it's exported/available
+# N/B: Need to use 'command -v' here for compatibility with MacOS.
+export CONTAINER_RUNTIME ?= $(if $(shell command -v podman),podman,docker)
+GOMD2MAN ?= $(if $(shell command -v go-md2man),go-md2man,$(GOBIN)/go-md2man)
 
 # Go module support: set `-mod=vendor` to use the vendored sources.
 # See also hack/make.sh.
@@ -54,9 +52,33 @@ ifeq ($(GOOS), linux)
 endif
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-IMAGE := skopeo-dev$(if $(GIT_BRANCH),:$(GIT_BRANCH))
-# set env like gobuildtag?
-CONTAINER_CMD := ${CONTAINER_RUNTIME} run --rm -i -e TESTFLAGS="$(TESTFLAGS)" #$(CONTAINER_ENVS)
+
+# If $TESTFLAGS is set, it is passed as extra arguments to 'go test'.
+# You can increase test outputerbosity with the option '-test.vv'.
+# You can select certain tests to run, with `-test.run <regex>` for example:
+#
+#     make test-unit TESTFLAGS='-test.run ^TestBuild$'
+#
+# For integration test, we use [gocheck](https://labix.org/gocheck).
+# You can increase test outputerbosity with the option '-check.vv'.
+# You can limit test selection with `-check.f <regex>`, for example:
+#
+#     make test-integration TESTFLAGS='-check.f DockerSuite.TestBuild*'
+#
+export TESTFLAGS ?= -v -check.v -test.timeout=15m
+
+# This is assumed to be set non-empty when operating inside a CI/automation environment
+CI ?=
+
+# This env. var. is interpreted by some tests as a permission to
+# modify local configuration files and services.
+export SKOPEO_CONTAINER_TESTS ?= $(if $(CI),1,0)
+
+# This is a compromise, we either use a container for this or require
+# the local user to have a compatible python3 development environment.
+# Define it as a "resolve on use" variable to avoid calling out when possible
+export SKOPEO_CIDEV_CONTAINER_FQIN ?= $(shell hack/get_fqin.sh)
+CONTAINER_CMD ?= ${CONTAINER_RUNTIME} run --rm -i -e TESTFLAGS="$(TESTFLAGS)" -e CI=$(CI)
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
 # so that the user can send e.g. ^C through.
@@ -64,7 +86,8 @@ INTERACTIVE := $(shell [ -t 0 ] && echo 1 || echo 0)
 ifeq ($(INTERACTIVE), 1)
 	CONTAINER_CMD += -t
 endif
-CONTAINER_RUN := $(CONTAINER_CMD) "$(IMAGE)"
+CONTAINER_GOSRC = /src/github.com/containers/skopeo
+CONTAINER_RUN ?= $(CONTAINER_CMD) --security-opt label=disable -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) -e SKOPEO_CONTAINER_TESTS=$(SKOPEO_CONTAINER_TESTS) $(SKOPEO_CIDEV_CONTAINER_FQIN)
 
 GIT_COMMIT := $(shell git rev-parse HEAD 2> /dev/null || true)
 
@@ -105,12 +128,9 @@ help:
 	@echo " * 'shell' - Run the built image and attach to a shell"
 	@echo " * 'clean' - Clean artifacts"
 
-# Build a container image (skopeobuild) that has everything we need to build.
-# Then do the build and the output (skopeo) should appear in current dir
+# Do the build and the output (skopeo) should appear in current dir
 binary: cmd/skopeo
-	${CONTAINER_RUNTIME} build ${BUILD_ARGS} -f Dockerfile.build -t skopeobuildimage .
-	${CONTAINER_RUNTIME} run --rm --security-opt label=disable -v $$(pwd):/src/github.com/containers/skopeo \
-		skopeobuildimage make bin/skopeo $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'
+	$(CONTAINER_RUN) make bin/skopeo $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'
 
 # Update nix/nixpkgs.json its latest stable commit
 .PHONY: nixpkgs
@@ -136,18 +156,13 @@ bin/skopeo.%:
 	GOOS=$(word 2,$(subst ., ,$@)) GOARCH=$(word 3,$(subst ., ,$@)) $(GO) build $(MOD_VENDOR) ${SKOPEO_LDFLAGS} -tags "containers_image_openpgp $(BUILDTAGS)" -o $@ ./cmd/skopeo
 local-cross: bin/skopeo.darwin.amd64 bin/skopeo.linux.arm bin/skopeo.linux.arm64 bin/skopeo.windows.386.exe bin/skopeo.windows.amd64.exe
 
-build-container:
-	${CONTAINER_RUNTIME} build ${BUILD_ARGS} -t "$(IMAGE)" .
-
 $(MANPAGES): %: %.md
 	sed -e 's/\((skopeo.*\.md)\)//' -e 's/\[\(skopeo.*\)\]/\1/' $<  | $(GOMD2MAN) -in /dev/stdin -out $@
 
 docs: $(MANPAGES)
 
 docs-in-container:
-	${CONTAINER_RUNTIME} build ${BUILD_ARGS} -f Dockerfile.build -t skopeobuildimage .
-	${CONTAINER_RUNTIME} run --rm --security-opt label=disable -v $$(pwd):/src/github.com/containers/skopeo \
-		skopeobuildimage make docs $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'
+	${CONTAINER_RUN} $(MAKE) docs $(if $(DEBUG),DEBUG=$(DEBUG))
 
 clean:
 	rm -rf bin docs/*.1
@@ -171,40 +186,42 @@ install-completions:
 	install -m 755 -d ${DESTDIR}${BASHCOMPLETIONSDIR}
 	install -m 644 completions/bash/skopeo ${DESTDIR}${BASHCOMPLETIONSDIR}/skopeo
 
-shell: build-container
+shell:
 	$(CONTAINER_RUN) bash
 
 check: validate test-unit test-integration test-system
 
-# The tests can run out of entropy and block in containers, so replace /dev/random.
-test-integration: build-container
-	$(CONTAINER_RUN) bash -c 'rm -f /dev/random; ln -sf /dev/urandom /dev/random; SKOPEO_CONTAINER_TESTS=1 BUILDTAGS="$(BUILDTAGS)" $(MAKE) test-integration-local'
+test-integration:
+	$(CONTAINER_RUN) $(MAKE) test-integration-local SKOPEO_CONTAINER_TESTS=1
 
-# Intended for CI, shortcut 'build-container' since already running inside container.
-test-integration-local:
+
+# Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
+test-integration-local: bin/skopeo
 	hack/make.sh test-integration
 
 # complicated set of options needed to run podman-in-podman
-test-system: build-container
+test-system:
 	DTEMP=$(shell mktemp -d --tmpdir=/var/tmp podman-tmp.XXXXXX); \
 	$(CONTAINER_CMD) --privileged \
-	    -v $$DTEMP:/var/lib/containers:Z -v /run/systemd/journal/socket:/run/systemd/journal/socket \
-            "$(IMAGE)" \
-            bash -c 'BUILDTAGS="$(BUILDTAGS)" $(MAKE) test-system-local'; \
+		-e SKOPEO_CONTAINER_TESTS=1 \
+		-v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) \
+		-v $$DTEMP:/var/lib/containers:Z -v /run/systemd/journal/socket:/run/systemd/journal/socket \
+		"$(SKOPEO_CIDEV_CONTAINER_FQIN)" \
+			$(MAKE) test-system-local; \
 	rc=$$?; \
 	$(RM) -rf $$DTEMP; \
 	exit $$rc
 
-# Intended for CI, shortcut 'build-container' since already running inside container.
-test-system-local:
+# Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
+test-system-local: bin/skopeo
 	hack/make.sh test-system
 
-test-unit: build-container
+test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences
-	$(CONTAINER_RUN) make test-unit-local BUILDTAGS='$(BUILDTAGS)'
+	$(CONTAINER_RUN) $(MAKE) test-unit-local
 
-validate: build-container
-	$(CONTAINER_RUN) make validate-local
+validate:
+	$(CONTAINER_RUN) $(MAKE) validate-local
 
 # This target is only intended for development, e.g. executing it from an IDE. Use (make test) for CI or pre-release testing.
 test-all-local: validate-local validate-docs test-unit-local
@@ -219,7 +236,7 @@ validate-docs:
 	hack/man-page-checker
 	hack/xref-helpmsgs-manpages
 
-test-unit-local:
+test-unit-local: bin/skopeo
 	$(GPGME_ENV) $(GO) test $(MOD_VENDOR) -tags "$(BUILDTAGS)" $$($(GO) list $(MOD_VENDOR) -tags "$(BUILDTAGS)" -e ./... | grep -v '^github\.com/containers/skopeo/\(integration\|vendor/.*\)$$')
 
 vendor:
@@ -228,4 +245,4 @@ vendor:
 	$(GO) mod verify
 
 vendor-in-container:
-	podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:1.16 make vendor
+	podman run --privileged --rm --env HOME=/root -v $(CURDIR):/src -w /src quay.io/libpod/golang:1.16 $(MAKE) vendor

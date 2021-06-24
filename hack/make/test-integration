@@ -2,7 +2,6 @@
 set -e
 
 bundle_test_integration() {
-	TESTFLAGS="$TESTFLAGS -check.v"
 	go_test_dir ./integration
 }
 
