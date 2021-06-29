@@ -207,12 +207,17 @@ validate: build-container
 	$(CONTAINER_RUN) make validate-local
 
 # This target is only intended for development, e.g. executing it from an IDE. Use (make test) for CI or pre-release testing.
-test-all-local: validate-local test-unit-local
+test-all-local: validate-local validate-docs test-unit-local
 
 .PHONY: validate-local
 validate-local:
 	hack/make.sh validate-git-marks validate-gofmt validate-lint validate-vet
+
+# This invokes bin/skopeo, hence cannot be run as part of validate-local
+.PHONY: validate-docs
+validate-docs:
 	hack/man-page-checker
+	hack/xref-helpmsgs-manpages
 
 test-unit-local:
 	$(GPGME_ENV) $(GO) test $(MOD_VENDOR) -tags "$(BUILDTAGS)" $$($(GO) list $(MOD_VENDOR) -tags "$(BUILDTAGS)" -e ./... | grep -v '^github\.com/containers/skopeo/\(integration\|vendor/.*\)$$')

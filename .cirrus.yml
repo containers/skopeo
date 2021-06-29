@@ -65,6 +65,15 @@ validate_task:
         make validate-local
         make vendor && hack/tree_status.sh
 
+doccheck_task:
+    only_if: $CIRRUS_PR != ''
+    depends_on:
+      - validate
+    container:  *build_container
+    script: |
+      "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
+      "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
+      "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
 
 osx_task:
     only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
@@ -185,6 +194,7 @@ success_task:
     # N/B: ALL tasks must be listed here, minus their '_task' suffix.
     depends_on:
         - validate
+        - doccheck
         - osx
         - cross
         - test_skopeo

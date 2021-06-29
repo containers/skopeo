@@ -32,7 +32,7 @@ When the `--scoped` option is specified, images are prefixed with the source ima
 name can be stored at _destination_.
 
 ## OPTIONS
-**--all**
+**--all**, **-a**
 If one of the images in __src__ refers to a list of images, instead of copying just the image which matches the current OS and
 architecture (subject to the use of the global --override-os, --override-arch and --override-variant options), attempt to copy all of
 the images in the list, and the list itself.
@@ -50,17 +50,21 @@ Path of the authentication file for the source registry. Uses path given by `--a
 
 Path of the authentication file for the destination registry. Uses path given by `--authfile`, if not provided.
 
-**--src** _transport_ Transport for the source repository.
+**--src**, **-s** _transport_ Transport for the source repository.
 
-**--dest** _transport_ Destination transport.
+**--dest**, **-d** _transport_ Destination transport.
 
-**--format, -f** _manifest-type_ Manifest Type (oci, v2s1, or v2s2) to use when syncing image(s) to a destination (default is manifest type of source, with fallbacks).
+**--format**, **-f** _manifest-type_ Manifest Type (oci, v2s1, or v2s2) to use when syncing image(s) to a destination (default is manifest type of source, with fallbacks).
+
+**--help**, **-h**
+
+Print usage statement.
 
 **--scoped** Prefix images with the source image path, so that multiple images with the same name can be stored at _destination_.
 
 **--remove-signatures** Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.
 
-**--sign-by=**_key-id_ Add a signature using that key ID for an image name corresponding to _destination-image_.
+**--sign-by**=_key-id_ Add a signature using that key ID for an image name corresponding to _destination-image_.
 
 **--src-creds** _username[:password]_ for accessing the source registry.
 

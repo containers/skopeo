@@ -65,6 +65,10 @@ _run_validate() {
     podmanmake validate-local BUILDTAGS="$BUILDTAGS"
 }
 
+_run_doccheck() {
+    podmanmake validate-docs BUILDTAGS="$BUILDTAGS"
+}
+
 _run_unit() {
     podmanmake test-unit-local BUILDTAGS="$BUILDTAGS"
 }

@@ -1,0 +1,277 @@
+#!/usr/bin/perl
+#
+# xref-helpmsgs-manpages - cross-reference --help options against man pages
+#
+package LibPod::CI::XrefHelpmsgsManpages;
+
+use v5.14;
+use utf8;
+
+use strict;
+use warnings;
+
+(our $ME = $0) =~ s|.*/||;
+our $VERSION = '0.1';
+
+# For debugging, show data structures using DumpTree($var)
+#use Data::TreeDumper; $Data::TreeDumper::Displayaddress = 0;
+
+# unbuffer output
+$| = 1;
+
+###############################################################################
+# BEGIN user-customizable section
+
+# Path to skopeo executable
+my $Default_Skopeo = './bin/skopeo';
+my $SKOPEO = $ENV{SKOPEO} || $Default_Skopeo;
+
+# Path to all doc files (markdown)
+my $Docs_Path = 'docs';
+
+# Global error count
+my $Errs = 0;
+
+# END   user-customizable section
+###############################################################################
+
+###############################################################################
+# BEGIN boilerplate args checking, usage messages
+
+sub usage {
+    print  <<"END_USAGE";
+Usage: $ME [OPTIONS]
+
+$ME recursively runs 'skopeo --help' against
+all subcommands; and recursively reads skopeo-*.1.md files
+in $Docs_Path, then cross-references that each --help
+option is listed in the appropriate man page and vice-versa.
+
+$ME invokes '\$SKOPEO' (default: $Default_Skopeo).
+
+Exit status is zero if no inconsistencies found, one otherwise
+
+OPTIONS:
+
+  -v, --verbose  show verbose progress indicators
+  -n, --dry-run  make no actual changes
+
+  --help         display this message
+  --version      display program name and version
+END_USAGE
+
+    exit;
+}
+
+# Command-line options.  Note that this operates directly on @ARGV !
+our $debug   = 0;
+our $verbose = 0;
+sub handle_opts {
+    use Getopt::Long;
+    GetOptions(
+        'debug!'     => \$debug,
+        'verbose|v'  => \$verbose,
+
+        help         => \&usage,
+        version      => sub { print "$ME version $VERSION\n"; exit 0 },
+    ) or die "Try `$ME --help' for help\n";
+}
+
+# END   boilerplate args checking, usage messages
+###############################################################################
+
+############################## CODE BEGINS HERE ###############################
+
+# The term is "modulino".
+__PACKAGE__->main()                                     unless caller();
+
+# Main code.
+sub main {
+    # Note that we operate directly on @ARGV, not on function parameters.
+    # This is deliberate: it's because Getopt::Long only operates on @ARGV
+    # and there's no clean way to make it use @_.
+    handle_opts();                      # will set package globals
+
+    # Fetch command-line arguments.  Barf if too many.
+    die "$ME: Too many arguments; try $ME --help\n"                 if @ARGV;
+
+    my $help = skopeo_help();
+    my $man  = skopeo_man('skopeo');
+
+    xref_by_help($help, $man);
+    xref_by_man($help, $man);
+
+    exit !!$Errs;
+}
+
+###############################################################################
+# BEGIN cross-referencing
+
+##################
+#  xref_by_help  #  Find keys in '--help' but not in man
+##################
+sub xref_by_help {
+    my ($help, $man, @subcommand) = @_;
+
+    for my $k (sort keys %$help) {
+        if (exists $man->{$k}) {
+            if (ref $help->{$k}) {
+                xref_by_help($help->{$k}, $man->{$k}, @subcommand, $k);
+            }
+            # Otherwise, non-ref is leaf node such as a --option
+        }
+        else {
+            my $man = $man->{_path} || 'man';
+            warn "$ME: skopeo @subcommand --help lists $k, but $k not in $man\n";
+            ++$Errs;
+        }
+    }
+}
+
+#################
+#  xref_by_man  #  Find keys in man pages but not in --help
+#################
+#
+# In an ideal world we could share the functionality in one function; but
+# there are just too many special cases in man pages.
+#
+sub xref_by_man {
+    my ($help, $man, @subcommand) = @_;
+
+    # FIXME: this generates way too much output
+    for my $k (grep { $_ ne '_path' } sort keys %$man) {
+        if (exists $help->{$k}) {
+            if (ref $man->{$k}) {
+                xref_by_man($help->{$k}, $man->{$k}, @subcommand, $k);
+            }
+        }
+        elsif ($k ne '--help' && $k ne '-h') {
+            my $man = $man->{_path} || 'man';
+
+            warn "$ME: skopeo @subcommand: $k in $man, but not --help\n";
+            ++$Errs;
+        }
+    }
+}
+
+# END   cross-referencing
+###############################################################################
+# BEGIN data gathering
+
+#################
+#  skopeo_help  #  Parse output of 'skopeo [subcommand] --help'
+#################
+sub skopeo_help {
+    my %help;
+    open my $fh, '-|', $SKOPEO, @_, '--help'
+        or die "$ME: Cannot fork: $!\n";
+    my $section = '';
+    while (my $line = <$fh>) {
+        # Cobra is blessedly consistent in its output:
+        #    Usage: ...
+        #    Available Commands:
+        #       ....
+        #    Options:
+        #       ....
+        #
+        # Start by identifying the section we're in...
+        if ($line =~ /^Available\s+(Commands):/) {
+            $section = lc $1;
+        }
+        elsif ($line =~ /^(Flags):/) {
+            $section = lc $1;
+        }
+
+        # ...then track commands and options. For subcommands, recurse.
+        elsif ($section eq 'commands') {
+            if ($line =~ /^\s{1,4}(\S+)\s/) {
+                my $subcommand = $1;
+                print "> skopeo @_ $subcommand\n"               if $debug;
+                $help{$subcommand} = skopeo_help(@_, $subcommand)
+                    unless $subcommand eq 'help';       # 'help' not in man
+            }
+        }
+        elsif ($section eq 'flags') {
+            # Handle '--foo' or '-f, --foo'
+            if ($line =~ /^\s{1,10}(--\S+)\s/) {
+                print "> skopeo @_ $1\n"                        if $debug;
+                $help{$1} = 1;
+            }
+            elsif ($line =~ /^\s{1,10}(-\S),\s+(--\S+)\s/) {
+                print "> skopeo @_ $1, $2\n"                    if $debug;
+                $help{$1} = $help{$2} = 1;
+            }
+        }
+    }
+    close $fh
+        or die "$ME: Error running 'skopeo @_ --help'\n";
+
+    return \%help;
+}
+
+
+################
+#  skopeo_man  #  Parse contents of skopeo-*.1.md
+################
+sub skopeo_man {
+    my $command = shift;
+    my $manpath = "$Docs_Path/$command.1.md";
+    print "** $manpath \n"                              if $debug;
+
+    my %man = (_path => $manpath);
+    open my $fh, '<', $manpath
+        or die "$ME: Cannot read $manpath: $!\n";
+    my $section = '';
+    my @most_recent_flags;
+    my $previous_subcmd = '';
+    while (my $line = <$fh>) {
+        chomp $line;
+        next unless $line;		# skip empty lines
+
+        # .md files designate sections with leading double hash
+        if ($line =~ /^##\s*OPTIONS/) {
+            $section = 'flags';
+        }
+        elsif ($line =~ /^\#\#\s+(SUB)?COMMANDS/) {
+            $section = 'commands';
+        }
+        elsif ($line =~ /^\#\#[^#]/) {
+            $section = '';
+        }
+
+        # This will be a table containing subcommand names, links to man pages.
+        elsif ($section eq 'commands') {
+            # In skopeo.1.md
+            if ($line =~ /^\|\s*\[skopeo-(\S+?)\(\d\)\]/) {
+                # $1 will be changed by recursion _*BEFORE*_ left-hand assignment
+                my $subcmd = $1;
+                $man{$subcmd} = skopeo_man("skopeo-$1");
+            }
+        }
+
+        # Options should always be of the form '**-f**' or '**\-\-flag**',
+        # possibly separated by comma-space.
+        elsif ($section eq 'flags') {
+            # If option has long and short form, long must come first.
+            # This is a while-loop because there may be multiple long
+            # option names (not in skopeo ATM, but leave the possibility open)
+            while ($line =~ s/^\*\*(--[a-z0-9.-]+)\*\*(=\*[a-zA-Z0-9-]+\*)?(,\s+)?//g) {
+                $man{$1} = 1;
+            }
+            # Short form
+            if ($line =~ s/^\*\*(-[a-zA-Z0-9.])\*\*(=\*[a-zA-Z0-9-]+\*)?//g) {
+                $man{$1} = 1;
+            }
+        }
+    }
+    close $fh;
+
+    return \%man;
+}
+
+
+
+# END   data gathering
+###############################################################################
+
+1;

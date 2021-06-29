@@ -6,9 +6,6 @@
 # script that cross-checks that each option in skopeo foo --help is listed
 # in skopeo-foo.1.md and vice-versa; that one is xref-helpmsgs-manpages.
 #
-# IMPORTANT NOTE: this script runs on Macs, on which sed is an ancient
-# non-gnu version. To make sed work on all platforms, we invoke with '-E'.
-#
 
 verbose=
 for i; do
@@ -69,9 +66,6 @@ done
 function compare_usage() {
     local cmd="$1"
     local from_man="$2"
-
-    # Sometimes in CI we run before skopeo gets built.
-    test -x ../bin/skopeo || return
 
     # Run 'cmd --help', grab the line immediately after 'Usage:'
     local help_output=$(../bin/$cmd --help)
