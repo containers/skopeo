@@ -30,7 +30,7 @@ type tagsOptions struct {
 
 func tagsCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	imageFlags, imageOpts := dockerImageFlags(global, sharedOpts, "", "")
+	imageFlags, imageOpts := dockerImageFlags(global, sharedOpts, nil, "", "")
 	retryFlags, retryOpts := retryFlags()
 
 	opts := tagsOptions{

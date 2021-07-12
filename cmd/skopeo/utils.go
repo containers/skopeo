@@ -14,6 +14,7 @@ import (
 	"github.com/containers/image/v5/types"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -38,6 +39,33 @@ func commandAction(handler func(args []string, stdout io.Writer) error) func(cmd
 	}
 }
 
+// deprecatedTLSVerifyOption represents a deprecated --tls-verify option,
+// which was accepted for all subcommands, for a time.
+// Every user should call deprecatedTLSVerifyOption.warnIfUsed() as part of handling the CLI,
+// regardless if the value actually ends up being used.
+// DO NOT ADD ANY NEW USES OF THIS; just call dockerImageFlags with an appropriate, possibly empty, flagPrefix.
+type deprecatedTLSVerifyOption struct {
+	tlsVerify optionalBool // FIXME FIXME: Warn if this is used, or even if it is ignored.
+}
+
+// Warn if tlsVerify was set by the user; it was historically accepted
+// for this subcommand, but it makes no sense and it is ignored.
+func (opts *deprecatedTLSVerifyOption) warnIfUsed() {
+	if opts.tlsVerify.present {
+		logrus.Warn("'--tls-verify' has no effect on this subcommand and is deprecated")
+	}
+}
+
+// deprecatedTLSVerifyFlags prepares the CLI flag writing into deprecatedTLSVerifyOption, and the managed deprecatedTLSVerifyOption structure.
+// DO NOT ADD ANY NEW USES OF THIS; just call dockerImageFlags with an appropriate, possibly empty, flagPrefix.
+func deprecatedTLSVerifyFlags() (pflag.FlagSet, *deprecatedTLSVerifyOption) {
+	opts := deprecatedTLSVerifyOption{}
+	fs := pflag.FlagSet{}
+	flag := optionalBoolFlag(&fs, &opts.tlsVerify, "tls-verify", "require HTTPS and verify certificates when talking to the container registry or daemon (defaults to true)")
+	flag.Hidden = true
+	return fs, &opts
+}
+
 // sharedImageOptions collects CLI flags which are image-related, but do not change across images.
 // This really should be a part of globalOptions, but that would break existing users of (skopeo copy --authfile=).
 type sharedImageOptions struct {
@@ -56,14 +84,15 @@ func sharedImageFlags() (pflag.FlagSet, *sharedImageOptions) {
 // the same across subcommands, but may be different for each image
 // (e.g. may differ between the source and destination of a copy)
 type dockerImageOptions struct {
-	global         *globalOptions      // May be shared across several imageOptions instances.
-	shared         *sharedImageOptions // May be shared across several imageOptions instances.
-	authFilePath   optionalString      // Path to a */containers/auth.json (prefixed version to override shared image option).
-	credsOption    optionalString      // username[:password] for accessing a registry
-	registryToken  optionalString      // token to be used directly as a Bearer token when accessing the registry
-	dockerCertPath string              // A directory using Docker-like *.{crt,cert,key} files for connecting to a registry or a daemon
-	tlsVerify      optionalBool        // Require HTTPS and verify certificates (for docker: and docker-daemon:)
-	noCreds        bool                // Access the registry anonymously
+	global              *globalOptions             // May be shared across several imageOptions instances.
+	shared              *sharedImageOptions        // May be shared across several imageOptions instances.
+	deprecatedTLSVerify *deprecatedTLSVerifyOption // May be shared across several imageOptions instances, or nil.
+	authFilePath        optionalString             // Path to a */containers/auth.json (prefixed version to override shared image option).
+	credsOption         optionalString             // username[:password] for accessing a registry
+	registryToken       optionalString             // token to be used directly as a Bearer token when accessing the registry
+	dockerCertPath      string                     // A directory using Docker-like *.{crt,cert,key} files for connecting to a registry or a daemon
+	tlsVerify           optionalBool               // Require HTTPS and verify certificates (for docker: and docker-daemon:)
+	noCreds             bool                       // Access the registry anonymously
 }
 
 // imageOptions collects CLI flags which are the same across subcommands, but may be different for each image
@@ -76,11 +105,12 @@ type imageOptions struct {
 
 // dockerImageFlags prepares a collection of docker-transport specific CLI flags
 // writing into imageOptions, and the managed imageOptions structure.
-func dockerImageFlags(global *globalOptions, shared *sharedImageOptions, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageOptions) {
+func dockerImageFlags(global *globalOptions, shared *sharedImageOptions, deprecatedTLSVerify *deprecatedTLSVerifyOption, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageOptions) {
 	flags := imageOptions{
 		dockerImageOptions: dockerImageOptions{
-			global: global,
-			shared: shared,
+			global:              global,
+			shared:              shared,
+			deprecatedTLSVerify: deprecatedTLSVerify,
 		},
 	}
 
@@ -104,8 +134,8 @@ func dockerImageFlags(global *globalOptions, shared *sharedImageOptions, flagPre
 }
 
 // imageFlags prepares a collection of CLI flags writing into imageOptions, and the managed imageOptions structure.
-func imageFlags(global *globalOptions, shared *sharedImageOptions, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageOptions) {
-	dockerFlags, opts := dockerImageFlags(global, shared, flagPrefix, credsOptionAlias)
+func imageFlags(global *globalOptions, shared *sharedImageOptions, deprecatedTLSVerify *deprecatedTLSVerifyOption, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageOptions) {
+	dockerFlags, opts := dockerImageFlags(global, shared, deprecatedTLSVerify, flagPrefix, credsOptionAlias)
 
 	fs := pflag.FlagSet{}
 	fs.StringVar(&opts.sharedBlobDir, flagPrefix+"shared-blob-dir", "", "`DIRECTORY` to use to share blobs across OCI repositories")
@@ -134,6 +164,10 @@ func (opts *imageOptions) newSystemContext() (*types.SystemContext, error) {
 	ctx.DockerDaemonCertPath = opts.dockerCertPath
 	if opts.dockerImageOptions.authFilePath.present {
 		ctx.AuthFilePath = opts.dockerImageOptions.authFilePath.value
+	}
+	if opts.deprecatedTLSVerify != nil && opts.deprecatedTLSVerify.tlsVerify.present {
+		// If both this deprecated option and a non-deprecated option is present, we use the latter value.
+		ctx.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!opts.deprecatedTLSVerify.tlsVerify.value)
 	}
 	if opts.tlsVerify.present {
 		ctx.DockerDaemonInsecureSkipTLSVerify = !opts.tlsVerify.value
@@ -171,8 +205,8 @@ type imageDestOptions struct {
 }
 
 // imageDestFlags prepares a collection of CLI flags writing into imageDestOptions, and the managed imageDestOptions structure.
-func imageDestFlags(global *globalOptions, shared *sharedImageOptions, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageDestOptions) {
-	genericFlags, genericOptions := imageFlags(global, shared, flagPrefix, credsOptionAlias)
+func imageDestFlags(global *globalOptions, shared *sharedImageOptions, deprecatedTLSVerify *deprecatedTLSVerifyOption, flagPrefix, credsOptionAlias string) (pflag.FlagSet, *imageDestOptions) {
+	genericFlags, genericOptions := imageFlags(global, shared, deprecatedTLSVerify, flagPrefix, credsOptionAlias)
 	opts := imageDestOptions{imageOptions: genericOptions}
 	fs := pflag.FlagSet{}
 	fs.AddFlagSet(&genericFlags)

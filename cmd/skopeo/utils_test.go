@@ -17,7 +17,7 @@ func fakeGlobalOptions(t *testing.T, flags []string) (*globalOptions, *cobra.Com
 	app, opts := createApp()
 	cmd := &cobra.Command{}
 	app.AddCommand(cmd)
-	err := cmd.ParseFlags(flags)
+	err := app.ParseFlags(flags)
 	require.NoError(t, err)
 	return opts, cmd
 }
@@ -26,7 +26,7 @@ func fakeGlobalOptions(t *testing.T, flags []string) (*globalOptions, *cobra.Com
 func fakeImageOptions(t *testing.T, flagPrefix string, globalFlags []string, cmdFlags []string) *imageOptions {
 	globalOpts, cmd := fakeGlobalOptions(t, globalFlags)
 	sharedFlags, sharedOpts := sharedImageFlags()
-	imageFlags, imageOpts := imageFlags(globalOpts, sharedOpts, flagPrefix, "")
+	imageFlags, imageOpts := imageFlags(globalOpts, sharedOpts, nil /*FIXME?*/, flagPrefix, "")
 	cmd.Flags().AddFlagSet(&sharedFlags)
 	cmd.Flags().AddFlagSet(&imageFlags)
 	err := cmd.ParseFlags(cmdFlags)
@@ -121,7 +121,7 @@ func TestImageOptionsNewSystemContext(t *testing.T) {
 func fakeImageDestOptions(t *testing.T, flagPrefix string, globalFlags []string, cmdFlags []string) *imageDestOptions {
 	globalOpts, cmd := fakeGlobalOptions(t, globalFlags)
 	sharedFlags, sharedOpts := sharedImageFlags()
-	imageFlags, imageOpts := imageDestFlags(globalOpts, sharedOpts, flagPrefix, "")
+	imageFlags, imageOpts := imageDestFlags(globalOpts, sharedOpts, nil /*FIXME?*/, flagPrefix, "")
 	cmd.Flags().AddFlagSet(&sharedFlags)
 	cmd.Flags().AddFlagSet(&imageFlags)
 	err := cmd.ParseFlags(cmdFlags)

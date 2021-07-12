@@ -20,7 +20,7 @@ type deleteOptions struct {
 
 func deleteCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	imageFlags, imageOpts := imageFlags(global, sharedOpts, "", "")
+	imageFlags, imageOpts := imageFlags(global, sharedOpts, nil, "", "")
 	retryFlags, retryOpts := retryFlags()
 	opts := deleteOptions{
 		global:    global,

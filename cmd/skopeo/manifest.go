@@ -11,10 +11,14 @@ import (
 )
 
 type manifestDigestOptions struct {
+	deprecatedTLSVerify *deprecatedTLSVerifyOption
 }
 
 func manifestDigestCmd() *cobra.Command {
-	var opts manifestDigestOptions
+	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
+	opts := manifestDigestOptions{
+		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
+	}
 	cmd := &cobra.Command{
 		Use:     "manifest-digest MANIFEST-FILE",
 		Short:   "Compute a manifest digest of a file",
@@ -22,6 +26,8 @@ func manifestDigestCmd() *cobra.Command {
 		Example: "skopeo manifest-digest manifest.json",
 	}
 	adjustUsage(cmd)
+	flags := cmd.Flags()
+	flags.AddFlagSet(&deprecatedTLSVerifyFlags)
 	return cmd
 }
 
@@ -30,6 +36,7 @@ func (opts *manifestDigestOptions) run(args []string, stdout io.Writer) error {
 		return errors.New("Usage: skopeo manifest-digest manifest")
 	}
 	manifestPath := args[0]
+	opts.deprecatedTLSVerify.warnIfUsed()
 
 	man, err := ioutil.ReadFile(manifestPath)
 	if err != nil {

@@ -34,7 +34,7 @@ type inspectOptions struct {
 
 func inspectCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	imageFlags, imageOpts := imageFlags(global, sharedOpts, "", "")
+	imageFlags, imageOpts := imageFlags(global, sharedOpts, nil, "", "")
 	retryFlags, retryOpts := retryFlags()
 	opts := inspectOptions{
 		global:    global,

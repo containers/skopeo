@@ -25,7 +25,7 @@ type layersOptions struct {
 
 func layersCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	imageFlags, imageOpts := imageFlags(global, sharedOpts, "", "")
+	imageFlags, imageOpts := imageFlags(global, sharedOpts, nil, "", "")
 	retryFlags, retryOpts := retryFlags()
 	opts := layersOptions{
 		global:    global,

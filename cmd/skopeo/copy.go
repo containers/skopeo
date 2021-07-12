@@ -37,8 +37,9 @@ type copyOptions struct {
 
 func copyCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	srcFlags, srcOpts := imageFlags(global, sharedOpts, "src-", "screds")
-	destFlags, destOpts := imageDestFlags(global, sharedOpts, "dest-", "dcreds")
+	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
+	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
+	destFlags, destOpts := imageDestFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")
 	retryFlags, retryOpts := retryFlags()
 	opts := copyOptions{global: global,
 		srcImage:  srcOpts,
@@ -61,6 +62,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	adjustUsage(cmd)
 	flags := cmd.Flags()
 	flags.AddFlagSet(&sharedFlags)
+	flags.AddFlagSet(&deprecatedTLSVerifyFlags)
 	flags.AddFlagSet(&srcFlags)
 	flags.AddFlagSet(&destFlags)
 	flags.AddFlagSet(&retryFlags)

@@ -8,13 +8,16 @@ import (
 )
 
 type logoutOptions struct {
-	global     *globalOptions
-	logoutOpts auth.LogoutOptions
+	global              *globalOptions
+	deprecatedTLSVerify *deprecatedTLSVerifyOption
+	logoutOpts          auth.LogoutOptions
 }
 
 func logoutCmd(global *globalOptions) *cobra.Command {
+	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
 	opts := logoutOptions{
-		global: global,
+		global:              global,
+		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
 	}
 	cmd := &cobra.Command{
 		Use:     "logout [command options] REGISTRY",
@@ -24,11 +27,15 @@ func logoutCmd(global *globalOptions) *cobra.Command {
 		Example: `skopeo logout quay.io`,
 	}
 	adjustUsage(cmd)
-	cmd.Flags().AddFlagSet(auth.GetLogoutFlags(&opts.logoutOpts))
+	flags := cmd.Flags()
+	flags.AddFlagSet(&deprecatedTLSVerifyFlags)
+	flags.AddFlagSet(auth.GetLogoutFlags(&opts.logoutOpts))
 	return cmd
 }
 
 func (opts *logoutOptions) run(args []string, stdout io.Writer) error {
+	opts.deprecatedTLSVerify.warnIfUsed()
+
 	opts.logoutOpts.Stdout = stdout
 	sys := opts.global.newSystemContext()
 	return auth.Logout(sys, &opts.logoutOpts, args)

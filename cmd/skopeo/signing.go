@@ -12,11 +12,15 @@ import (
 )
 
 type standaloneSignOptions struct {
-	output string // Output file path
+	output              string // Output file path
+	deprecatedTLSVerify *deprecatedTLSVerifyOption
 }
 
 func standaloneSignCmd() *cobra.Command {
-	opts := standaloneSignOptions{}
+	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
+	opts := standaloneSignOptions{
+		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
+	}
 	cmd := &cobra.Command{
 		Use:   "standalone-sign [command options] MANIFEST DOCKER-REFERENCE KEY-FINGERPRINT --output|-o SIGNATURE",
 		Short: "Create a signature using local files",
@@ -24,6 +28,7 @@ func standaloneSignCmd() *cobra.Command {
 	}
 	adjustUsage(cmd)
 	flags := cmd.Flags()
+	flags.AddFlagSet(&deprecatedTLSVerifyFlags)
 	flags.StringVarP(&opts.output, "output", "o", "", "output the signature to `SIGNATURE`")
 	return cmd
 }
@@ -35,6 +40,7 @@ func (opts *standaloneSignOptions) run(args []string, stdout io.Writer) error {
 	manifestPath := args[0]
 	dockerReference := args[1]
 	fingerprint := args[2]
+	opts.deprecatedTLSVerify.warnIfUsed()
 
 	manifest, err := ioutil.ReadFile(manifestPath)
 	if err != nil {
@@ -58,16 +64,22 @@ func (opts *standaloneSignOptions) run(args []string, stdout io.Writer) error {
 }
 
 type standaloneVerifyOptions struct {
+	deprecatedTLSVerify *deprecatedTLSVerifyOption
 }
 
 func standaloneVerifyCmd() *cobra.Command {
-	opts := standaloneVerifyOptions{}
+	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
+	opts := standaloneVerifyOptions{
+		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
+	}
 	cmd := &cobra.Command{
 		Use:   "standalone-verify MANIFEST DOCKER-REFERENCE KEY-FINGERPRINT SIGNATURE",
 		Short: "Verify a signature using local files",
 		RunE:  commandAction(opts.run),
 	}
 	adjustUsage(cmd)
+	flags := cmd.Flags()
+	flags.AddFlagSet(&deprecatedTLSVerifyFlags)
 	return cmd
 }
 
@@ -79,6 +91,7 @@ func (opts *standaloneVerifyOptions) run(args []string, stdout io.Writer) error 
 	expectedDockerReference := args[1]
 	expectedFingerprint := args[2]
 	signaturePath := args[3]
+	opts.deprecatedTLSVerify.warnIfUsed()
 
 	unverifiedManifest, err := ioutil.ReadFile(manifestPath)
 	if err != nil {
@@ -110,10 +123,14 @@ func (opts *standaloneVerifyOptions) run(args []string, stdout io.Writer) error 
 //
 // The subcommand is undocumented, and it may be renamed or entirely disappear in the future.
 type untrustedSignatureDumpOptions struct {
+	deprecatedTLSVerify *deprecatedTLSVerifyOption
 }
 
 func untrustedSignatureDumpCmd() *cobra.Command {
-	opts := untrustedSignatureDumpOptions{}
+	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
+	opts := untrustedSignatureDumpOptions{
+		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
+	}
 	cmd := &cobra.Command{
 		Use:    "untrusted-signature-dump-without-verification SIGNATURE",
 		Short:  "Dump contents of a signature WITHOUT VERIFYING IT",
@@ -121,6 +138,8 @@ func untrustedSignatureDumpCmd() *cobra.Command {
 		Hidden: true,
 	}
 	adjustUsage(cmd)
+	flags := cmd.Flags()
+	flags.AddFlagSet(&deprecatedTLSVerifyFlags)
 	return cmd
 }
 
@@ -129,6 +148,7 @@ func (opts *untrustedSignatureDumpOptions) run(args []string, stdout io.Writer) 
 		return errors.New("Usage: skopeo untrusted-signature-dump-without-verification signature")
 	}
 	untrustedSignaturePath := args[0]
+	opts.deprecatedTLSVerify.warnIfUsed()
 
 	untrustedSignature, err := ioutil.ReadFile(untrustedSignaturePath)
 	if err != nil {

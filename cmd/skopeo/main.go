@@ -50,6 +50,12 @@ func createApp() (*cobra.Command, *globalOptions) {
 		// already making us of that.  If Skopeo decides to follow, please
 		// remove the line below (and hide the `completion` command).
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
+		// This is documented to parse "local" (non-PersistentFlags) flags of parent commands before
+		// running subcommands and handling their options. We don't really run into such cases,
+		// because all of our flags on rootCommand are in PersistenFlags, except for the deprecated --tls-verify;
+		// in that case we need TraverseChildren so that we can distinguish between
+		// (skopeo --tls-verify inspect) (causes a warning) and (skopeo inspect --tls-verify) (no warning).
+		TraverseChildren: true,
 	}
 	if gitCommit != "" {
 		rootCommand.Version = fmt.Sprintf("%s commit: %s", version.Version, gitCommit)
@@ -60,8 +66,6 @@ func createApp() (*cobra.Command, *globalOptions) {
 	var dummyVersion bool
 	rootCommand.Flags().BoolVarP(&dummyVersion, "version", "v", false, "Version for Skopeo")
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
-	flag := optionalBoolFlag(rootCommand.PersistentFlags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
-	flag.Hidden = true
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
@@ -74,6 +78,8 @@ func createApp() (*cobra.Command, *globalOptions) {
 		logrus.Fatal("unable to mark registries-conf flag as hidden")
 	}
 	rootCommand.PersistentFlags().StringVar(&opts.tmpDir, "tmpdir", "", "directory used to store temporary files")
+	flag := optionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
+	flag.Hidden = true
 	rootCommand.AddCommand(
 		copyCmd(&opts),
 		deleteCmd(&opts),
