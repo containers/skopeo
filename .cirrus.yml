@@ -69,9 +69,17 @@ doccheck_task:
     only_if: $CIRRUS_PR != ''
     depends_on:
       - validate
-    container:  *build_container
+    container:
+        image: "${FEDORA_CONTAINER_FQIN}"
+        cpu: 4
+        memory: 8
+    env:
+        BUILDTAGS: &withopengpg 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
     script: |
-      "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
+      # TODO: Can't use 'runner.sh setup' inside container.  However,
+      # removing the pre-installed package is the only necessary step
+      # at the time of this comment.
+      dnf erase -y skopeo  # Guarantee non-interference
       "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
       "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
 
@@ -110,7 +118,7 @@ cross_task:
         disk: 200
         image_name: ${FEDORA_CACHE_IMAGE_NAME}
     env:
-        BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
+        BUILDTAGS: *withopengpg
     setup_script: >-
         "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
     cross_script: >-
@@ -142,15 +150,13 @@ test_skopeo_task:
               BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove'
         - name: "Skopeo Test w/ opengpg"
           env:
-              BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
+              BUILDTAGS: *withopengpg
     setup_script: >-
         "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
     vendor_script: >-
         "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" vendor
     build_script: >-
         "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
-    validate_script: >-
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" validate
     unit_script: >-
         "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" unit
     integration_script: >-

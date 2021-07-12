@@ -54,7 +54,7 @@ _run_vendor() {
 }
 
 _run_build() {
-    podmanmake bin/skopeo BUILDTAGS="$BUILDTAGS"
+    make bin/skopeo BUILDTAGS="$BUILDTAGS"
 }
 
 _run_cross() {
@@ -66,7 +66,7 @@ _run_validate() {
 }
 
 _run_doccheck() {
-    podmanmake validate-docs BUILDTAGS="$BUILDTAGS"
+    make validate-docs BUILDTAGS="$BUILDTAGS"
 }
 
 _run_unit() {
