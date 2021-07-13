@@ -6,17 +6,62 @@ import (
 
 	"github.com/containers/image/v5/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // runSkopeo creates an app object and runs it with args, with an implied first "skopeo".
 // Returns output intended for stdout and the returned error, if any.
 func runSkopeo(args ...string) (string, error) {
-	app, _ := createApp()
+	app, _ := createApp(false)
 	stdout := bytes.Buffer{}
 	app.SetOut(&stdout)
 	app.SetArgs(args)
 	err := app.Execute()
 	return stdout.String(), err
+}
+
+func TestRootHelpFunc(t *testing.T) {
+	for _, c := range []struct {
+		subcommand string
+		filter     bool
+	}{
+		{"", true},
+		{"inspect", false},
+		{"copy", false},
+	} {
+		var args []string
+		if c.subcommand == "" {
+			args = []string{"--help"}
+		} else {
+			args = []string{c.subcommand, "--help"}
+		}
+
+		unfilteredApp, _ := createApp(true)
+		unfilteredStdout := bytes.Buffer{}
+		unfilteredStderr := bytes.Buffer{}
+		unfilteredApp.SetOut(&unfilteredStdout)
+		unfilteredApp.SetErr(&unfilteredStderr)
+		unfilteredApp.SetArgs(args)
+		err := unfilteredApp.Execute()
+		require.NoError(t, err, c.subcommand)
+
+		normalApp, _ := createApp(true)
+		normalStdout := bytes.Buffer{}
+		normalStderr := bytes.Buffer{}
+		normalApp.SetOut(&normalStdout)
+		normalApp.SetErr(&normalStderr)
+		normalApp.SetArgs(args)
+		err = normalApp.Execute()
+		require.NoError(t, err, c.subcommand)
+
+		assert.Equal(t, unfilteredStderr, normalStderr, c.subcommand)
+		if !c.filter {
+			assert.Equal(t, unfilteredStdout, normalStdout, c.subcommand)
+		} else {
+			// FIXME
+			assert.Equal(t, unfilteredStdout, normalStdout, c.subcommand)
+		}
+	}
 }
 
 func TestGlobalOptionsNewSystemContext(t *testing.T) {

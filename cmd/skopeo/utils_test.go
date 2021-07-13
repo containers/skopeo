@@ -14,7 +14,7 @@ import (
 
 // fakeGlobalOptions creates globalOptions and sets it according to flags.
 func fakeGlobalOptions(t *testing.T, flags []string) (*globalOptions, *cobra.Command) {
-	app, opts := createApp()
+	app, opts := createApp(false)
 	cmd := &cobra.Command{}
 	app.AddCommand(cmd)
 	err := cmd.ParseFlags(flags)

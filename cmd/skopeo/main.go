@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/containers/image/v5/signature"
@@ -34,7 +37,8 @@ type globalOptions struct {
 }
 
 // createApp returns a cobra.Command, and the underlying globalOptions object, to be run or tested.
-func createApp() (*cobra.Command, *globalOptions) {
+// unfilteredHelp should always be false, it only exists to test rootHelpFunc.
+func createApp(unfilteredHelp bool) (*cobra.Command, *globalOptions) {
 	opts := globalOptions{}
 
 	rootCommand := &cobra.Command{
@@ -60,8 +64,8 @@ func createApp() (*cobra.Command, *globalOptions) {
 	var dummyVersion bool
 	rootCommand.Flags().BoolVarP(&dummyVersion, "version", "v", false, "Version for Skopeo")
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
-	flag := optionalBoolFlag(rootCommand.PersistentFlags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
-	flag.Hidden = true
+	// This flag is hidden from top-level --help via rootHelpFunc
+	optionalBoolFlag(rootCommand.PersistentFlags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
@@ -88,7 +92,68 @@ func createApp() (*cobra.Command, *globalOptions) {
 		tagsCmd(&opts),
 		untrustedSignatureDumpCmd(),
 	)
+	if !unfilteredHelp {
+		rootCommand.SetHelpFunc(rootHelpFunc(rootCommand))
+	}
 	return rootCommand, &opts
+}
+
+// rootHelpFunc implements (skopeo --help).
+// We want to hide the deprecated global --tls-verify command from help, and we can't do it
+// by just marking it hidden, because that marks the local --tls-verify (e.g. skopeo inspect --tls-verify)
+// hidden as well.
+// So we just filter it out here.
+func rootHelpFunc(rootCommand *cobra.Command) func(*cobra.Command, []string) {
+	reentered := false
+	return func(c *cobra.Command, a []string) {
+		if reentered {
+			// We don't plan for this to happen.
+			panic("Internal error: rootHelpFunc's closure was reentered")
+		}
+		reentered = true
+
+		// The function set by SetHelpFunc is also called by (skopeo subcommand --help); in that
+		// case we don't want to modify anything.
+		filterTLSVerify := c == rootCommand
+		logrus.Errorf("rootHelpFunc %v %v", filterTLSVerify, a)
+
+		// We expect to be only called once; so we can just revert to the default implementation
+		// here ...
+		rootCommand.SetHelpFunc(nil) // Note that nil is not quite a documented valid value
+		// .. and then obtain the built-in HelpFunc implementation, which is not available
+		// as a named method.
+		defaultHelpFunc := rootCommand.HelpFunc()
+
+		// Again, we expect to be called once; so, destructively redirect the output of the
+		// --help implementation
+		realOut := c.OutOrStdout()
+		buf := bytes.Buffer{}
+		c.SetOut(&buf)
+
+		// Collect the default --help output...
+		defaultHelpFunc(c, a)
+		// ... and modify it
+		res := bytes.Buffer{}
+		for {
+			line, err := buf.ReadString('\n')
+			if err == io.EOF {
+				break
+			}
+			logrus.Errorf("Line %v", line)
+			if err != nil {
+				c.PrintErrln(fmt.Sprintf("Error preparing --help output from a buffer: %v", err.Error()))
+				return
+			}
+			if !filterTLSVerify || !strings.Contains(line, "--tls-verify") {
+				res.WriteString(line)
+			} else {
+				logrus.Errorf("IGNORED %v", line)
+			}
+		}
+		if _, err := realOut.Write(res.Bytes()); err != nil {
+			c.PrintErrln(err)
+		}
+	}
 }
 
 // before is run by the cli package for any command, before running the command-specific handler.
@@ -106,7 +171,7 @@ func main() {
 	if reexec.Init() {
 		return
 	}
-	rootCmd, _ := createApp()
+	rootCmd, _ := createApp(false)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
