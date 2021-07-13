@@ -16,7 +16,15 @@ and usually should not be a part of your normal operational workflow; use `skope
 
   _key-fingerprint_ Key identity to use for signing
 
-  **--output**|**-o** output file
+## OPTIONS
+
+**--help**, **-h**
+
+Print usage statement
+
+**--output**, **-o** _output file_
+
+Write signature to _output file_.
 
 ## EXAMPLES
 

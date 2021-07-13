@@ -10,6 +10,12 @@ skopeo\-manifest\-digest - Compute a manifest digest for a manifest-file and wri
 
 Compute a manifest digest of _manifest-file_ and write it to standard output.
 
+## OPTIONS
+
+**--help**, **-h**
+
+Print usage statement
+
 ## EXAMPLES
 
 ```sh
@@ -23,4 +29,3 @@ skopeo(1)
 ## AUTHORS
 
 Antonio Murdaca <runcom@redhat.com>, Miloslav Trmac <mitr@redhat.com>, Jhon Honce <jhonce@redhat.com>
-

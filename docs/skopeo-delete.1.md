@@ -19,24 +19,46 @@ $ docker exec -it registry /usr/bin/registry garbage-collect /etc/docker-distrib
 
 ```
 
+## OPTIONS
+
 **--authfile** _path_
 
-  Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
-  If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
+Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
+If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
-**--creds** _username[:password]_ for accessing the registry.
+**--creds** _username[:password]_
 
-**--cert-dir** _path_ Use certificates at _path_ (*.crt, *.cert, *.key) to connect to the registry.
+Credentials for accessing the registry.
 
-**--tls-verify** _bool-value_ Require HTTPS and verify certificates when talking to container registries (defaults to true).
+**--cert-dir** _path_
 
-**--no-creds** _bool-value_ Access the registry anonymously.
+Use certificates at _path_ (*.crt, *.cert, *.key) to connect to the registry.
+
+**--daemon-host** _host_
+
+Use docker daemon host at _host_ (`docker-daemon:` transport only)
+
+**--help**, **-h**
+
+Print usage statement
+
+**--no-creds** _bool-value_
+
+Access the registry anonymously.
 
 Additionally, the registry must allow deletions by setting `REGISTRY_STORAGE_DELETE_ENABLED=true` for the registry daemon.
 
-**--registry-token** _Bearer token_ for accessing the registry.
+**--registry-token** _token_
 
-**--retry-times**  the number of times to retry, retry wait time will be exponentially increased based on the number of failed attempts.
+Bearer token for accessing the registry.
+
+**--retry-times**
+
+The number of times to retry. Retry wait time will be exponentially increased based on the number of failed attempts.
+
+**--shared-blob-dir** _directory_
+
+Directory to use to share blobs across OCI repositories.
 
 ## EXAMPLES
 

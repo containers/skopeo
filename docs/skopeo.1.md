@@ -51,27 +51,49 @@ See [containers-transports(5)](https://github.com/containers/image/blob/master/d
 
 ## OPTIONS
 
-  **--command-timeout** _duration_ Timeout for the command execution.
+**--command-timeout** _duration_
 
-  **--debug** enable debug output
+Timeout for the command execution.
 
-  **--help**|**-h** Show help
+**--debug**
 
-  **--insecure-policy** Adopt an insecure, permissive policy that allows anything. This obviates the need for a policy file.
+enable debug output
 
-  **--override-arch** _arch_ Use _arch_ instead of the architecture of the machine for choosing images.
+**--help**, **-h**
 
-  **--override-os** _OS_ Use _OS_ instead of the running OS for choosing images.
+Show help
 
-  **--override-variant** _VARIANT_ Use _VARIANT_ instead of the running architecture variant for choosing images.
+**--insecure-policy**
 
-  **--policy** _path-to-policy_ Path to a policy.json file to use for verifying signatures and deciding whether an image is trusted, overriding the default trust policy file.
+Adopt an insecure, permissive policy that allows anything. This obviates the need for a policy file.
 
-  **--registries.d** _dir_ use registry configuration files in _dir_ (e.g. for container signature storage), overriding the default path.
+**--override-arch** _arch_
 
-  **--tmpdir** _dir_ used to store temporary files. Defaults to /var/tmp.
+Use _arch_ instead of the architecture of the machine for choosing images.
 
-  **--version**|**-v** print the version number
+**--override-os** _os_
+
+Use _OS_ instead of the running OS for choosing images.
+
+**--override-variant** _variant_
+
+Use _variant_ instead of the running architecture variant for choosing images.
+
+**--policy** _path-to-policy_
+
+Path to a policy.json file to use for verifying signatures and deciding whether an image is trusted, overriding the default trust policy file.
+
+**--registries.d** _dir_
+
+Use registry configuration files in _dir_ (e.g. for container signature storage), overriding the default path.
+
+**--tmpdir** _dir_
+
+Directory used to store temporary files. Defaults to /var/tmp.
+
+**--version**, **-v**
+
+Print the version number
 
 ## COMMANDS
 

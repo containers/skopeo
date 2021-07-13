@@ -10,22 +10,34 @@ Return a list of tags from _repository-name_ in a registry.
 
   _repository-name_ name of repository to retrieve tag listing from
 
-  **--authfile** _path_
+## OPTIONS
 
-  Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
+**--authfile** _path_
+
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
   If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
-  **--creds** _username[:password]_ for accessing the registry.
+**--creds** _username[:password]_ for accessing the registry.
 
-  **--cert-dir** _path_ Use certificates at _path_ (\*.crt, \*.cert, \*.key) to connect to the registry.
+**--cert-dir** _path_
 
-  **--tls-verify** _bool-value_ Require HTTPS and verify certificates when talking to container registries (defaults to true).
+Use certificates at _path_ (\*.crt, \*.cert, \*.key) to connect to the registry.
 
-  **--no-creds** _bool-value_ Access the registry anonymously.
+**--help**, **-h**
 
-  **--registry-token** _Bearer token_ for accessing the registry.
+Print usage statement
 
-  **--retry-times**  the number of times to retry, retry wait time will be exponentially increased based on the number of failed attempts.
+**--no-creds** _bool-value_
+
+Access the registry anonymously.
+
+**--registry-token** _Bearer token_
+
+Bearer token for accessing the registry.
+
+**--retry-times**
+
+The number of times to retry. Retry wait time will be exponentially increased based on the number of failed attempts.
 
 ## REPOSITORY NAMES
 

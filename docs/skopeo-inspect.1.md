@@ -31,10 +31,18 @@ Output configuration in OCI format, default is to format in JSON format.
 
 Username and password for accessing the registry.
 
+**--daemon-host** _host_
+
+Use docker daemon host at _host_ (`docker-daemon:` transport only)
+
 **--format**, **-f**=*format*
 
 Format the output using the given Go template.
 The keys of the returned JSON can be used as the values for the --format flag (see examples below).
+
+**--help**, **-h**
+
+Print usage statement
 
 **--no-creds**
 
@@ -53,9 +61,9 @@ Registry token for accessing the registry.
 
 The number of times to retry; retry wait time will be exponentially increased based on the number of failed attempts.
 
-**--tls-verify**
+**--shared-blob-dir** _directory_
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).
+Directory to use to share blobs across OCI repositories.
 
 ## EXAMPLES
 

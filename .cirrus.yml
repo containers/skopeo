@@ -29,7 +29,7 @@ env:
     PRIOR_UBUNTU_NAME: "ubuntu-2010"
 
     # Google-cloud VM Images
-    IMAGE_SUFFIX: "c4805484248039424"
+    IMAGE_SUFFIX: "c6248193773010944"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
@@ -65,6 +65,23 @@ validate_task:
         make validate-local
         make vendor && hack/tree_status.sh
 
+doccheck_task:
+    only_if: $CIRRUS_PR != ''
+    depends_on:
+      - validate
+    container:
+        image: "${FEDORA_CONTAINER_FQIN}"
+        cpu: 4
+        memory: 8
+    env:
+        BUILDTAGS: &withopengpg 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
+    script: |
+      # TODO: Can't use 'runner.sh setup' inside container.  However,
+      # removing the pre-installed package is the only necessary step
+      # at the time of this comment.
+      dnf erase -y skopeo  # Guarantee non-interference
+      "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
+      "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
 
 osx_task:
     only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
@@ -101,7 +118,7 @@ cross_task:
         disk: 200
         image_name: ${FEDORA_CACHE_IMAGE_NAME}
     env:
-        BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
+        BUILDTAGS: *withopengpg
     setup_script: >-
         "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
     cross_script: >-
@@ -133,15 +150,13 @@ test_skopeo_task:
               BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove'
         - name: "Skopeo Test w/ opengpg"
           env:
-              BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
+              BUILDTAGS: *withopengpg
     setup_script: >-
         "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
     vendor_script: >-
         "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" vendor
     build_script: >-
         "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
-    validate_script: >-
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" validate
     unit_script: >-
         "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" unit
     integration_script: >-
@@ -185,6 +200,7 @@ success_task:
     # N/B: ALL tasks must be listed here, minus their '_task' suffix.
     depends_on:
         - validate
+        - doccheck
         - osx
         - cross
         - test_skopeo
