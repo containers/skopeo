@@ -150,7 +150,7 @@ skopeo  copy --encryption-key jwe:./public.key --encrypt-layer 1 oci:local_nginx
 ```
 
 ## SEE ALSO
-skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5)
+skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5), containers-signature(5)
 
 ## AUTHORS
 
