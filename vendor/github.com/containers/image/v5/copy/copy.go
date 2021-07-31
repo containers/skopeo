@@ -124,7 +124,6 @@ type copier struct {
 	ociEncryptConfig      *encconfig.EncryptConfig
 	maxParallelDownloads  uint
 	downloadForeignLayers bool
-	fetchPartialBlobs     bool
 }
 
 // imageCopier tracks state specific to a single image (possibly an item of a manifest list)
@@ -208,9 +207,6 @@ type Options struct {
 	// Download layer contents with "nondistributable" media types ("foreign" layers) and translate the layer media type
 	// to not indicate "nondistributable".
 	DownloadForeignLayers bool
-
-	// FetchPartialBlobs indicates whether to attempt to fetch the blob partially.  Experimental.
-	FetchPartialBlobs bool
 }
 
 // validateImageListSelection returns an error if the passed-in value is not one that we recognize as a valid ImageListSelection value
@@ -291,7 +287,6 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 		ociEncryptConfig:      options.OciEncryptConfig,
 		maxParallelDownloads:  options.MaxParallelDownloads,
 		downloadForeignLayers: options.DownloadForeignLayers,
-		fetchPartialBlobs:     options.FetchPartialBlobs,
 	}
 	// Default to using gzip compression unless specified otherwise.
 	if options.DestinationCtx == nil || options.DestinationCtx.CompressionFormat == nil {
@@ -1283,7 +1278,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 	// the destination has support for it.
 	imgSource, okSource := ic.c.rawSource.(internalTypes.ImageSourceSeekable)
 	imgDest, okDest := ic.c.dest.(internalTypes.ImageDestinationPartial)
-	if ic.c.fetchPartialBlobs && okSource && okDest && !diffIDIsNeeded {
+	if okSource && okDest && !diffIDIsNeeded {
 		bar := ic.c.createProgressBar(pool, true, srcInfo, "blob", "done")
 
 		progress := make(chan int64)
@@ -1317,7 +1312,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			return info, cachedDiffID, nil
 		}
 		bar.Abort(true)
-		logrus.Errorf("Failed to retrieve partial blob: %v", err)
+		logrus.Debugf("Failed to retrieve partial blob: %v", err)
 	}
 
 	// Fallback: copy the layer, computing the diffID if we need to do so
