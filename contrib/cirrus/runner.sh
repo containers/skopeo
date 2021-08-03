@@ -28,6 +28,10 @@ export SKOPEO_CONTAINER_TESTS=1
 export "PATH=$PATH:$GOPATH/bin"
 
 _run_setup() {
+    msg "GETENT WHOAMI: $(whoami)"
+    msg "$(getent passwd $(whoami))"
+    msg "HOME='$HOME'"
+
     local mnt
     local errmsg
     req_env_vars SKOPEO_CIDEV_CONTAINER_FQIN
@@ -104,7 +108,7 @@ _run_unit() {
 _run_integration() {
     # Ensure we start with a clean-slate
     podman system reset --force
-    make test-integration-local BUILDTAGS="$BUILDTAGS"
+    HOME=/root make test-integration-local BUILDTAGS="$BUILDTAGS"
 }
 
 _run_system() {
