@@ -215,8 +215,16 @@ func (cluster *openshiftCluster) ocLoginToProject(c *check.C) {
 	c.Logf("oc login")
 	cmd := cluster.clusterCmd(nil, "oc", "login", "--certificate-authority=openshift.local.config/master/ca.crt", "-u", "myuser", "-p", "mypw", "https://localhost:8443")
 	out, err := cmd.CombinedOutput()
+	c.Logf("===oc login\n%s\n===oc login===", out)
 	c.Assert(err, check.IsNil, check.Commentf("%s", out))
 	c.Assert(string(out), check.Matches, "(?s).*Login successful.*") // (?s) : '.' will also match newlines
+
+	out2 := combinedOutputOfCommand(c, "bash", "-c", "find . | sort")
+	c.Logf("==FIND .\n%s\n==FIND .", out2)
+	out2 = combinedOutputOfCommand(c, "bash", "-c", "echo $HOME; find $HOME | sort")
+	c.Logf("==FIND $HOME\n%s\n==FIND $HOME", out2)
+	out2 = combinedOutputOfCommand(c, "bash", "-c", "echo ~/.kube/config; cat ~/.kube/config")
+	c.Logf("==KUBECONFIG\n%s\n==KUBECONFIG", out2)
 
 	outString := combinedOutputOfCommand(c, "oc", "new-project", "myns")
 	c.Assert(outString, check.Matches, `(?s).*Now using project "myns".*`) // (?s) : '.' will also match newlines
