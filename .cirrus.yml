@@ -56,7 +56,7 @@ validate_task:
     # The git-validation tool doesn't work well on branch or tag push,
     # under Cirrus-CI, due to challenges obtaining the starting commit ID.
     # Only do validation for PRs.
-    only_if: $CIRRUS_PR != ''
+    only_if: false
     container:
         image: '${SKOPEO_CIDEV_CONTAINER_FQIN}'
         cpu: 4
@@ -66,7 +66,7 @@ validate_task:
         make vendor && hack/tree_status.sh
 
 doccheck_task:
-    only_if: $CIRRUS_PR != ''
+    only_if: false
     depends_on:
       - validate
     container:
@@ -84,7 +84,7 @@ doccheck_task:
       "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
 
 osx_task:
-    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
+    only_if: false
     depends_on:
         - validate
     macos_instance:
@@ -105,7 +105,7 @@ osx_task:
 
 cross_task:
     alias: cross
-    only_if: *not_docs
+    only_if: false
     depends_on:
         - validate
     gce_instance:
@@ -132,9 +132,6 @@ cross_task:
 #####
 test_skopeo_task:
     alias: test_skopeo
-    only_if: *not_docs
-    depends_on:
-        - validate
     gce_instance:
         image_project: libpod-218412
         zone: "us-central1-f"
@@ -148,9 +145,6 @@ test_skopeo_task:
         - name: "Skopeo Test"  # N/B: Name ref. by hack/get_fqin.sh
           env:
               BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove'
-        - name: "Skopeo Test w/ opengpg"
-          env:
-              BUILDTAGS: *withopengpg
     setup_script: >-
         "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
     vendor_script: >-
@@ -171,6 +165,7 @@ test_skopeo_task:
 meta_task:
     name: "VM img. keepalive"
     alias: meta
+    only_if: false
     container: &smallcontainer
         cpu: 2
         memory: 2
@@ -199,12 +194,7 @@ success_task:
     alias: success
     # N/B: ALL tasks must be listed here, minus their '_task' suffix.
     depends_on:
-        - validate
-        - doccheck
-        - osx
-        - cross
         - test_skopeo
-        - meta
     container: *smallcontainer
     env:
         CTR_FQIN: ${FEDORA_CONTAINER_FQIN}
