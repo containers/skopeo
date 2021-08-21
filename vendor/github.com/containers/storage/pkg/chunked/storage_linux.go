@@ -654,8 +654,14 @@ func (d *chunkedZstdDiffer) ApplyDiff(dest string, options *archive.TarOptions) 
 		return output, err
 	}
 
+	const trueVal = "true"
+
+	if value := storeOpts.PullOptions["enable_partial_images"]; strings.ToLower(value) != trueVal {
+		return output, errors.New("enable_partial_images not configured")
+	}
+
 	enableHostDedup := false
-	if value := storeOpts.PullOptions["enable_host_deduplication"]; strings.ToLower(value) == "true" {
+	if value := storeOpts.PullOptions["enable_host_deduplication"]; strings.ToLower(value) == trueVal {
 		enableHostDedup = true
 	}
 

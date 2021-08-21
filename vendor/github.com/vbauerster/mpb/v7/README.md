@@ -37,10 +37,11 @@ func main() {
 
     total := 100
     name := "Single Bar:"
+    style := mpb.BarStyle().Lbound("╢").Filler("▌").Tip("▌").Padding("░").Rbound("╟").Inclusive(0)
     // adding a single bar, which will inherit container's width
     bar := p.Add(int64(total),
         // progress bar filler with customized style
-        mpb.NewBarFiller(mpb.BarStyle().Lbound("╢").Filler("▌").Tip("▌").Padding("░").Rbound("╟")),
+        mpb.NewBarFiller(style),
         mpb.PrependDecorators(
             // display our name with one space on the right
             decor.Name(name, decor.WC{W: len(name) + 1, C: decor.DidentRight}),
@@ -84,7 +85,7 @@ func main() {
                 // replace ETA decorator with "done" message, OnComplete event
                 decor.OnComplete(
                     // ETA decorator with ewma age of 60
-                    decor.EwmaETA(decor.ET_STYLE_GO, 60), "done",
+                    decor.EwmaETA(decor.ET_STYLE_GO, 60, decor.WCSyncWidth), "done",
                 ),
             ),
         )

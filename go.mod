@@ -6,7 +6,7 @@ require (
 	github.com/containers/common v0.43.2
 	github.com/containers/image/v5 v5.15.2
 	github.com/containers/ocicrypt v1.1.2
-	github.com/containers/storage v1.34.1
+	github.com/containers/storage v1.34.2-0.20210823065237-1a182cb72875
 	github.com/docker/docker v20.10.8+incompatible
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/go-check/check v0.0.0-20180628173108-788fd7840127
@@ -23,3 +23,5 @@ require (
 	go4.org v0.0.0-20190218023631-ce4c26f7be8e // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+replace github.com/containers/image/v5 => github.com/mtrmac/image/v5 v5.0.0-20210820184015-0459dcb8d713
