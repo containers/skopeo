@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -486,6 +487,13 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 				return descriptors, errors.Wrapf(err, "Failed to retrieve list of images from registry %q", registryName)
 			}
 			descriptors = append(descriptors, descs...)
+		}
+		if len(descriptors) > 1 {
+			// When there are multiple tasks running synchronous tasks at the same time,
+			// shuffle is required to make each task work in a different order to prevent useless work.
+			rand.Shuffle(len(descriptors), func(i, j int) {
+				descriptors[i], descriptors[j] = descriptors[j], descriptors[i]
+			})
 		}
 	}
 
