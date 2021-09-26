@@ -86,7 +86,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) error {
 		return errorShouldDisplayUsage{errors.New("Exactly two arguments expected")}
 	}
 	opts.deprecatedTLSVerify.warnIfUsed([]string{"--src-tls-verify", "--dest-tls-verify"})
-	imageNames := args
+	imageNames := prependDefaultTransport(args)
 
 	if err := reexecIfNecessaryForImages(imageNames...); err != nil {
 		return err
@@ -210,4 +210,19 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) error {
 		}
 		return nil
 	}, opts.retryOpts)
+}
+
+func prependDefaultTransport(imageNames []string) []string {
+	var imgNames []string
+	for _, img := range imageNames {
+		parts := strings.Split(img, "://")
+		// NOTE: the dir transport is `dir:/some-dir`, so add a work around here
+		if len(parts) < 2 && !strings.Contains(img, "dir:/") {
+			imgNames = append(imgNames, "docker://"+img)
+		} else {
+			imgNames = append(imgNames, img)
+		}
+	}
+
+	return imgNames
 }
