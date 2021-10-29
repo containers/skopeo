@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	commonFlag "github.com/containers/common/pkg/flag"
@@ -34,6 +35,21 @@ type globalOptions struct {
 	tmpDir             string                  // Path to use for big temporary files
 }
 
+// requireSubcommand returns an error if no sub command is provided
+// This was copied from podman: `github.com/containers/podman/cmd/podman/validate/args.go
+// Some small style changes to match skopeo were applied, but try to apply any
+// bugfixes there first.
+func requireSubcommand(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		suggestions := cmd.SuggestionsFor(args[0])
+		if len(suggestions) == 0 {
+			return fmt.Errorf("Unrecognized command `%[1]s %[2]s`\nTry '%[1]s --help' for more information", cmd.CommandPath(), args[0])
+		}
+		return fmt.Errorf("Unrecognized command `%[1]s %[2]s`\n\nDid you mean this?\n\t%[3]s\n\nTry '%[1]s --help' for more information", cmd.CommandPath(), args[0], strings.Join(suggestions, "\n\t"))
+	}
+	return fmt.Errorf("Missing command '%[1]s COMMAND'\nTry '%[1]s --help' for more information", cmd.CommandPath())
+}
+
 // createApp returns a cobra.Command, and the underlying globalOptions object, to be run or tested.
 func createApp() (*cobra.Command, *globalOptions) {
 	opts := globalOptions{}
@@ -41,6 +57,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand := &cobra.Command{
 		Use:  "skopeo",
 		Long: "Various operations with container images and container image registries",
+		RunE: requireSubcommand,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return opts.before(cmd)
 		},
