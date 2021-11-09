@@ -63,11 +63,6 @@ func createApp() (*cobra.Command, *globalOptions) {
 		},
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		// Currently, skopeo uses manually written completions.  Cobra allows
-		// for auto-generating completions for various shells.  Podman is
-		// already making us of that.  If Skopeo decides to follow, please
-		// remove the line below (and hide the `completion` command).
-		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 		// This is documented to parse "local" (non-PersistentFlags) flags of parent commands before
 		// running subcommands and handling their options. We don't really run into such cases,
 		// because all of our flags on rootCommand are in PersistentFlags, except for the deprecated --tls-verify;

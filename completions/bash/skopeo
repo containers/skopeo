@@ -1,335 +1,259 @@
-#! /bin/bash
+# bash completion V2 for skopeo                               -*- shell-script -*-
 
-_complete_() {
-    local options_with_args=$1
-    local boolean_options="$2 -h --help"
-    local transports=$3
+__skopeo_debug()
+{
+    if [[ -n ${BASH_COMP_DEBUG_FILE:-} ]]; then
+        echo "$*" >> "${BASH_COMP_DEBUG_FILE}"
+    fi
+}
 
-    local option_with_args
-    for option_with_args in $options_with_args $transports
-    do
-        if [ "$option_with_args" == "$prev" ] || [ "$option_with_args" == "$cur" ]
-        then
-            return
-        fi
-    done
+# Macs have bash3 for which the bash-completion package doesn't include
+# _init_completion. This is a minimal version of that function.
+__skopeo_init_completion()
+{
+    COMPREPLY=()
+    _get_comp_words_by_ref "$@" cur prev words cword
+}
 
-    case "$cur" in
-        -*)
-            while IFS='' read -r line; do COMPREPLY+=("$line"); done < <(compgen -W "$boolean_options $options_with_args" -- "$cur")
-            ;;
-        *)
-            if [ -n "$transports" ]
-            then
+# This function calls the skopeo program to obtain the completion
+# results and the directive.  It fills the 'out' and 'directive' vars.
+__skopeo_get_completion_results() {
+    local requestComp lastParam lastChar args
+
+    # Prepare the command to request completions for the program.
+    # Calling ${words[0]} instead of directly skopeo allows to handle aliases
+    args=("${words[@]:1}")
+    requestComp="${words[0]} __complete ${args[*]}"
+
+    lastParam=${words[$((${#words[@]}-1))]}
+    lastChar=${lastParam:$((${#lastParam}-1)):1}
+    __skopeo_debug "lastParam ${lastParam}, lastChar ${lastChar}"
+
+    if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
+        # If the last parameter is complete (there is a space following it)
+        # We add an extra empty parameter so we can indicate this to the go method.
+        __skopeo_debug "Adding extra empty parameter"
+        requestComp="${requestComp} ''"
+    fi
+
+    # When completing a flag with an = (e.g., skopeo -n=<TAB>)
+    # bash focuses on the part after the =, so we need to remove
+    # the flag part from $cur
+    if [[ "${cur}" == -*=* ]]; then
+        cur="${cur#*=}"
+    fi
+
+    __skopeo_debug "Calling ${requestComp}"
+    # Use eval to handle any environment variables and such
+    out=$(eval "${requestComp}" 2>/dev/null)
+
+    # Extract the directive integer at the very end of the output following a colon (:)
+    directive=${out##*:}
+    # Remove the directive
+    out=${out%:*}
+    if [ "${directive}" = "${out}" ]; then
+        # There is not directive specified
+        directive=0
+    fi
+    __skopeo_debug "The completion directive is: ${directive}"
+    __skopeo_debug "The completions are: ${out[*]}"
+}
+
+__skopeo_process_completion_results() {
+    local shellCompDirectiveError=1
+    local shellCompDirectiveNoSpace=2
+    local shellCompDirectiveNoFileComp=4
+    local shellCompDirectiveFilterFileExt=8
+    local shellCompDirectiveFilterDirs=16
+
+    if [ $((directive & shellCompDirectiveError)) -ne 0 ]; then
+        # Error code.  No completion.
+        __skopeo_debug "Received error from custom completion go code"
+        return
+    else
+        if [ $((directive & shellCompDirectiveNoSpace)) -ne 0 ]; then
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                __skopeo_debug "Activating no space"
                 compopt -o nospace
-                while IFS='' read -r line; do COMPREPLY+=("$line"); done < <(compgen -W "$transports" -- "$cur")
+            else
+                __skopeo_debug "No space directive not supported in this version of bash"
             fi
-            ;;
-    esac
+        fi
+        if [ $((directive & shellCompDirectiveNoFileComp)) -ne 0 ]; then
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                __skopeo_debug "Activating no file completion"
+                compopt +o default
+            else
+                __skopeo_debug "No file completion directive not supported in this version of bash"
+            fi
+        fi
+    fi
+
+    if [ $((directive & shellCompDirectiveFilterFileExt)) -ne 0 ]; then
+        # File extension filtering
+        local fullFilter filter filteringCmd
+
+        # Do not use quotes around the $out variable or else newline
+        # characters will be kept.
+        for filter in ${out[*]}; do
+            fullFilter+="$filter|"
+        done
+
+        filteringCmd="_filedir $fullFilter"
+        __skopeo_debug "File filtering command: $filteringCmd"
+        $filteringCmd
+    elif [ $((directive & shellCompDirectiveFilterDirs)) -ne 0 ]; then
+        # File completion for directories only
+
+        # Use printf to strip any trailing newline
+        local subdir
+        subdir=$(printf "%s" "${out[0]}")
+        if [ -n "$subdir" ]; then
+            __skopeo_debug "Listing directories in $subdir"
+            pushd "$subdir" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1 || return
+        else
+            __skopeo_debug "Listing directories in ."
+            _filedir -d
+        fi
+    else
+        __skopeo_handle_standard_completion_case
+    fi
+
+    __skopeo_handle_special_char "$cur" :
+    __skopeo_handle_special_char "$cur" =
 }
 
-_skopeo_supported_transports() {
-    local subcommand=$1
+__skopeo_handle_standard_completion_case() {
+    local tab comp
+    tab=$(printf '\t')
 
-    skopeo "$subcommand" --help | grep "Supported transports" -A 1 | tail -n 1 | sed -e 's/,/:/g' -e 's/$/:/'
+    local longest=0
+    # Look for the longest completion so that we can format things nicely
+    while IFS='' read -r comp; do
+        # Strip any description before checking the length
+        comp=${comp%%$tab*}
+        # Only consider the completions that match
+        comp=$(compgen -W "$comp" -- "$cur")
+        if ((${#comp}>longest)); then
+            longest=${#comp}
+        fi
+    done < <(printf "%s\n" "${out[@]}")
+
+    local completions=()
+    while IFS='' read -r comp; do
+        if [ -z "$comp" ]; then
+            continue
+        fi
+
+        __skopeo_debug "Original comp: $comp"
+        comp="$(__skopeo_format_comp_descriptions "$comp" "$longest")"
+        __skopeo_debug "Final comp: $comp"
+        completions+=("$comp")
+    done < <(printf "%s\n" "${out[@]}")
+
+    while IFS='' read -r comp; do
+        COMPREPLY+=("$comp")
+    done < <(compgen -W "${completions[*]}" -- "$cur")
+
+    # If there is a single completion left, remove the description text
+    if [ ${#COMPREPLY[*]} -eq 1 ]; then
+        __skopeo_debug "COMPREPLY[0]: ${COMPREPLY[0]}"
+        comp="${COMPREPLY[0]%% *}"
+        __skopeo_debug "Removed description from single completion, which is now: ${comp}"
+        COMPREPLY=()
+        COMPREPLY+=("$comp")
+    fi
 }
 
-_skopeo_copy() {
-    local options_with_args="
-    --authfile
-    --src-authfile
-    --dest-authfile
-    --format -f
-    --sign-by
-    --src-creds --screds
-    --src-cert-dir
-    --src-tls-verify
-    --dest-creds --dcreds
-    --dest-cert-dir
-    --dest-tls-verify
-    --src-daemon-host
-    --dest-daemon-host
-    --src-registry-token
-    --dest-registry-token
-    --src-username
-    --src-password
-    --dest-username
-    --dest-password
-    "
-
-    local boolean_options="
-    --all
-    --dest-compress
-    --dest-decompress
-    --remove-signatures
-    --src-no-creds
-    --dest-no-creds
-    --dest-oci-accept-uncompressed-layers
-    --dest-precompute-digests
-    "
-
-    local transports
-    transports="
-    $(_skopeo_supported_transports "${FUNCNAME//"_skopeo_"/}")
-    "
-
-    _complete_ "$options_with_args" "$boolean_options" "$transports"
+__skopeo_handle_special_char()
+{
+    local comp="$1"
+    local char=$2
+    if [[ "$comp" == *${char}* && "$COMP_WORDBREAKS" == *${char}* ]]; then
+        local word=${comp%"${comp##*${char}}"}
+        local idx=${#COMPREPLY[*]}
+        while [[ $((--idx)) -ge 0 ]]; do
+            COMPREPLY[$idx]=${COMPREPLY[$idx]#"$word"}
+        done
+    fi
 }
 
-_skopeo_sync() {
-    local options_with_args="
-    --authfile
-    --dest
-    --dest-authfile
-    --dest-cert-
-    --dest-creds
-    --dest-registry-token string
-    --format
-    --retry-times
-    --sign-by
-    --src
-    --src-authfile
-    --src-cert-dir
-    --src-creds
-    --src-registry-token
-    --src-username
-    --src-password
-    --dest-username
-    --dest-password
-    "
+__skopeo_format_comp_descriptions()
+{
+    local tab
+    tab=$(printf '\t')
+    local comp="$1"
+    local longest=$2
 
-    local boolean_options="
-    --all
-    --dest-no-creds
-    --dest-tls-verify
-    --remove-signatures
-    --scoped
-    --src-no-creds
-    --src-tls-verify
-    --keep-going
-    "
+    # Properly format the description string which follows a tab character if there is one
+    if [[ "$comp" == *$tab* ]]; then
+        desc=${comp#*$tab}
+        comp=${comp%%$tab*}
 
-    local transports
-    transports="
-    $(_skopeo_supported_transports "${FUNCNAME//"_skopeo_"/}")
-    "
+        # $COLUMNS stores the current shell width.
+        # Remove an extra 4 because we add 2 spaces and 2 parentheses.
+        maxdesclength=$(( COLUMNS - longest - 4 ))
 
-    _complete_ "$options_with_args" "$boolean_options" "$transports"
+        # Make sure we can fit a description of at least 8 characters
+        # if we are to align the descriptions.
+        if [[ $maxdesclength -gt 8 ]]; then
+            # Add the proper number of spaces to align the descriptions
+            for ((i = ${#comp} ; i < longest ; i++)); do
+                comp+=" "
+            done
+        else
+            # Don't pad the descriptions so we can fit more text after the completion
+            maxdesclength=$(( COLUMNS - ${#comp} - 4 ))
+        fi
+
+        # If there is enough space for any description text,
+        # truncate the descriptions that are too long for the shell width
+        if [ $maxdesclength -gt 0 ]; then
+            if [ ${#desc} -gt $maxdesclength ]; then
+                desc=${desc:0:$(( maxdesclength - 1 ))}
+                desc+="…"
+            fi
+            comp+="  ($desc)"
+        fi
+    fi
+
+    # Must use printf to escape all special characters
+    printf "%q" "${comp}"
 }
 
-_skopeo_inspect() {
-     local options_with_args="
-     --authfile
-     --creds
-     --cert-dir
-     --format
-     --retry-times
-     --registry-token
-    --username
-    --password
-     "
-     local boolean_options="
-     --config
-     --raw
-     --tls-verify
-     --no-creds
-     --no-tags -n
-    "
+__start_skopeo()
+{
+    local cur prev words cword split
 
-    local transports
-    transports="
-    $(_skopeo_supported_transports "${FUNCNAME//"_skopeo_"/}")
-    "
+    COMPREPLY=()
 
-    _complete_ "$options_with_args" "$boolean_options" "$transports"
+    # Call _init_completion from the bash-completion package
+    # to prepare the arguments properly
+    if declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion -n "=:" || return
+    else
+        __skopeo_init_completion -n "=:" || return
+    fi
+
+    __skopeo_debug
+    __skopeo_debug "========= starting completion logic =========="
+    __skopeo_debug "cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}, cword is $cword"
+
+    # The user could have moved the cursor backwards on the command-line.
+    # We need to trigger completion from the $cword location, so we need
+    # to truncate the command-line ($words) up to the $cword location.
+    words=("${words[@]:0:$cword+1}")
+    __skopeo_debug "Truncated words[*]: ${words[*]},"
+
+    local out directive
+    __skopeo_get_completion_results
+    __skopeo_process_completion_results
 }
 
-_skopeo_standalone_sign() {
-     local options_with_args="
-       -o --output
-     "
-     local boolean_options="
-     "
-    _complete_ "$options_with_args" "$boolean_options"
-}
+if [[ $(type -t compopt) = "builtin" ]]; then
+    complete -o default -F __start_skopeo skopeo
+else
+    complete -o default -o nospace -F __start_skopeo skopeo
+fi
 
-_skopeo_standalone_verify() {
-     local options_with_args="
-     "
-     local boolean_options="
-     "
-    _complete_ "$options_with_args" "$boolean_options"
-}
-
-_skopeo_manifest_digest() {
-     local options_with_args="
-     "
-     local boolean_options="
-     "
-    _complete_ "$options_with_args" "$boolean_options"
-}
-
-_skopeo_delete() {
-     local options_with_args="
-     --authfile
-     --creds
-     --cert-dir
-     --registry-token
-    --username
-    --password
-     "
-     local boolean_options="
-     --tls-verify
-     --no-creds
-     "
-
-    local transports
-    transports="
-    $(_skopeo_supported_transports "${FUNCNAME//"_skopeo_"/}")
-    "
-
-    _complete_ "$options_with_args" "$boolean_options" "$transports"
-}
-
-_skopeo_layers() {
-     local options_with_args="
-       --authfile
-       --creds
-       --cert-dir
-       --registry-token
-      --username
-      --password
-     "
-     local boolean_options="
-       --tls-verify
-       --no-creds
-     "
-    _complete_ "$options_with_args" "$boolean_options"
-}
-
-_skopeo_list_repository_tags() {
-     local options_with_args="
-     --authfile
-     --creds
-     --cert-dir
-     --registry-token
-    --username
-    --password
-     "
-
-     local boolean_options="
-     --tls-verify
-     --no-creds
-     "
-    _complete_ "$options_with_args" "$boolean_options"
-}
-
-_skopeo_login() {
-    local options_with_args="
-    --authfile
-    --cert-dir
-    --password -p
-    --username -u
-    "
-
-    local boolean_options="
-    --get-login
-    --tls-verify
-    --password-stdin
-    "
-    _complete_ "$options_with_args" "$boolean_options"
-}
-
-_skopeo_logout() {
-    local options_with_args="
-    --authfile
-    "
-
-    local boolean_options="
-    --all -a
-    "
-    _complete_ "$options_with_args" "$boolean_options"
-}
-
-_skopeo_skopeo() {
-     # XXX: Changes here need to be reflected in the manually expanded
-     # string in the `case` statement below as well.
-     local options_with_args="
-       --policy
-       --registries.d
-       --override-arch
-       --override-os
-       --override-variant
-       --command-timeout
-       --tmpdir
-     "
-     local boolean_options="
-       --insecure-policy
-       --debug
-       --version -v
-       --help -h
-     "
-
-     local commands=(
-       copy
-       delete
-       inspect
-       list-tags
-       login
-       logout
-       manifest-digest
-       standalone-sign
-       standalone-verify
-       sync
-       help
-       h
-     )
-
-     case "$prev" in
-         # XXX: Changes here need to be reflected in $options_with_args as well.
-         --policy|--registries.d|--override-arch|--override-os|--override-variant|--command-timeout)
-             return
-             ;;
-     esac
-
-     case "$cur" in
-         -*)
-             while IFS='' read -r line; do COMPREPLY+=("$line"); done < <(compgen -W "$boolean_options $options_with_args" -- "$cur")
-             ;;
-         *)
-             while IFS='' read -r line; do COMPREPLY+=("$line"); done < <(compgen -W "${commands[*]} help" -- "$cur")
-             ;;
-     esac
-}
-
-_cli_bash_autocomplete() {
-     local cur
-
-     COMPREPLY=()
-     cur="${COMP_WORDS[COMP_CWORD]}"
-     COMPREPLY=()
-     local cur prev words cword
-
-     _get_comp_words_by_ref -n : cur prev words cword
-
-     local command="skopeo" cpos=0
-     local counter=1
-     while [ $counter -lt "$cword" ]; do
-         case "${words[$counter]}" in
-             skopeo|copy|sync|inspect|delete|manifest-digest|standalone-sign|standalone-verify|help|h|list-repository-tags)
-                 command="${words[$counter]//-/_}"
-                 cpos=$counter
-                 (( cpos++ ))
-                 break
-                 ;;
-         esac
-         (( counter++ ))
-     done
-
-     local completions_func=_skopeo_${command}
-     declare -F "$completions_func" >/dev/null && $completions_func
-
-     return 0
-}
-
- complete -F _cli_bash_autocomplete skopeo
+# ex: ts=4 sw=4 et filetype=sh

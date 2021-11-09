@@ -99,6 +99,7 @@ Print the version number
 
 | Command                                   | Description                                                                    |
 | ----------------------------------------- | ------------------------------------------------------------------------------ |
+| [skopeo-completion(1)](skopeo-completion.1.md)        | Generate shell completions.                                        |
 | [skopeo-copy(1)](skopeo-copy.1.md)        | Copy an image (manifest, filesystem layers, signatures) from one location to another. |
 | [skopeo-delete(1)](skopeo-delete.1.md)    | Mark the _image-name_ for later deletion by the registry's garbage collector.  |
 | [skopeo-inspect(1)](skopeo-inspect.1.md)  | Return low-level information about _image-name_ in a registry.                 |
