@@ -28,6 +28,10 @@ Generate zsh completions.
 
 Generate powershell completions.
 
+**--help**, **-h**
+
+Print usage statement
+
 ## EXAMPLES
 To print bash completions for skopeo to stdout:
 ```sh
