@@ -19,6 +19,8 @@ SIGSTOREDIR ?= /var/lib/containers/sigstore
 BINDIR ?= ${PREFIX}/bin
 MANDIR ?= ${PREFIX}/share/man
 BASHCOMPLETIONSDIR ?= ${PREFIX}/share/bash-completion/completions
+FISHCOMPLETIONSDIR ?= $(PREFIX)/share/fish/vendor_completions.d
+ZSHCOMPLETIONSDIR ?= $(PREFIX)/share/zsh/site-functions
 
 GO ?= go
 GOBIN := $(shell $(GO) env GOBIN)
@@ -139,9 +141,21 @@ bin/skopeo.%:
 	GOOS=$(word 2,$(subst ., ,$@)) GOARCH=$(word 3,$(subst ., ,$@)) $(GO) build $(MOD_VENDOR) ${SKOPEO_LDFLAGS} -tags "containers_image_openpgp $(BUILDTAGS)" -o $@ ./cmd/skopeo
 local-cross: bin/skopeo.darwin.amd64 bin/skopeo.linux.arm bin/skopeo.linux.arm64 bin/skopeo.windows.386.exe bin/skopeo.windows.amd64.exe
 
-.PHONY: completions
-completions: bin/skopeo
+.PHONY: bash-completions
+bash-completions: bin/skopeo
 	./bin/skopeo completion bash > completions/bash/skopeo
+
+.PHONY: fish-completions
+fish-completions: bin/skopeo
+	./bin/skopeo completion fish > completions/fish/skopeo.fish
+
+.PHONY: zsh-completions
+zsh-completions: bin/skopeo
+	./bin/skopeo completion zsh > completions/zsh/_skopeo
+
+.PHONY: powershell-completions
+powershell-completions: bin/skopeo
+	./bin/skopeo completion powershell > completions/powershell/skopeo.ps1
 
 $(MANPAGES): %: %.md
 ifneq ($(DISABLE_DOCS), 1)
@@ -176,6 +190,14 @@ endif
 install-completions:
 	install -m 755 -d ${DESTDIR}${BASHCOMPLETIONSDIR}
 	install -m 644 completions/bash/skopeo ${DESTDIR}${BASHCOMPLETIONSDIR}/skopeo
+
+install-fish-completions:
+	install -m 755 -d $(DESTDIR)$(FISHCOMPLETIONSDIR)
+	install -m 644 completions/fish/skopeo.fish $(DESTDIR)$(FISHCOMPLETIONSDIR)
+
+install-zsh-completions:
+	install -m 755 -d $(DESTDIR)$(ZSHCOMPLETIONSDIR)
+	install -m 644 completions/zsh/_skopeo $(DESTDIR)$(ZSHCOMPLETIONSDIR)
 
 shell:
 	$(CONTAINER_RUN) bash
