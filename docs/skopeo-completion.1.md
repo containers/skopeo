@@ -57,4 +57,4 @@ $ skopeo completion powershell
 skopeo(1)
 
 ## AUTHORS
-Antonio Murdaca <runcom@redhat.com>, Miloslav Trmac <mitr@redhat.com>, Jhon Honce <jhonce@redhat.com>, Lokesh Mandvekar <lsm5@fedoraproject.org>
+Lokesh Mandvekar <lsm5@fedoraproject.org>
