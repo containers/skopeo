@@ -1,10 +1,10 @@
 % skopeo-completion(1)
 
 ## NAME
-skopeo\-completion - Generate shell completions
+skopeo\-completion - Generate shell completions.
 
 ## SYNOPSIS
-**skopeo completion** _shell-name_
+**skopeo completion** [command]
 
 ## DESCRIPTION
 Generate shell completions for skopeo. Takes the name of the shell as an

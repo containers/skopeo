@@ -181,6 +181,9 @@ sub skopeo_help {
         elsif ($line =~ /^(Flags):/) {
             $section = lc $1;
         }
+        elsif ($line =~ /^(Global Flags):/) {
+           $section = lc $1;
+        }
 
         # ...then track commands and options. For subcommands, recurse.
         elsif ($section eq 'commands') {
