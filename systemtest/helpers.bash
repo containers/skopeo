@@ -356,7 +356,7 @@ start_registry() {
             return
         fi
 
-        timeout=$(expr $timeout - 1)
+        timeout=$(( timeout - 1 ))
         sleep 1
     done
     die "Timed out waiting for registry container to respond on :$port"
