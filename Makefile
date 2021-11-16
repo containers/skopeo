@@ -13,7 +13,12 @@ GPGME_ENV := CGO_CFLAGS="$(shell gpgme-config --cflags 2>/dev/null)" CGO_LDFLAGS
 # The following variables very roughly follow https://www.gnu.org/prep/standards/standards.html#Makefile-Conventions .
 DESTDIR ?=
 PREFIX ?= /usr/local
-CONTAINERSCONFDIR ?= /etc/containers
+# MacOS and FreeBSD install configs under $PREFIX
+ifeq ($(shell uname -s),$(filter $(shell uname -s),Darwin FreeBSD))
+	CONTAINERSCONFDIR ?= $(PREFIX)/etc/containers
+else
+	CONTAINERSCONFDIR ?= /etc/containers
+endif
 REGISTRIESDDIR ?= ${CONTAINERSCONFDIR}/registries.d
 SIGSTOREDIR ?= /var/lib/containers/sigstore
 BINDIR ?= ${PREFIX}/bin
@@ -91,7 +96,12 @@ CONTAINER_RUN ?= $(CONTAINER_CMD) --security-opt label=disable -v $(CURDIR):$(CO
 GIT_COMMIT := $(shell git rev-parse HEAD 2> /dev/null || true)
 
 EXTRA_LDFLAGS ?=
-SKOPEO_LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} $(EXTRA_LDFLAGS)'
+SKOPEO_LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} \
+				  -X github.com/containers/image/v5/docker.systemRegistriesDirPath=${REGISTRIESDDIR} \
+				  -X github.com/containers/image/v5/signature.systemDefaultPolicyPath=${CONTAINERSCONFDIR}/policy.json \
+				  -X github.com/containers/image/v5/pkg/sysregistriesv2.systemRegistriesConfPath=${CONTAINERSCONFDIR}/registries.conf \
+				  -X github.com/containers/image/v5/internal/tmpdir.unixTempDirForBigFiles=/var/tmp \
+				  $(EXTRA_LDFLAGS)'
 
 MANPAGES_MD = $(wildcard docs/*.md)
 MANPAGES ?= $(MANPAGES_MD:%.md=%)
