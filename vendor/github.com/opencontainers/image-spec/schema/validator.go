@@ -23,7 +23,7 @@ import (
 	"regexp"
 
 	digest "github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -67,7 +67,7 @@ func (v Validator) Validate(src io.Reader) error {
 		}
 	}
 
-	sl := newFSLoaderFactory(schemaNamespaces, fs).New(specs[v])
+	sl := gojsonschema.NewReferenceLoaderFileSystem("file:///"+specs[v], fs)
 	ml := gojsonschema.NewStringLoader(string(buf))
 
 	result, err := gojsonschema.Validate(sl, ml)
@@ -117,10 +117,8 @@ func validateManifest(r io.Reader) error {
 	for _, layer := range header.Layers {
 		if layer.MediaType != string(v1.MediaTypeImageLayer) &&
 			layer.MediaType != string(v1.MediaTypeImageLayerGzip) &&
-			layer.MediaType != string(v1.MediaTypeImageLayerZstd) &&
 			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributable) &&
-			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableGzip) &&
-			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableZstd) {
+			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableGzip) {
 			fmt.Printf("warning: layer %s has an unknown media type: %s\n", layer.Digest, layer.MediaType)
 		}
 	}
@@ -168,7 +166,6 @@ func validateIndex(r io.Reader) error {
 		}
 		if manifest.Platform != nil {
 			checkPlatform(manifest.Platform.OS, manifest.Platform.Architecture)
-			checkArchitecture(manifest.Platform.Architecture, manifest.Platform.Variant)
 		}
 
 	}
@@ -190,7 +187,6 @@ func validateConfig(r io.Reader) error {
 	}
 
 	checkPlatform(header.OS, header.Architecture)
-	checkArchitecture(header.Architecture, header.Variant)
 
 	envRegexp := regexp.MustCompile(`^[^=]+=.*$`)
 	for _, e := range header.Config.Env {
@@ -200,31 +196,6 @@ func validateConfig(r io.Reader) error {
 	}
 
 	return nil
-}
-
-func checkArchitecture(Architecture string, Variant string) {
-	validCombins := map[string][]string{
-		"arm":      {"", "v6", "v7", "v8"},
-		"arm64":    {"", "v8"},
-		"386":      {""},
-		"amd64":    {""},
-		"ppc64":    {""},
-		"ppc64le":  {""},
-		"mips64":   {""},
-		"mips64le": {""},
-		"s390x":    {""},
-	}
-	for arch, variants := range validCombins {
-		if arch == Architecture {
-			for _, variant := range variants {
-				if variant == Variant {
-					return
-				}
-			}
-			fmt.Printf("warning: combination of architecture %q and variant %q is not valid.\n", Architecture, Variant)
-		}
-	}
-	fmt.Printf("warning: architecture %q is not supported yet.\n", Architecture)
 }
 
 func checkPlatform(OS string, Architecture string) {
@@ -246,8 +217,8 @@ func checkPlatform(OS string, Architecture string) {
 					return
 				}
 			}
-			fmt.Printf("warning: combination of os %q and architecture %q is invalid.\n", OS, Architecture)
+			fmt.Printf("warning: combination of %q and %q is invalid.", OS, Architecture)
 		}
 	}
-	fmt.Printf("warning: operating system %q of the bundle is not supported yet.\n", OS)
+	fmt.Printf("warning: operating system %q of the bundle is not supported yet.", OS)
 }

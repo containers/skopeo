@@ -21,7 +21,7 @@
       "$ref": "defs-descriptor.json#/definitions/urls"
     },
     "annotations": {
-      "id": "https://opencontainers.org/schema/descriptor/annotations",
+      "id": "https://opencontainers.org/schema/image/descriptor/annotations",
       "$ref": "defs-descriptor.json#/definitions/annotations"
     }
   },

@@ -14,20 +14,8 @@
     "architecture": {
       "type": "string"
     },
-    "variant": {
-      "type": "string"
-    },
     "os": {
       "type": "string"
-    },
-    "os.version": {
-      "type": "string"
-    },
-    "os.features": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
     },
     "config": {
       "type": "object",

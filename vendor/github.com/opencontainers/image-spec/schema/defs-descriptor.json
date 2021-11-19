@@ -20,6 +20,7 @@
       }
     },
     "annotations": {
+      "id": "https://opencontainers.org/schema/image/descriptor/annotations",
       "$ref": "defs.json#/definitions/mapStringString"
     }
   }
