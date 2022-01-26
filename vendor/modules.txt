@@ -53,7 +53,7 @@ github.com/containers/common/pkg/flag
 github.com/containers/common/pkg/report
 github.com/containers/common/pkg/report/camelcase
 github.com/containers/common/pkg/retry
-# github.com/containers/image/v5 v5.18.0
+# github.com/containers/image/v5 v5.19.0
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -92,6 +92,7 @@ github.com/containers/image/v5/pkg/docker/config
 github.com/containers/image/v5/pkg/strslice
 github.com/containers/image/v5/pkg/sysregistriesv2
 github.com/containers/image/v5/pkg/tlsclientconfig
+github.com/containers/image/v5/sif
 github.com/containers/image/v5/signature
 github.com/containers/image/v5/storage
 github.com/containers/image/v5/tarball
@@ -270,8 +271,6 @@ github.com/moby/sys/mountinfo
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.2
 github.com/modern-go/reflect2
-# github.com/mtrmac/gpgme v0.1.2
-github.com/mtrmac/gpgme
 # github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.3-0.20211202193544-a5463b7f9c84
@@ -297,6 +296,8 @@ github.com/ostreedev/ostree-go/pkg/otbuiltin
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
+# github.com/proglottis/gpgme v0.1.1
+github.com/proglottis/gpgme
 # github.com/prometheus/client_golang v1.7.1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
@@ -324,6 +325,8 @@ github.com/stefanberger/go-pkcs11uri
 # github.com/stretchr/testify v1.7.0
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# github.com/sylabs/sif/v2 v2.3.1
+github.com/sylabs/sif/v2/pkg/sif
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 github.com/syndtr/gocapability/capability
 # github.com/tchap/go-patricia v2.3.0+incompatible
@@ -337,7 +340,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v7 v7.3.0
+# github.com/vbauerster/mpb/v7 v7.3.2
 github.com/vbauerster/mpb/v7
 github.com/vbauerster/mpb/v7/cwriter
 github.com/vbauerster/mpb/v7/decor
@@ -382,7 +385,7 @@ golang.org/x/net/trace
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+# golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
