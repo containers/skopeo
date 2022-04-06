@@ -102,7 +102,7 @@ END_EXPECT
 
     # By default, 'inspect' tries to match our host os+arch. This should fail.
     run_skopeo 1 inspect $img
-    expect_output --substring "parsing manifest for image: choosing image instance: no image found in manifest list for architecture $arch, variant " \
+    expect_output --substring "parsing manifest for image: error choosing image instance: no image found in manifest list for architecture $arch, variant " \
                   "skopeo inspect, without --raw, fails"
 
     # With --raw, we can inspect

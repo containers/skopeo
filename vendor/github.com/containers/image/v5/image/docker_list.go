@@ -11,15 +11,15 @@ import (
 func manifestSchema2FromManifestList(ctx context.Context, sys *types.SystemContext, src types.ImageSource, manblob []byte) (genericManifest, error) {
 	list, err := manifest.Schema2ListFromManifest(manblob)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing schema2 manifest list")
+		return nil, errors.Wrapf(err, "error parsing schema2 manifest list")
 	}
 	targetManifestDigest, err := list.ChooseInstance(sys)
 	if err != nil {
-		return nil, errors.Wrapf(err, "choosing image instance")
+		return nil, errors.Wrapf(err, "error choosing image instance")
 	}
 	manblob, mt, err := src.GetManifest(ctx, &targetManifestDigest)
 	if err != nil {
-		return nil, errors.Wrapf(err, "loading manifest for target platform")
+		return nil, errors.Wrapf(err, "found target platform image in manifest list, but could not load it")
 	}
 
 	matches, err := manifest.MatchesDigest(manblob, targetManifestDigest)

@@ -11,15 +11,15 @@ import (
 func manifestOCI1FromImageIndex(ctx context.Context, sys *types.SystemContext, src types.ImageSource, manblob []byte) (genericManifest, error) {
 	index, err := manifest.OCI1IndexFromManifest(manblob)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing OCI1 index")
+		return nil, errors.Wrapf(err, "error parsing OCI1 index")
 	}
 	targetManifestDigest, err := index.ChooseInstance(sys)
 	if err != nil {
-		return nil, errors.Wrapf(err, "choosing image instance")
+		return nil, errors.Wrapf(err, "error choosing image instance")
 	}
 	manblob, mt, err := src.GetManifest(ctx, &targetManifestDigest)
 	if err != nil {
-		return nil, errors.Wrapf(err, "loading manifest for target platform")
+		return nil, errors.Wrapf(err, "found target platform image in manifest list, but could not load it")
 	}
 
 	matches, err := manifest.MatchesDigest(manblob, targetManifestDigest)
