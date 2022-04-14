@@ -15,8 +15,7 @@ import (
 	"github.com/containers/image/v5/pkg/cli"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
-	encconfig "github.com/containers/ocicrypt/config"
-	enchelpers "github.com/containers/ocicrypt/helpers"
+
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +25,7 @@ type copyOptions struct {
 	srcImage            *imageOptions
 	destImage           *imageDestOptions
 	retryOpts           *retry.RetryOptions
+	cryptOpts           *ociCryptOptions
 	additionalTags      []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these
 	removeSignatures    bool                      // Do not copy signatures from the source image
 	signByFingerprint   string                    // Sign the image using a GPG key with the specified fingerprint
@@ -37,9 +37,6 @@ type copyOptions struct {
 	all                 bool                      // Copy all of the images if the source is a list
 	multiArch           commonFlag.OptionalString // How to handle multi architecture images
 	preserveDigests     bool                      // Preserve digests during copy
-	encryptLayer        []int                     // The list of layers to encrypt
-	encryptionKeys      []string                  // Keys needed to encrypt the image
-	decryptionKeys      []string                  // Keys needed to decrypt the image
 }
 
 func copyCmd(global *globalOptions) *cobra.Command {
@@ -48,11 +45,14 @@ func copyCmd(global *globalOptions) *cobra.Command {
 	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
 	destFlags, destOpts := imageDestFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")
 	retryFlags, retryOpts := retryFlags()
+	cryptFlags, cryptOpts := cryptFlags()
+	
 	opts := copyOptions{global: global,
 		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
 		srcImage:            srcOpts,
 		destImage:           destOpts,
 		retryOpts:           retryOpts,
+		cryptOpts:           cryptOpts,
 	}
 	cmd := &cobra.Command{
 		Use:   "copy [command options] SOURCE-IMAGE DESTINATION-IMAGE",
@@ -74,6 +74,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.AddFlagSet(&srcFlags)
 	flags.AddFlagSet(&destFlags)
 	flags.AddFlagSet(&retryFlags)
+	flags.AddFlagSet(&cryptFlags)
 	flags.StringSliceVar(&opts.additionalTags, "additional-tag", []string{}, "additional tags (supports docker-archive)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Suppress output information when copying images")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
@@ -85,9 +86,6 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.StringVar(&opts.signIdentity, "sign-identity", "", "Identity of signed image, must be a fully specified docker reference. Defaults to the target docker reference.")
 	flags.StringVar(&opts.digestFile, "digestfile", "", "Write the digest of the pushed image to the specified file")
 	flags.VarP(commonFlag.NewOptionalStringValue(&opts.format), "format", "f", `MANIFEST TYPE (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)`)
-	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", []string{}, "*Experimental* key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
-	flags.IntSliceVar(&opts.encryptLayer, "encrypt-layer", []int{}, "*Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)")
-	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", []string{}, "*Experimental* key needed to decrypt the image")
 	return cmd
 }
 
@@ -192,40 +190,13 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 		imageListSelection = copy.CopyAllImages
 	}
 
-	if len(opts.encryptionKeys) > 0 && len(opts.decryptionKeys) > 0 {
-		return fmt.Errorf("--encryption-key and --decryption-key cannot be specified together")
+	encLayers, encConfig, err := opts.cryptOpts.newEncryptConfig()
+	if err != nil {
+		return err
 	}
-
-	var encLayers *[]int
-	var encConfig *encconfig.EncryptConfig
-	var decConfig *encconfig.DecryptConfig
-
-	if len(opts.encryptLayer) > 0 && len(opts.encryptionKeys) == 0 {
-		return fmt.Errorf("--encrypt-layer can only be used with --encryption-key")
-	}
-
-	if len(opts.encryptionKeys) > 0 {
-		// encryption
-		p := opts.encryptLayer
-		encLayers = &p
-		encryptionKeys := opts.encryptionKeys
-		ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
-		if err != nil {
-			return fmt.Errorf("Invalid encryption keys: %v", err)
-		}
-		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
-		encConfig = cc.EncryptConfig
-	}
-
-	if len(opts.decryptionKeys) > 0 {
-		// decryption
-		decryptionKeys := opts.decryptionKeys
-		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)
-		if err != nil {
-			return fmt.Errorf("Invalid decryption keys: %v", err)
-		}
-		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{dcc})
-		decConfig = cc.DecryptConfig
+	decConfig, err := opts.cryptOpts.newDecryptConfig()
+	if err != nil {
+		return err
 	}
 
 	passphrase, err := cli.ReadPassphraseFile(opts.signPassphraseFile)

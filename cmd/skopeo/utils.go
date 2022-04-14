@@ -13,6 +13,8 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	encconfig "github.com/containers/ocicrypt/config"
+	enchelpers "github.com/containers/ocicrypt/helpers"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -98,6 +100,62 @@ type dockerImageOptions struct {
 	dockerCertPath      string                     // A directory using Docker-like *.{crt,cert,key} files for connecting to a registry or a daemon
 	tlsVerify           commonFlag.OptionalBool    // Require HTTPS and verify certificates (for docker: and docker-daemon:)
 	noCreds             bool                       // Access the registry anonymously
+}
+
+// ociCryptOptions collects CLI flags specific to the encryptLayer and keys of encryption or decryption,
+// encryption-key and decryption-key cannot be specified together,
+// if set encryptLayer then encryptionKeys must be setted.
+type ociCryptOptions struct {
+	encryptLayer   []int    // The list of layers to encrypt
+	encryptionKeys []string // Keys needed to encrypt the image
+	decryptionKeys []string // Keys needed to decrypt the image
+}
+
+func cryptFlags() (pflag.FlagSet, *ociCryptOptions) {
+	opts := ociCryptOptions{}
+	fs := pflag.FlagSet{}
+	fs.StringSliceVar(&opts.encryptionKeys, "encryption-key", []string{}, "*Experimental* key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
+	fs.IntSliceVar(&opts.encryptLayer, "encrypt-layer", []int{}, "*Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)")
+	fs.StringSliceVar(&opts.decryptionKeys, "decryption-key", []string{}, "*Experimental* key needed to decrypt the image")
+	return fs, &opts
+}
+
+func (opts *ociCryptOptions) newEncryptConfig() (*[]int, *encconfig.EncryptConfig, error) {
+
+	if len(opts.encryptLayer) > 0 && len(opts.encryptionKeys) == 0 {
+		return nil, nil, errors.New("--encrypt-layer can only be used with --encryption-key")
+	}
+
+	if len(opts.encryptionKeys) == 0 {
+		return nil, nil, nil
+	}
+	// encryption
+	encryptionKeys := opts.encryptionKeys
+	ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
+	if err != nil {
+		return nil, nil, errors.Errorf("Invalid encryption keys: %v", err)
+	}
+	cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
+	return &opts.encryptLayer, cc.EncryptConfig, nil
+}
+
+func (opts *ociCryptOptions) newDecryptConfig() (*encconfig.DecryptConfig, error) {
+
+	if len(opts.encryptionKeys) > 0 && len(opts.decryptionKeys) > 0 {
+		return nil, errors.New("--encryption-key and --decryption-key cannot be specified together")
+	}
+
+	if len(opts.decryptionKeys) == 0 {
+		return nil, nil
+	}
+	// encryption
+	encryptionKeys := opts.decryptionKeys
+	ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
+	if err != nil {
+		return nil, errors.Errorf("Invalid encryption keys: %v", err)
+	}
+	cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
+	return cc.DecryptConfig, nil
 }
 
 // imageOptions collects CLI flags which are the same across subcommands, but may be different for each image
@@ -353,4 +411,20 @@ Flags:
 func adjustUsage(c *cobra.Command) {
 	c.SetUsageTemplate(usageTemplate)
 	c.DisableFlagsInUseLine = true
+}
+
+func checkExistAndMkdir(destination string) error {
+	_, err := os.Stat(destination)
+	if err == nil {
+		return errors.Errorf("Refusing to overwrite destination directory %q", destination)
+	}
+	if !os.IsNotExist(err) {
+		return errors.Wrap(err, "Destination directory could not be used")
+	}
+	// the directory holding the image must be created here
+	if err = os.MkdirAll(destination, 0755); err != nil {
+		return errors.Wrapf(err, "Error creating directory for image %s", destination)
+	}
+
+	return nil
 }

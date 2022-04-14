@@ -19,14 +19,15 @@ One of the problems of prefixing a destination with its transport is that, the r
 Available _source_ transports:
  - _docker_ (i.e. `--src docker`): _source_ is a repository hosted on a container registry (e.g.: `registry.example.com/busybox`).
  If no image tag is specified, skopeo sync copies all the tags found in that repository.
- - _dir_ (i.e. `--src dir`): _source_ is a local directory path (e.g.: `/media/usb/`). Refer to skopeo(1) **dir:**_path_ for the local image format.
+ - _dir_ (i.e. `--src dir`): _source_ is a local c path (e.g.: `/media/usb/`). Refer to skopeo(1) **dir:**_path_ for the local image format.
  - _yaml_ (i.e. `--src yaml`): _source_ is local YAML file path.
+ - _oci_ (i.e. `--src oci`): _source_ is a local directory path (e.g.: `/media/usb/`). Refer to skopeo(1) **oci:**_path_ for the local image format.
  The YAML file should specify the list of images copied from different container registries (local directories are not supported). Refer to EXAMPLES for the file format.
 
 Available _destination_ transports:
  - _docker_ (i.e. `--dest docker`): _destination_ is a container registry (e.g.: `my-registry.local.lan`).
- - _dir_ (i.e. `--dest dir`): _destination_ is a local directory path (e.g.: `/media/usb/`).
- One directory per source 'image:tag' is created for each copied image.
+ - _dir_ (i.e. `--dest dir`): _destination_ is a local directory path (e.g.: `/media/usb/`). One directory per source 'image:tag' is created for each copied image.
+ - _oci_ (i.e. `--dest oci`): _destination_ is a local directory path (e.g.: `/media/usb/`). One directory compliant with "Open Container Image Layout Specification".
 
 When the `--scoped` option is specified, images are prefixed with the source image path so that multiple images with the same
 name can be stored at _destination_.

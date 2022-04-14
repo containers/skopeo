@@ -22,8 +22,6 @@ import (
 	"github.com/containers/image/v5/pkg/cli"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
-	encconfig "github.com/containers/ocicrypt/config"
-	enchelpers "github.com/containers/ocicrypt/helpers"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -39,6 +37,7 @@ type syncOptions struct {
 	srcImage            *imageOptions     // Source image options
 	destImage           *imageDestOptions // Destination image options
 	retryOpts           *retry.RetryOptions
+	cryptOpts           *ociCryptOptions
 	removeSignatures    bool                      // Do not copy signatures from the source image
 	signByFingerprint   string                    // Sign the image using a GPG key with the specified fingerprint
 	signPassphraseFile  string                    // Path pointing to a passphrase file when signing
@@ -87,6 +86,7 @@ func syncCmd(global *globalOptions) *cobra.Command {
 	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
 	destFlags, destOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")
 	retryFlags, retryOpts := retryFlags()
+	cryptFlags, cryptOpts := cryptFlags()
 
 	opts := syncOptions{
 		global:              global,
@@ -94,6 +94,7 @@ func syncCmd(global *globalOptions) *cobra.Command {
 		srcImage:            srcOpts,
 		destImage:           &imageDestOptions{imageOptions: destOpts},
 		retryOpts:           retryOpts,
+		cryptOpts:           cryptOpts,
 	}
 
 	cmd := &cobra.Command{
@@ -127,10 +128,7 @@ See skopeo-sync(1) for details.
 	flags.AddFlagSet(&srcFlags)
 	flags.AddFlagSet(&destFlags)
 	flags.AddFlagSet(&retryFlags)
-	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", []string{}, "*Experimental* key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
-	flags.IntSliceVar(&opts.encryptLayer, "encrypt-layer", []int{}, "*Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)")
-	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", []string{}, "*Experimental* key needed to decrypt the image")
-
+	flags.AddFlagSet(&cryptFlags)
 	return cmd
 }
 
@@ -178,44 +176,31 @@ func parseRepositoryReference(input string) (reference.Named, error) {
 // destinationReference creates an image reference using the provided transport.
 // It returns a image reference to be used as destination of an image copy and
 // any error encountered.
-func destinationReference(destination string, transport string) (types.ImageReference, error) {
-	var imageTransport types.ImageTransport
+func destinationReference(destination string, destSuffix string, transport string) (types.ImageReference, error) {
+	var refString string
+	var destRef types.ImageReference
+	var destRefErr error
 
 	switch transport {
 	case docker.Transport.Name():
-		destination = fmt.Sprintf("//%s", destination)
-		imageTransport = docker.Transport
+		refString = fmt.Sprintf("//%s", path.Join(destination, destSuffix))
+		destRef, destRefErr = docker.Transport.ParseReference(refString)
 	case directory.Transport.Name():
-		_, err := os.Stat(destination)
-		if err == nil {
-			return nil, errors.Errorf("Refusing to overwrite destination directory %q", destination)
+		refString = path.Join(destination, destSuffix)
+		if err := checkExistAndMkdir(refString); err != nil {
+			return nil, err
 		}
-		if !os.IsNotExist(err) {
-			return nil, errors.Wrap(err, "Destination directory could not be used")
-		}
-		// the directory holding the image must be created here
-		if err = os.MkdirAll(destination, 0755); err != nil {
-			return nil, errors.Wrapf(err, "Error creating directory for image %s", destination)
-		}
-		imageTransport = directory.Transport
+		destRef, destRefErr = directory.NewReference(refString)
 	case oci.Transport.Name():
-		dir := path.Dir(destination)
-		if err := os.MkdirAll(destination, 0755); err != nil {
-			return nil, errors.Wrapf(err, "Error creating directory:%s for image %s", dir, destination)
-		}
-		if ref, err := reference.ParseNormalizedNamed(destination); err != nil {
-			tagref, _ := reference.TagNameOnly(ref).(reference.Tagged)
-			destination = fmt.Sprintf("%s:%s", reference.Path(ref), tagref)
-		}
-		imageTransport = oci.Transport
+		destRef, destRefErr = oci.NewReference(destination, destSuffix)
+		refString = destRef.StringWithinTransport()
 	default:
 		return nil, errors.Errorf("%q is not a valid destination transport", transport)
 	}
-	logrus.Debugf("Destination for transport %q: %s", transport, destination)
+	logrus.Debugf("Destination for transport %q: %s", transport, refString)
 
-	destRef, err := imageTransport.ParseReference(destination)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Cannot obtain a valid image reference for transport %q and reference %q", imageTransport.Name(), destination)
+	if destRefErr != nil {
+		return nil, errors.Wrapf(destRefErr, "Cannot obtain a valid image reference for transport %q and reference %q", transport, refString)
 	}
 
 	return destRef, nil
@@ -310,40 +295,26 @@ func imagesToCopyFromDir(dirPath string) ([]types.ImageReference, error) {
 // It returns an image reference slice with as many elements as the images found
 // and any error encountered.
 func imagesToCopyFromOci(dirPath string) ([]types.ImageReference, error) {
+
 	var sourceReferences []types.ImageReference
-	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && info.Name() == "index.json" {
-			indexJSON, err := os.Open(path)
-			if err != nil {
-				return errors.Wrapf(err, "Cannot open index.json for transport %q and Path: %q", oci.Transport.Name(), path)
-			}
-			defer indexJSON.Close()
 
-			index := &imgspecv1.Index{}
-			if err := json.NewDecoder(indexJSON).Decode(index); err != nil {
-				return errors.Wrapf(err, "Cannot decode index.json for transport %q and Path: %q", oci.Transport.Name(), path)
-			}
-			dirname := filepath.Dir(path)
-			// sync all images tags
-			for _, md := range index.Manifests {
-				destination := fmt.Sprintf("%s:%s", dirname, md.Annotations[imgspecv1.AnnotationRefName])
-				ref, err := oci.Transport.ParseReference(destination)
-				if err != nil {
-					return errors.Wrapf(err, "Cannot obtain a valid image reference for transport %q and reference %q", directory.Transport.Name(), dirname)
-				}
-				sourceReferences = append(sourceReferences, ref)
-			}
-			return filepath.SkipDir
-		}
-		return nil
-	})
-
+	indexJSON, err := os.Open(path.Join(dirPath, "index.json"))
 	if err != nil {
-		return sourceReferences,
-			errors.Wrapf(err, "Error walking the path %q", dirPath)
+		return sourceReferences, errors.Wrapf(err, "Cannot open index.json for transport %q and Path: %q", oci.Transport.Name(), dirPath)
+	}
+	defer indexJSON.Close()
+
+	index := &imgspecv1.Index{}
+	if err := json.NewDecoder(indexJSON).Decode(index); err != nil {
+		return sourceReferences, errors.Wrapf(err, "Cannot decode index.json for transport %q and Path: %q", oci.Transport.Name(), dirPath)
+	}
+
+	for _, md := range index.Manifests {
+		ref, err := oci.NewReference(dirPath, md.Annotations[imgspecv1.AnnotationRefName])
+		if err != nil {
+			return sourceReferences, errors.Wrapf(err, "Cannot obtain a valid image reference for transport %q and reference %q", directory.Transport.Name(), dirPath)
+		}
+		sourceReferences = append(sourceReferences, ref)
 	}
 
 	return sourceReferences, nil
@@ -551,14 +522,9 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 		if _, err := os.Stat(source); err != nil {
 			return descriptors, errors.Wrap(err, "Invalid source directory specified")
 		}
-		desc.DirBasePath = source
-		// trim prefix ./ like ./abc/xyz
-		if pwd, err := os.Getwd(); err == nil {
-			absPath, _ := filepath.Abs(desc.DirBasePath)
-			desc.DirBasePath, _ = filepath.Rel(pwd, absPath)
-		}
+		desc.DirBasePath = filepath.Clean(source)
 		var err error
-		desc.ImageRefs, err = imagesToCopyFromOci(source)
+		desc.ImageRefs, err = imagesToCopyFromOci(desc.DirBasePath)
 		if err != nil {
 			return descriptors, err
 		}
@@ -630,12 +596,8 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 		return errors.Errorf("%q is not a valid destination transport", opts.destination)
 	}
 
-	if opts.source == opts.destination && contains(opts.source, []string{directory.Transport.Name(), oci.Transport.Name()}) {
-		return errors.Errorf("sync from '%s' to '%s' not implemented, consider using rsync instead", opts.source, opts.destination)
-	}
-
-	if opts.preserveDigests && opts.destination == oci.Transport.Name() {
-		return errors.New("oci DESTINATION transports not support --preserve-digests options")
+	if opts.source == opts.destination && opts.source == directory.Transport.Name() {
+		return errors.New("sync from 'dir' to 'dir' not implemented, consider using rsync instead")
 	}
 
 	imageListSelection := copy.CopySystemImage
@@ -673,41 +635,16 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if err != nil {
 		return err
 	}
-	if len(opts.encryptionKeys) > 0 && len(opts.decryptionKeys) > 0 {
-		return fmt.Errorf("--encryption-key and --decryption-key cannot be specified together")
+
+	encLayers, encConfig, err := opts.cryptOpts.newEncryptConfig()
+	if err != nil {
+		return err
+	}
+	decConfig, err := opts.cryptOpts.newDecryptConfig()
+	if err != nil {
+		return err
 	}
 
-	var encLayers *[]int
-	var encConfig *encconfig.EncryptConfig
-	var decConfig *encconfig.DecryptConfig
-
-	if len(opts.encryptLayer) > 0 && len(opts.encryptionKeys) == 0 {
-		return fmt.Errorf("--encrypt-layer can only be used with --encryption-key")
-	}
-
-	if len(opts.encryptionKeys) > 0 {
-		// encryption
-		p := opts.encryptLayer
-		encLayers = &p
-		encryptionKeys := opts.encryptionKeys
-		ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
-		if err != nil {
-			return fmt.Errorf("Invalid encryption keys: %v", err)
-		}
-		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
-		encConfig = cc.EncryptConfig
-	}
-
-	if len(opts.decryptionKeys) > 0 {
-		// decryption
-		decryptionKeys := opts.decryptionKeys
-		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)
-		if err != nil {
-			return fmt.Errorf("Invalid decryption keys: %v", err)
-		}
-		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{dcc})
-		decConfig = cc.DecryptConfig
-	}
 	passphrase, err := cli.ReadPassphraseFile(opts.signPassphraseFile)
 	if err != nil {
 		return err
@@ -738,22 +675,27 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 			var destSuffix string
 			switch ref.Transport() {
 			case docker.Transport:
-				// docker -> dir or docker -> docker or oci -> docker
-				destSuffix = ref.DockerReference().String()
-			case directory.Transport, oci.Transport:
+				// docker -> dir,docker,oci, trim domain
+				dockerRef := ref.DockerReference()
+				tagref, _ := reference.TagNameOnly(dockerRef).(reference.Tagged)
+				destSuffix = fmt.Sprintf("%s:%s", reference.Path(dockerRef), tagref.Tag())
+
+			case directory.Transport:
 				// dir -> docker or oci -> docker(we don't allow `dir` -> `dir` sync operations)
 				destSuffix = strings.TrimPrefix(ref.StringWithinTransport(), srcRepo.DirBasePath)
 				if destSuffix == "" {
 					// if source is a full path to an image, have destPath scoped to repo:tag
 					destSuffix = path.Base(srcRepo.DirBasePath)
 				}
+			case oci.Transport:
+				destSuffix = strings.TrimPrefix(ref.StringWithinTransport(), fmt.Sprint(srcRepo.DirBasePath, ":"))
 			}
 
 			if !opts.scoped {
 				destSuffix = path.Base(destSuffix)
 			}
 
-			destRef, err := destinationReference(path.Join(destination, destSuffix), opts.destination)
+			destRef, err := destinationReference(destination, destSuffix, opts.destination)
 			if err != nil {
 				return err
 			}
