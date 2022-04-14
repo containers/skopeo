@@ -177,31 +177,30 @@ func parseRepositoryReference(input string) (reference.Named, error) {
 // It returns a image reference to be used as destination of an image copy and
 // any error encountered.
 func destinationReference(destination string, destSuffix string, transport string) (types.ImageReference, error) {
-	var refString string
+
 	var destRef types.ImageReference
 	var destRefErr error
 
+	destString := path.Join(destination, destSuffix)
 	switch transport {
 	case docker.Transport.Name():
-		refString = fmt.Sprintf("//%s", path.Join(destination, destSuffix))
-		destRef, destRefErr = docker.Transport.ParseReference(refString)
+		destRef, destRefErr = docker.Transport.ParseReference(fmt.Sprintf("//%s", destString))
 	case directory.Transport.Name():
-		refString = path.Join(destination, destSuffix)
-		if err := checkExistAndMkdir(refString); err != nil {
+		if err := checkExistAndMkdir(destString); err != nil {
 			return nil, err
 		}
-		destRef, destRefErr = directory.NewReference(refString)
+		destRef, destRefErr = directory.NewReference(destString)
 	case oci.Transport.Name():
 		destRef, destRefErr = oci.NewReference(destination, destSuffix)
-		refString = destRef.StringWithinTransport()
 	default:
 		return nil, errors.Errorf("%q is not a valid destination transport", transport)
 	}
-	logrus.Debugf("Destination for transport %q: %s", transport, refString)
 
 	if destRefErr != nil {
-		return nil, errors.Wrapf(destRefErr, "Cannot obtain a valid image reference for transport %q and reference %q", transport, refString)
+		return nil, errors.Wrapf(destRefErr, "Cannot obtain a valid image reference for transport %q and reference %q", transport, destString)
 	}
+
+	logrus.Debugf("Destination for transport %q: %s", transport, destRef.StringWithinTransport())
 
 	return destRef, nil
 }
