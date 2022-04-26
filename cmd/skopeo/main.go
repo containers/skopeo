@@ -15,6 +15,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// THIS IS A TEST COMMIT TO FOLLOW CI
+// DO NOT MERGE THIS
+
 // gitCommit will be the hash that the binary was built from
 // and will be populated by the Makefile
 var gitCommit = ""

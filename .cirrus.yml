@@ -19,6 +19,8 @@ env:
     CIRRUS_SHELL: "/bin/bash"
     # Save a little typing (path relative to $CIRRUS_WORKING_DIR)
     SCRIPT_BASE: "./contrib/cirrus"
+    # TESTING W/CI-DO NOT MERGE
+    VENDOR_DIR: "./vendor/github.com"
 
     ####
     #### Cache-image names to test with (double-quotes around names are critical)

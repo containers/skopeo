@@ -125,6 +125,7 @@ _run_integration() {
     # Ensure we start with a clean-slate
     podman system reset --force
 
+    ls -al "${SKOPEO_PATH}/${VENDOR_DIR}"
     make test-integration-local BUILDTAGS="$BUILDTAGS"
 }
 
