@@ -56,7 +56,7 @@ _run_setup() {
     dnf erase -y skopeo
 
     # Required for testing the SIF transport
-    dnf install -y fakeroot squashfs-tools
+    dnf install -y fakeroot squashfs-tools podman-compose
 
     msg "Removing systemd-resolved from nsswitch.conf"
     # /etc/resolv.conf is already set to bypass systemd-resolvd
@@ -119,7 +119,9 @@ _run_integration() {
     # Ensure we start with a clean-slate
     podman system reset --force
 
+    make sigstore-testenv-up
     make test-integration-local BUILDTAGS="$BUILDTAGS"
+    make sigstore-testenv-down
 }
 
 _run_system() {

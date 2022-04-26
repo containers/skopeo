@@ -31,6 +31,7 @@ endif
 # Multiple scripts are sensitive to this value, make sure it's exported/available
 # N/B: Need to use 'command -v' here for compatibility with MacOS.
 export CONTAINER_RUNTIME ?= $(if $(shell command -v podman),podman,docker)
+export COMPOSE_CMD ?= $(if $(shell command -v podman-compose),podman-compose,docker-compose)
 GOMD2MAN ?= $(if $(shell command -v go-md2man),go-md2man,$(GOBIN)/go-md2man)
 
 # Go module support: set `-mod=vendor` to use the vendored sources.
@@ -71,6 +72,18 @@ CI ?=
 # This env. var. is interpreted by some tests as a permission to
 # modify local configuration files and services.
 export SKOPEO_CONTAINER_TESTS ?= $(if $(CI),1,0)
+
+# The following env vars are only required for sigstore integration tests
+# see hack/sigstore-setup
+export VAULT_TOKEN ?= testtoken
+export VAULT_ADDR ?= http://localhost:8200/
+export AWS_ACCESS_KEY_ID ?= test
+export AWS_SECRET_ACCESS_KEY ?= test
+export AWS_REGION ?= us-east-1
+export AWS_ENDPOINT ?= localhost:4566
+export AWS_TLS_INSECURE_SKIP_VERIFY ?= 1
+export OIDC_ISSUER ?= http://127.0.0.1:5556/auth
+export OIDC_ID ?= sigstore
 
 # This is a compromise, we either use a container for this or require
 # the local user to have a compatible python3 development environment.
@@ -221,6 +234,12 @@ test-system-local: bin/skopeo
 test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences
 	$(CONTAINER_RUN) $(MAKE) test-unit-local
+
+sigstore-testenv-up:
+	cd hack/sigstore-setup && ./sigstore-setup.sh setup
+
+sigstore-testenv-down:
+	cd hack/sigstore-setup && ./sigstore-setup.sh cleanup
 
 validate:
 	$(CONTAINER_RUN) $(MAKE) validate-local
