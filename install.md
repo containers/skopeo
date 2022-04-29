@@ -1,7 +1,8 @@
 # Installing Skopeo
 
 ## Distribution Packages
-`skopeo` may already be packaged in your distribution.
+`skopeo` may already be packaged in your distribution. This document lists the
+installation steps for many distros, along with their information and support links.
 
 ### Fedora
 
@@ -9,11 +10,26 @@
 sudo dnf -y install skopeo
 ```
 
-### RHEL/CentOS ≥ 8 and CentOS Stream
+[Package Info](https://src.fedoraproject.org/rpms/skopeo) and
+[Bugzilla](https://bugzilla.redhat.com/buglist.cgi?bug_status=__open__&classification=Fedora&component=skopeo&product=Fedora)
+
+Fedora bugs can be reported on the Skopeo GitHub [Issues](https://github.com/containers/skopeo/issues) page.
+
+### RHEL / CentOS Stream ≥ 8
 
 ```sh
 sudo dnf -y install skopeo
 ```
+
+If you are a RHEL customer, please reach out through the official RHEL support
+channels for any issues.
+
+CentOS Stream 9: [Package Info](https://gitlab.com/redhat/centos-stream/rpms/skopeo/-/tree/c9s) and
+[Bugzilla](https://bugzilla.redhat.com/buglist.cgi?bug_status=__open__&classification=Red%20Hat&component=skopeo&product=Red%20Hat%20Enterprise%20Linux%209&version=CentOS%20Stream)
+
+CentOS Stream 8: [Package Info](https://git.centos.org/rpms/skopeo/tree/c8s-stream-rhel8) and
+[Bugzilla](https://bugzilla.redhat.com/buglist.cgi?bug_status=__open__&classification=Red%20Hat&component=skopeo&product=Red%20Hat%20Enterprise%20Linux%208&version=CentOS%20Stream)
+
 
 ### RHEL/CentOS ≤ 7.x
 
@@ -21,17 +37,23 @@ sudo dnf -y install skopeo
 sudo yum -y install skopeo
 ```
 
+CentOS 7: [Package Repo](https://git.centos.org/rpms/skopeo/tree/c7-extras)
+
 ### openSUSE
 
 ```sh
 sudo zypper install skopeo
 ```
 
+[Package Info](https://software.opensuse.org/package/skopeo)
+
 ### Alpine
 
 ```sh
 sudo apk add skopeo
 ```
+
+[Package Info](https://pkgs.alpinelinux.org/packages?name=skopeo)
 
 ### macOS
 
@@ -44,6 +66,8 @@ brew install skopeo
 $ nix-env -i skopeo
 ```
 
+[Package Info](https://search.nixos.org/packages?&show=skopeo&query=skopeo)
+
 ### Debian
 
 The skopeo package is available on [Bullseye](https://packages.debian.org/bullseye/skopeo),
@@ -54,6 +78,8 @@ and Debian Testing and Unstable.
 sudo apt-get update
 sudo apt-get -y install skopeo
 ```
+
+[Package Info](https://packages.debian.org/stable/skopeo)
 
 ### Raspberry Pi OS arm64 (beta)
 
@@ -72,6 +98,8 @@ and newer.
 sudo apt-get -y update
 sudo apt-get -y install skopeo
 ```
+
+[Package Info](https://packages.ubuntu.com/jammy/skopeo)
 
 ### Windows
 Skopeo has not yet been packaged for Windows. There is an [open feature
