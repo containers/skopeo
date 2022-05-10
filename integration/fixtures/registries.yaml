@@ -1,6 +1,6 @@
 docker:
-   localhost:5555:
+   localhost:8888:
         lookaside: file://@lookaside@
-   localhost:5555/public:
+   localhost:8888/public:
         lookaside-staging: file://@split-staging@
         lookaside: @split-read@

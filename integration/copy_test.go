@@ -28,8 +28,8 @@ func init() {
 }
 
 const (
-	v2DockerRegistryURL   = "localhost:5555" // Update also policy.json
-	v2s1DockerRegistryURL = "localhost:5556"
+	v2DockerRegistryURL   = "localhost:8888" // Update also policy.json, registries.yaml
+	v2s1DockerRegistryURL = "localhost:8889"
 	knownWindowsOnlyImage = "docker://mcr.microsoft.com/windows/nanoserver:1909"
 	knownListImage        = "docker://registry.fedoraproject.org/fedora-minimal" // could have either ":latest" or "@sha256:..." appended
 )

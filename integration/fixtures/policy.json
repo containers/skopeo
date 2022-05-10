@@ -6,7 +6,7 @@
     ],
     "transports": {
         "docker": {
-            "localhost:5555": [
+            "localhost:8888": [
                 {
                     "type": "signedBy",
                     "keyType": "GPGKeys",
