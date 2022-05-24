@@ -30,7 +30,7 @@ env:
 
     # Google-cloud VM Images
     IMAGE_SUFFIX: "c6032583541653504"
-    FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
+    FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"  # Updated w/ NM/CNI workaround
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
     PRIOR_UBUNTU_CACHE_IMAGE_NAME: "prior-ubuntu-${IMAGE_SUFFIX}"
