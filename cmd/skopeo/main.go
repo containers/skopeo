@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ type globalOptions struct {
 	commandTimeout     time.Duration           // Timeout for the command execution
 	registriesConfPath string                  // Path to the "registries.conf" file
 	tmpDir             string                  // Path to use for big temporary files
+	stdout             bool                    // Log to stdout instead of default stderr
 }
 
 // requireSubcommand returns an error if no sub command is provided
@@ -93,6 +95,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 		logrus.Fatal("unable to mark registries-conf flag as hidden")
 	}
 	rootCommand.PersistentFlags().StringVar(&opts.tmpDir, "tmpdir", "", "directory used to store temporary files")
+	rootCommand.PersistentFlags().BoolVar(&opts.stdout, "stdout", false, "Log to stdout instead of default stderr")
 	flag := commonFlag.OptionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	flag.Hidden = true
 	rootCommand.AddCommand(
@@ -117,6 +120,9 @@ func createApp() (*cobra.Command, *globalOptions) {
 func (opts *globalOptions) before(cmd *cobra.Command) error {
 	if opts.debug {
 		logrus.SetLevel(logrus.DebugLevel)
+	}
+	if opts.stdout {
+		logrus.SetOutput(os.Stdout)
 	}
 	if opts.tlsVerify.Present() {
 		logrus.Warn("'--tls-verify' is deprecated, please set this on the specific subcommand")
