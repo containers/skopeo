@@ -84,12 +84,13 @@ http:
 		return nil, err
 	}
 
-	binary := binaryV2
+	var cmd *exec.Cmd
 	if schema1 {
-		binary = binaryV2Schema1
+		cmd = exec.Command(binaryV2Schema1, confPath)
+	} else {
+		cmd = exec.Command(binaryV2, "serve", confPath)
 	}
 
-	cmd := exec.Command(binary, confPath)
 	consumeAndLogOutputs(c, fmt.Sprintf("registry-%s", url), cmd)
 	if err := cmd.Start(); err != nil {
 		if os.IsNotExist(err) {
