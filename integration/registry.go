@@ -53,6 +53,9 @@ storage:
         enabled: true
 http:
     addr: %s
+compatibility:
+    schema1:
+        enabled: true
 %s`
 	var (
 		htpasswd string
