@@ -80,6 +80,23 @@ _run_setup() {
     fi
     msg "Copying test binaries from $SKOPEO_CIDEV_CONTAINER_FQIN /usr/local/bin/"
     cp -a "$mnt/usr/local/bin/"* "/usr/local/bin/"
+    msg "TEMPORARY: Building a new registry"
+    rm /usr/local/bin/registry-v2
+    (
+    export GO111MODULE=off
+    REG_COMMIT="b5ca020cfbe998e5af3457fda087444cf5116496"
+    GOPATH=$(mktemp -d -p '' ".tmp_$(basename ${BASH_SOURCE[0]})_XXXXXXXX")
+    REG_GOSRC="$GOPATH/src/github.com/docker/distribution"
+    git clone "https://github.com/docker/distribution.git" "$REG_GOSRC"
+    cd "$REG_GOSRC"
+    # This is required to be set like this by the build system
+    export GOPATH="$PWD/Godeps/_workspace:$GOPATH"
+    # This comes in from the Containerfile
+    # shellcheck disable=SC2154
+    git checkout -q "$REG_COMMIT"
+    go build -o /usr/local/bin/registry-v2 \
+        github.com/docker/distribution/cmd/registry
+    )
     msg "Configuring the openshift registry"
 
     # TODO: Put directory & yaml into more sensible place + update integration tests
