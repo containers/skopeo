@@ -248,3 +248,6 @@ vendor:
 
 vendor-in-container:
 	podman run --privileged --rm --env HOME=/root -v $(CURDIR):/src -w /src quay.io/libpod/golang:1.16 $(MAKE) vendor
+
+rpm:
+	rpkg local

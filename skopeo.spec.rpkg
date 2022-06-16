@@ -1,0 +1,126 @@
+# For automatic rebuilds in COPR
+
+# The following tag is to get correct syntax highlighting for this file in vim text editor
+# vim: syntax=spec
+
+%global gomodulesmode GO111MODULE=on
+%global with_debug 1
+
+%if 0%{?with_debug}
+%global _find_debuginfo_dwz_opts %{nil}
+%global _dwz_low_mem_die_limit 0
+%else
+%global debug_package %{nil}
+%endif
+
+%if ! 0%{?gobuild:1}
+%define gobuild(o:) go build -buildmode pie -compiler gc -tags="rpm_crashtraceback ${BUILDTAGS:-}" -ldflags "${LDFLAGS:-} -B 0x$(head -c20 /dev/urandom|od -An -tx1|tr -d ' \\n') -extldflags '-Wl,-z,relro -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld '" -a -v -x %{?**};
+%endif
+
+Name: {{{ git_dir_name }}}
+Epoch: 101
+Version: {{{ git_dir_version }}}
+Release: 1%{?dist}
+Summary: Inspect container images and repositories on registries
+License: ASL 2.0
+URL: https://github.com/containers/skopeo
+VCS: {{{ git_dir_vcs }}}
+Source: {{{ git_dir_pack }}}
+%if 0%{?fedora} && ! 0%{?rhel}
+BuildRequires: btrfs-progs-devel
+%endif
+BuildRequires: golang >= 1.16.6
+BuildRequires: glib2-devel
+BuildRequires: git-core
+BuildRequires: go-md2man
+%if 0%{?fedora} || 0%{?rhel} >= 9
+BuildRequires: go-rpm-macros
+%endif
+BuildRequires: pkgconfig(devmapper)
+BuildRequires: gpgme-devel
+BuildRequires: libassuan-devel
+BuildRequires: pkgconfig
+BuildRequires: make
+BuildRequires: ostree-devel
+%if 0%{?fedora} <= 35
+Requires: containers-common >= 4:1-39
+%else
+Requires: containers-common >= 4:1-46
+%endif
+
+%description
+Command line utility to inspect images and repositories directly on Docker
+registries without the need to pull them.
+
+%package tests
+Summary: Tests for %{name}
+Requires: %{name} = %{epoch}:%{version}-%{release}
+Requires: bats
+Requires: gnupg
+Requires: jq
+Requires: podman
+Requires: httpd-tools
+Requires: openssl
+Requires: fakeroot
+Requires: squashfs-tools
+
+%description tests
+%{summary}
+
+This package contains system tests for %{name}
+
+%prep
+{{{ git_dir_setup_macro }}}
+
+sed -i 's/install-binary: bin\/skopeo/install-binary:/' Makefile
+
+# This will invoke `make` command in the directory with the extracted sources.
+%build
+%set_build_flags
+export CGO_CFLAGS=$CFLAGS
+# These extra flags present in $CFLAGS have been skipped for now as they break the build
+CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-flto=auto//g')
+CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-Wp,D_GLIBCXX_ASSERTIONS//g')
+CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-specs=\/usr\/lib\/rpm\/redhat\/redhat-annobin-cc1//g')
+
+%ifarch x86_64
+export CGO_CFLAGS+=" -m64 -mtune=generic -fcf-protection=full"
+%endif
+
+LDFLAGS=""
+
+export BUILDTAGS="$(hack/libdm_tag.sh)"
+%if 0%{?rhel}
+export BUILDTAGS="$BUILDTAGS exclude_graphdriver_btrfs btrfs_noversion"
+%endif
+
+%gobuild -o bin/%{name} ./cmd/%{name}
+
+%install
+%{__make} PREFIX=%{buildroot}%{_prefix} install-binary install-docs install-completions
+
+# system tests
+install -d -p %{buildroot}/%{_datadir}/%{name}/test/system
+cp -pav systemtest/* %{buildroot}/%{_datadir}/%{name}/test/system/
+
+%files
+%license LICENSE
+%doc README.md
+%{_bindir}/%{name}
+%{_mandir}/man1/%%{name}*
+%dir %{_datadir}/bash-completion
+%dir %{_datadir}/bash-completion/completions
+%{_datadir}/bash-completion/completions/%{name}
+%dir %{_datadir}/fish
+%dir %{_datadir}/fish/vendor_completions.d
+%{_datadir}/fish/vendor_completions.d/%{name}.fish
+%dir %{_datadir}/zsh
+%dir %{_datadir}/zsh/site-functions
+%{_datadir}/zsh/site-functions/_%{name}
+
+%files tests
+%license LICENSE
+%{_datadir}/%{name}/test
+
+%changelog
+{{{ git_dir_changelog }}}
