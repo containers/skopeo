@@ -29,9 +29,14 @@ GOBIN := $(GOPATH)/bin
 endif
 
 # Scripts may also use CONTAINER_RUNTIME, so we need to export it.
-# N/B: Need to use 'command -v' here for compatibility with MacOS.
-export CONTAINER_RUNTIME ?= $(if $(shell command -v podman),podman,docker)
-GOMD2MAN ?= $(if $(shell command -v go-md2man),go-md2man,$(GOBIN)/go-md2man)
+# Note possibly non-obvious aspects of this:
+# - We need to use 'command -v' here, not 'which', for compatibility with MacOS.
+# - GNU Make 4.2.1 (included in Ubuntu 20.04) incorrectly tries to avoid invoking
+#   a shell, and fails because there is no /usr/bin/command. The trailing ';' in
+#   $(shell … ;) defeats that heuristic (recommended in
+#   https://savannah.gnu.org/bugs/index.php?57625 ).
+export CONTAINER_RUNTIME ?= $(if $(shell command -v podman ;),podman,docker)
+GOMD2MAN ?= $(if $(shell command -v go-md2man ;),go-md2man,$(GOBIN)/go-md2man)
 
 # Go module support: set `-mod=vendor` to use the vendored sources.
 # See also hack/make.sh.
