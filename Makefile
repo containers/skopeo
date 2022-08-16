@@ -28,7 +28,7 @@ ifeq ($(GOBIN),)
 GOBIN := $(GOPATH)/bin
 endif
 
-# Multiple scripts are sensitive to this value, make sure it's exported/available
+# Scripts may also use CONTAINER_RUNTIME, so we need to export it.
 # N/B: Need to use 'command -v' here for compatibility with MacOS.
 export CONTAINER_RUNTIME ?= $(if $(shell command -v podman),podman,docker)
 GOMD2MAN ?= $(if $(shell command -v go-md2man),go-md2man,$(GOBIN)/go-md2man)
