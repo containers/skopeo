@@ -26,7 +26,7 @@ env:
     FEDORA_NAME: "fedora-36"
 
     # Google-cloud VM Images
-    IMAGE_SUFFIX: "c5495735033528320"
+    IMAGE_SUFFIX: "c5806552840929280"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
 
     # Container FQIN's
