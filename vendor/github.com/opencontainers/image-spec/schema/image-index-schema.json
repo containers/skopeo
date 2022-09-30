@@ -1,6 +1,6 @@
 {
   "description": "OpenContainer Image Index Specification",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-04/schema#",
   "id": "https://opencontainers.org/schema/image/index",
   "type": "object",
   "properties": {
@@ -10,6 +10,10 @@
       "type": "integer",
       "minimum": 2,
       "maximum": 2
+    },
+    "mediaType": {
+      "description": "the mediatype of the referenced object",
+      "$ref": "defs-descriptor.json#/definitions/mediaType"
     },
     "manifests": {
       "type": "array",

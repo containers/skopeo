@@ -1,6 +1,6 @@
 {
   "description": "OpenContainer Content Descriptor Specification",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-04/schema#",
   "id": "https://opencontainers.org/schema/descriptor",
   "type": "object",
   "properties": {

@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -68,7 +67,7 @@ func (factory *fsLoaderFactory) refContents(ref gojsonreference.JsonReference) (
 	}
 	defer f.Close()
 
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }
 
 // fsLoader implements gojsonschema.JSONLoader by reading the document named by source from a fsLoaderFactory.

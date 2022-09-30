@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 
 	digest "github.com/opencontainers/go-digest"
@@ -52,7 +51,7 @@ func (e ValidationError) Error() string {
 
 // Validate validates the given reader against the schema of the wrapped media type.
 func (v Validator) Validate(src io.Reader) error {
-	buf, err := ioutil.ReadAll(src)
+	buf, err := io.ReadAll(src)
 	if err != nil {
 		return errors.Wrap(err, "unable to read the document file")
 	}
@@ -67,7 +66,7 @@ func (v Validator) Validate(src io.Reader) error {
 		}
 	}
 
-	sl := newFSLoaderFactory(schemaNamespaces, fs).New(specs[v])
+	sl := newFSLoaderFactory(schemaNamespaces, FileSystem()).New(specs[v])
 	ml := gojsonschema.NewStringLoader(string(buf))
 
 	result, err := gojsonschema.Validate(sl, ml)
@@ -100,7 +99,7 @@ func (v unimplemented) Validate(src io.Reader) error {
 func validateManifest(r io.Reader) error {
 	header := v1.Manifest{}
 
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "error reading the io stream")
 	}
@@ -130,7 +129,7 @@ func validateManifest(r io.Reader) error {
 func validateDescriptor(r io.Reader) error {
 	header := v1.Descriptor{}
 
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "error reading the io stream")
 	}
@@ -152,7 +151,7 @@ func validateDescriptor(r io.Reader) error {
 func validateIndex(r io.Reader) error {
 	header := v1.Index{}
 
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "error reading the io stream")
 	}
@@ -179,7 +178,7 @@ func validateIndex(r io.Reader) error {
 func validateConfig(r io.Reader) error {
 	header := v1.Image{}
 
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "error reading the io stream")
 	}

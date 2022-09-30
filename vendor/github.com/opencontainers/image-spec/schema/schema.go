@@ -15,6 +15,7 @@
 package schema
 
 import (
+	"embed"
 	"net/http"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,7 +34,8 @@ const (
 var (
 	// fs stores the embedded http.FileSystem
 	// having the OCI JSON schema files in root "/".
-	fs = _escFS(false)
+	//go:embed *.json
+	fs embed.FS
 
 	// schemaNamespaces is a set of URI prefixes which are treated as containing the schema files of fs.
 	// This is necessary because *.json schema files in this directory use "id" and "$ref" attributes which evaluate to such URIs, e.g.
@@ -72,5 +74,5 @@ var (
 // FileSystem returns an in-memory filesystem including the schema files.
 // The schema files are located at the root directory.
 func FileSystem() http.FileSystem {
-	return fs
+	return http.FS(fs)
 }

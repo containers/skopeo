@@ -1,4 +1,4 @@
-// Copyright (c) 2021, Sylabs Inc. All rights reserved.
+// Copyright (c) 2021-2022, Sylabs Inc. All rights reserved.
 // This software is licensed under a 3-clause BSD license. Please consult the
 // LICENSE file distributed with the sources of this project regarding your
 // rights to use or distribute this software.
@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"time"
 )
 
@@ -227,6 +226,24 @@ func OptSignatureMetadata(ht crypto.Hash, fp []byte) DescriptorInputOpt {
 	}
 }
 
+// OptSBOMMetadata sets metadata for a SBOM data object. The SBOM format is set to f.
+//
+// If this option is applied to a data object with an incompatible type, an error is returned.
+func OptSBOMMetadata(f SBOMFormat) DescriptorInputOpt {
+	return func(t DataType, opts *descriptorOpts) error {
+		if got, want := t, DataSBOM; got != want {
+			return &unexpectedDataTypeError{got, []DataType{want}}
+		}
+
+		s := sbom{
+			Format: f,
+		}
+
+		opts.extra = s
+		return nil
+	}
+}
+
 // DescriptorInput describes a new data object.
 type DescriptorInput struct {
 	dt   DataType
@@ -242,14 +259,15 @@ const DefaultObjectGroup = 1
 //
 // It is possible (and often necessary) to store additional metadata related to certain types of
 // data objects. Consider supplying options such as OptCryptoMessageMetadata, OptPartitionMetadata,
-// and OptSignatureMetadata for this purpose.
+// OptSignatureMetadata, and OptSBOMMetadata for this purpose.
 //
 // By default, the data object will be placed in the default data object group (1). To override
 // this behavior, use OptNoGroup or OptGroupID. To link this data object, use OptLinkedID or
 // OptLinkedGroupID.
 //
-// By default, the data object will be aligned according to the system's memory page size. To
-// override this behavior, consider using OptObjectAlignment.
+// By default, the data object will not be aligned unless it is of type DataPartition, in which
+// case it will be aligned on a 4096 byte boundary. To override this behavior, consider using
+// OptObjectAlignment.
 //
 // By default, no name is set for data object. To set a name, use OptObjectName.
 //
@@ -258,8 +276,11 @@ const DefaultObjectGroup = 1
 // image modification time. To override this behavior, consider using OptObjectTime.
 func NewDescriptorInput(t DataType, r io.Reader, opts ...DescriptorInputOpt) (DescriptorInput, error) {
 	dopts := descriptorOpts{
-		groupID:   DefaultObjectGroup,
-		alignment: os.Getpagesize(),
+		groupID: DefaultObjectGroup,
+	}
+
+	if t == DataPartition {
+		dopts.alignment = 4096
 	}
 
 	for _, opt := range opts {
