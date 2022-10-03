@@ -50,9 +50,10 @@ type syncOptions struct {
 
 // repoDescriptor contains information of a single repository used as a sync source.
 type repoDescriptor struct {
-	DirBasePath string                 // base path when source is 'dir'
-	ImageRefs   []types.ImageReference // List of tagged image found for the repository
-	Context     *types.SystemContext   // SystemContext for the sync command
+	DirBasePath          string                 // base path when source is 'dir'
+	ImageRefs            []types.ImageReference // List of tagged image found for the repository
+	Context              *types.SystemContext   // SystemContext for the sync command
+	DestinationPathStyle string                 // path style for the destination
 }
 
 // tlsVerifyConfig is an implementation of the Unmarshaler interface, used to
@@ -64,11 +65,12 @@ type tlsVerifyConfig struct {
 // registrySyncConfig contains information about a single registry, read from
 // the source YAML file
 type registrySyncConfig struct {
-	Images           map[string][]string    // Images map images name to slices with the images' references (tags, digests)
-	ImagesByTagRegex map[string]string      `yaml:"images-by-tag-regex"` // Images map images name to regular expression with the images' tags
-	Credentials      types.DockerAuthConfig // Username and password used to authenticate with the registry
-	TLSVerify        tlsVerifyConfig        `yaml:"tls-verify"` // TLS verification mode (enabled by default)
-	CertDir          string                 `yaml:"cert-dir"`   // Path to the TLS certificates of the registry
+	Images               map[string][]string    // Images map images name to slices with the images' references (tags, digests)
+	ImagesByTagRegex     map[string]string      `yaml:"images-by-tag-regex"` // Images map images name to regular expression with the images' tags
+	Credentials          types.DockerAuthConfig // Username and password used to authenticate with the registry
+	TLSVerify            tlsVerifyConfig        `yaml:"tls-verify"`             // TLS verification mode (enabled by default)
+	CertDir              string                 `yaml:"cert-dir"`               // Path to the TLS certificates of the registry
+	DestinationPathStyle string                 `yaml:"destination-path-style"` // path style for the destination
 }
 
 // sourceConfig contains all registries information read from the source YAML file
@@ -365,8 +367,9 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 			continue
 		}
 		repoDescList = append(repoDescList, repoDescriptor{
-			ImageRefs: sourceReferences,
-			Context:   serverCtx})
+			ImageRefs:            sourceReferences,
+			Context:              serverCtx,
+			DestinationPathStyle: cfg.DestinationPathStyle})
 	}
 
 	for imageName, tagRegex := range cfg.ImagesByTagRegex {
@@ -419,8 +422,9 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 			continue
 		}
 		repoDescList = append(repoDescList, repoDescriptor{
-			ImageRefs: sourceReferences,
-			Context:   serverCtx})
+			ImageRefs:            sourceReferences,
+			Context:              serverCtx,
+			DestinationPathStyle: cfg.DestinationPathStyle})
 	}
 
 	return repoDescList, nil
@@ -646,7 +650,26 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 				}
 			}
 
-			if !opts.scoped {
+			var destSuffixStyle string
+			destSuffixStyle = srcRepo.DestinationPathStyle
+
+			if opts.scoped {
+				if !(destSuffixStyle == "full" || destSuffixStyle == "") {
+					logrus.Infof("destination-style-path setting in yaml is overridden by global --scoped cli flag")
+				}
+				destSuffixStyle = "full"
+			}
+
+			switch destSuffixStyle {
+			case "flat":
+				destSuffix = path.Base(destSuffix)
+			case "full":
+			case "full-no-registry":
+				destSuffix = strings.SplitN(destSuffix, "/", 2)[1]
+			default:
+				if opts.source == "yaml" && destSuffixStyle != "" {
+					logrus.Warnf("destination-path-style yaml setting doesn't match 'full', 'full-no-registry' or 'flat', but is '%s'. Using 'flat' style as default.", destSuffixStyle)
+				}
 				destSuffix = path.Base(destSuffix)
 			}
 

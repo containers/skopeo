@@ -205,6 +205,7 @@ registry.example.com:
     cert-dir: /home/john/certs
 quay.io:
     tls-verify: false
+    destination-path-style: "full-no-registry"
     images:
         coreos/etcd:
             - latest
@@ -224,6 +225,13 @@ For the registry `registry.example.com`, the "john"/"this is a secret" credentia
 TLS verification is normally enabled, and it can be disabled setting `tls-verify` to `false`.
 In the above example, TLS verification is enabled for `registry.example.com`, while is
 disabled for `quay.io`.
+
+The final path could be defined using the `destionation-path-style` setting per each source repository. Can take the following values: `flat` (default), `full`, `full-no-registry`. 
+Examples for the `registry.example.com/prom/node-exporter` as source and `dest.registry.com` as destination:
+- `flat` results in `dest.registry.com/node-exporter`
+- `full` results in `dest.registry.com/registry.example.com/prom/node-exporter`
+- `full-no-registry` results in `dest.registry.com/prom/node-exporter`
+`--scoped` CLI flag overrides the behaviour of the `destination-path-style` setting, setting it to `full` for every source repository.
 
 ## SEE ALSO
 skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5)
