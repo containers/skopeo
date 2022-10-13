@@ -50,9 +50,10 @@ type syncOptions struct {
 
 // repoDescriptor contains information of a single repository used as a sync source.
 type repoDescriptor struct {
-	DirBasePath string                 // base path when source is 'dir'
-	ImageRefs   []types.ImageReference // List of tagged image found for the repository
-	Context     *types.SystemContext   // SystemContext for the sync command
+	DirBasePath    string                 // base path when source is 'dir'
+	DestinationRef types.ImageReference   // Destination
+	ImageRefs      []types.ImageReference // List of tagged image found for the repository
+	Context        *types.SystemContext   // SystemContext for the sync command
 }
 
 // tlsVerifyConfig is an implementation of the Unmarshaler interface, used to
@@ -74,6 +75,25 @@ type registrySyncConfig struct {
 // sourceConfig contains all registries information read from the source YAML file
 type sourceConfig map[string]registrySyncConfig
 
+// syncConfig contains all registries information read from the source YAML file for source yaml2
+type syncConfig map[string]registrySyncConfigV2
+
+// registrySyncConfigV2 contains all information read from the yaml2 sync config for a registry
+type registrySyncConfigV2 struct {
+	Repos       map[string]repoSyncConfig
+	Credentials types.DockerAuthConfig // Username and password used to authenticate with the registry
+	TLSVerify   tlsVerifyConfig        `yaml:"tls-verify"` // TLS verification mode (enabled by default)
+	CertDir     string                 `yaml:"cert-dir"`   // Path to the TLS certificates of the registry
+}
+
+// repoSyncConfig contains all information needed to sync an individual repository
+type repoSyncConfig struct {
+	DestinationRepo string   `yaml:"destination-repo"`    // Destination repository
+	MirrorTags      []string `yaml:"mirror-tags"`         // tags to sync
+	MirrorDigests   []string `yaml:"mirror-digests"`      // digests to sync
+	MirrorTagsRegex string   `yaml:"mirror-by-tag-regex"` // Regex to filter tags by
+}
+
 func syncCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
 	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
@@ -94,7 +114,7 @@ func syncCmd(global *globalOptions) *cobra.Command {
 		Short: "Synchronize one or more images from one location to another",
 		Long: `Copy all the images from a SOURCE to a DESTINATION.
 
-Allowed SOURCE transports (specified with --src): docker, dir, yaml.
+Allowed SOURCE transports (specified with --src): docker, dir, yaml, yaml2.
 Allowed DESTINATION transports (specified with --dest): docker, dir.
 
 See skopeo-sync(1) for details.
@@ -142,6 +162,21 @@ func (tls *tlsVerifyConfig) UnmarshalYAML(unmarshal func(interface{}) error) err
 // It returns a new unmarshaled sourceConfig object and any error encountered.
 func newSourceConfig(yamlFile string) (sourceConfig, error) {
 	var cfg sourceConfig
+	source, err := os.ReadFile(yamlFile)
+	if err != nil {
+		return cfg, err
+	}
+	err = yaml.Unmarshal(source, &cfg)
+	if err != nil {
+		return cfg, fmt.Errorf("Failed to unmarshal %q: %w", yamlFile, err)
+	}
+	return cfg, nil
+}
+
+// newSourceConfig unmarshals the provided YAML file path to the sourceConfig type.
+// It returns a new unmarshaled sourceConfig object and any error encountered.
+func newSourceConfigYaml2(yamlFile string) (syncConfig, error) {
+	var cfg syncConfig
 	source, err := os.ReadFile(yamlFile)
 	if err != nil {
 		return cfg, err
@@ -418,12 +453,161 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 	return repoDescList, nil
 }
 
+// imagesToCopyFromRegistryV2 builds a list of repository descriptors from the images
+// in a registry configuration.
+// It returns a repository descriptors slice with as many elements as the images
+// found and any error encountered. Each element of the slice is a list of
+// image references, to be used as sync source.
+func imagesToCopyFromRegistryV2(registryName string, cfg registrySyncConfigV2, sourceCtx types.SystemContext, destination string) ([]repoDescriptor, error) {
+	serverCtx := &sourceCtx
+	// override ctx with per-registryName options
+	serverCtx.DockerCertPath = cfg.CertDir
+	serverCtx.DockerDaemonCertPath = cfg.CertDir
+	serverCtx.DockerDaemonInsecureSkipTLSVerify = (cfg.TLSVerify.skip == types.OptionalBoolTrue)
+	serverCtx.DockerInsecureSkipTLSVerify = cfg.TLSVerify.skip
+	if cfg.Credentials != (types.DockerAuthConfig{}) {
+		serverCtx.DockerAuthConfig = &cfg.Credentials
+	}
+	var repoDescList []repoDescriptor
+
+	for repo, repoCfg := range cfg.Repos {
+		var sourceReferences []types.ImageReference
+		repoLogger := logrus.WithFields(logrus.Fields{
+			"repo":            repo,
+			"registry":        registryName,
+			"destinationRepo": repoCfg.DestinationRepo,
+		})
+
+		repoRef, err := parseRepositoryReference(fmt.Sprintf("%s/%s", registryName, repo))
+		if err != nil {
+			repoLogger.Error("Error parsing repository name, skipping")
+			logrus.Error(err)
+			continue
+		}
+
+		destRepoRef, err := docker.Transport.ParseReference(fmt.Sprintf("//%s/%s", destination, repoCfg.DestinationRepo))
+		if err != nil {
+			repoLogger.Error("Error parsing destination repository name, only docker to docker sync is support with yaml2 source")
+			logrus.Error(err)
+			return []repoDescriptor{}, err
+		}
+
+		repoLogger.Info("Processing repo")
+
+		if len(repoCfg.MirrorTags) == 0 && len(repoCfg.MirrorDigests) == 0 && len(repoCfg.MirrorTagsRegex) == 0 {
+			repoLogger.Info("Querying registry for image tags")
+			references, err := imagesToCopyFromRepo(serverCtx, repoRef)
+			if err != nil {
+				repoLogger.Error("Error processing repo, skipping")
+				logrus.Error(err)
+				continue
+			}
+
+			for _, ref := range references {
+				repoLogger.Infof("imageRef: %s", ref.DockerReference())
+
+				_, isTagged := ref.DockerReference().(reference.Tagged)
+				if !isTagged {
+					repoLogger.Errorf("Internal error, reference %s does not have a tag, skipping", ref.DockerReference())
+					continue
+				}
+				sourceReferences = append(sourceReferences, ref)
+			}
+		} else if len(repoCfg.MirrorTags) != 0 {
+			for _, tag := range repoCfg.MirrorTags {
+				tagLogger := logrus.WithFields(logrus.Fields{"tag": tag})
+				named, err := reference.WithTag(repoRef, tag)
+				if err != nil {
+					tagLogger.Error("Error parsing ref, skipping")
+					logrus.Error(err)
+					continue
+				}
+
+				imageRef, err := docker.NewReference(named)
+				if err != nil {
+					tagLogger.Error("Error processing tag, skipping")
+					logrus.Errorf("Error getting image reference: %s", err)
+					continue
+				}
+				tagLogger.Infof("imageRef: %s", imageRef.DockerReference())
+				sourceReferences = append(sourceReferences, imageRef)
+			}
+		} else if len(repoCfg.MirrorDigests) != 0 {
+			for _, d := range repoCfg.MirrorDigests {
+				digestLogger := logrus.WithFields(logrus.Fields{"digest": d})
+				d, err := digest.Parse(d)
+				if err != nil {
+					digestLogger.Error("Error processing digest, skipping")
+					logrus.Error(err)
+					continue
+				}
+
+				named, err := reference.WithDigest(repoRef, d)
+				if err != nil {
+					digestLogger.Error("Error processing digest, skipping")
+					logrus.Error(err)
+					continue
+				}
+
+				imageRef, err := docker.NewReference(named)
+				if err != nil {
+					digestLogger.Error("Error processing ref, skipping")
+					logrus.Errorf("Error getting image reference: %s", err)
+					continue
+				}
+				digestLogger.Infof("imageRef: %s", imageRef.DockerReference())
+				sourceReferences = append(sourceReferences, imageRef)
+			}
+		} else if len(repoCfg.MirrorTagsRegex) != 0 {
+			tagReg, err := regexp.Compile(repoCfg.MirrorTagsRegex)
+			if err != nil {
+				repoLogger.WithFields(logrus.Fields{
+					"regex": repoCfg.MirrorTagsRegex,
+				}).Error("Error parsing regex, skipping")
+				logrus.Error(err)
+				continue
+			}
+
+			repoLogger.Info("Querying registry for image tags")
+			allSourceReferences, err := imagesToCopyFromRepo(serverCtx, repoRef)
+			if err != nil {
+				repoLogger.Error("Error processing repo, skipping")
+				logrus.Error(err)
+				continue
+			}
+
+			repoLogger.Infof("Start filtering using the regular expression: %v", repoCfg.MirrorTagsRegex)
+			for _, sReference := range allSourceReferences {
+				tagged, isTagged := sReference.DockerReference().(reference.Tagged)
+				if !isTagged {
+					repoLogger.Errorf("Internal error, reference %s does not have a tag, skipping", sReference.DockerReference())
+					continue
+				}
+				if tagReg.MatchString(tagged.Tag()) {
+					repoLogger.Infof("Regex matches image: %s", sReference.DockerReference())
+					sourceReferences = append(sourceReferences, sReference)
+				}
+			}
+		}
+
+		if len(sourceReferences) == 0 {
+			repoLogger.Warnf("No refs to sync found")
+			continue
+		}
+		repoDescList = append(repoDescList, repoDescriptor{
+			DestinationRef: destRepoRef,
+			ImageRefs:      sourceReferences,
+			Context:        serverCtx})
+	}
+	return repoDescList, nil
+}
+
 // imagesToCopy retrieves all the images to copy from a specified sync source
 // and transport.
 // It returns a slice of repository descriptors, where each descriptor is a
 // list of tagged image references to be used as sync source, and any error
 // encountered.
-func imagesToCopy(source string, transport string, sourceCtx *types.SystemContext) ([]repoDescriptor, error) {
+func imagesToCopy(source string, transport string, sourceCtx *types.SystemContext, destination string) ([]repoDescriptor, error) {
 	var descriptors []repoDescriptor
 
 	switch transport {
@@ -495,8 +679,26 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 			}
 			descriptors = append(descriptors, descs...)
 		}
-	}
+	case "yaml2":
+		cfg, err := newSourceConfigYaml2(source)
+		if err != nil {
+			return descriptors, err
+		}
+		for registryName, syncConfig := range cfg {
+			if len(syncConfig.Repos) == 0 {
+				logrus.WithFields(logrus.Fields{
+					"registry": registryName,
+				}).Warn("No repos specified for registry")
+				continue
+			}
 
+			descs, err := imagesToCopyFromRegistryV2(registryName, syncConfig, *sourceCtx, destination)
+			if err != nil {
+				return descriptors, fmt.Errorf("Failed to retrieve list of images from registry %q: %w", registryName, err)
+			}
+			descriptors = append(descriptors, descs...)
+		}
+	}
 	return descriptors, nil
 }
 
@@ -529,7 +731,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if len(opts.source) == 0 {
 		return errors.New("A source transport must be specified")
 	}
-	if !contains(opts.source, []string{docker.Transport.Name(), directory.Transport.Name(), "yaml"}) {
+	if !contains(opts.source, []string{docker.Transport.Name(), directory.Transport.Name(), "yaml", "yaml2"}) {
 		return fmt.Errorf("%q is not a valid source transport", opts.source)
 	}
 
@@ -568,15 +770,15 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	defer cancel()
 
 	sourceArg := args[0]
+	destination := args[1]
 	var srcRepoList []repoDescriptor
 	if err = retry.IfNecessary(ctx, func() error {
-		srcRepoList, err = imagesToCopy(sourceArg, opts.source, sourceCtx)
+		srcRepoList, err = imagesToCopy(sourceArg, opts.source, sourceCtx, destination)
 		return err
 	}, opts.retryOpts); err != nil {
 		return err
 	}
 
-	destination := args[1]
 	destinationCtx, err := opts.destImage.newSystemContext()
 	if err != nil {
 		return err
@@ -624,27 +826,61 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	for _, srcRepo := range srcRepoList {
 		options.SourceCtx = srcRepo.Context
 		for counter, ref := range srcRepo.ImageRefs {
-			var destSuffix string
-			switch ref.Transport() {
-			case docker.Transport:
-				// docker -> dir or docker -> docker
-				destSuffix = ref.DockerReference().String()
-			case directory.Transport:
-				// dir -> docker (we don't allow `dir` -> `dir` sync operations)
-				destSuffix = strings.TrimPrefix(ref.StringWithinTransport(), srcRepo.DirBasePath)
-				if destSuffix == "" {
-					// if source is a full path to an image, have destPath scoped to repo:tag
-					destSuffix = path.Base(srcRepo.DirBasePath)
+			var destRef types.ImageReference
+			if srcRepo.DestinationRef != nil {
+				switch r := ref.DockerReference().(type) {
+				case reference.Digested:
+					destNamedRef, err := reference.ParseNormalizedNamed(srcRepo.DestinationRef.DockerReference().Name())
+					if err != nil {
+						return err
+					}
+
+					destDigestedRef, err := reference.WithDigest(destNamedRef, r.Digest())
+					if err != nil {
+						return err
+					}
+
+					destRef, err = docker.ParseReference(fmt.Sprintf("//%s", destDigestedRef.String()))
+					if err != nil {
+						return err
+					}
+				case reference.NamedTagged:
+					destTaggedRef, err := reference.WithTag(srcRepo.DestinationRef.DockerReference(), r.Tag())
+					if err != nil {
+						return err
+					}
+
+					destRef, err = docker.ParseReference(fmt.Sprintf("//%s", destTaggedRef.String()))
+					if err != nil {
+						return err
+					}
+				default:
+					logrus.Errorf("destination ref type is unsupported for this sync")
+					return fmt.Errorf("destination ref type is unsupported for this sync")
 				}
-			}
+			} else {
+				var destSuffix string
+				switch ref.Transport() {
+				case docker.Transport:
+					// docker -> dir or docker -> docker
+					destSuffix = ref.DockerReference().String()
+				case directory.Transport:
+					// dir -> docker (we don't allow `dir` -> `dir` sync operations)
+					destSuffix = strings.TrimPrefix(ref.StringWithinTransport(), srcRepo.DirBasePath)
+					if destSuffix == "" {
+						// if source is a full path to an image, have destPath scoped to repo:tag
+						destSuffix = path.Base(srcRepo.DirBasePath)
+					}
+				}
 
-			if !opts.scoped {
-				destSuffix = path.Base(destSuffix)
-			}
+				if !opts.scoped {
+					destSuffix = path.Base(destSuffix)
+				}
 
-			destRef, err := destinationReference(path.Join(destination, destSuffix), opts.destination)
-			if err != nil {
-				return err
+				destRef, err = destinationReference(path.Join(destination, destSuffix), opts.destination)
+				if err != nil {
+					return err
+				}
 			}
 
 			fromToFields := logrus.Fields{
