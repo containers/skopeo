@@ -1,0 +1,65 @@
+# Keep this in sync with https://github.com/containers/containers-image-proxy-rs/blob/a4223a034895bf27423878f3af2ba22d50fc7b36/.github/workflows/ci.yaml
+name: Proxy ostree-ext
+
+permissions:
+  actions: read
+
+on:
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'proxyapi') || github.event_name == 'workflow_dispatch' }}
+    name: Build
+    runs-on: ubuntu-latest
+    container: quay.io/coreos-assembler/fcos-buildroot:testing-devel
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Mark git checkout as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install deps
+        run: dnf builddep -y skopeo
+      - name: Compile
+        run: make
+      - name: Upload binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: skopeo
+          path: bin/skopeo
+  proxy-ostree-ext:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'proxyapi') || github.event_name == 'workflow_dispatch'}}
+    name: Proxy API
+    needs: build
+    runs-on: ubuntu-latest
+    container: quay.io/coreos-assembler/fcos-buildroot:testing-devel
+
+    steps:
+      - name: Install skopeo deps
+        run: dnf -y install skopeo && rpm -e skopeo
+      - name: Download skopeo build
+        uses: actions/download-artifact@v3
+        with:
+          name: skopeo
+      - name: Install skopeo
+        run: "install skopeo /usr/bin"
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          repository: ostreedev/ostree-rs-ext
+          ref: main
+      - name: Mark git checkout as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Build
+        run: cargo test --no-run
+      - name: Run tests
+        run: cargo test -- --nocapture --quiet
