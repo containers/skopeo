@@ -85,7 +85,7 @@ osx_task:
     depends_on:
         - validate
     macos_instance:
-        image: catalina-xcode
+        image: ghcr.io/cirruslabs/macos-ventura-base:latest
     setup_script: |
         # /usr/local/opt/go@1.18 will be populated by (brew install go@1.18) below
         export PATH=$GOPATH/bin:/usr/local/opt/go@1.18/bin:$PATH
