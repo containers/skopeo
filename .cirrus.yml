@@ -88,10 +88,12 @@ osx_task:
     depends_on:
         - validate
     macos_instance:
-        image: catalina-xcode
+        image: ghcr.io/cirruslabs/macos-ventura-base:latest
     setup_script: |
         # /usr/local/opt/go@1.16 will be populated by (brew install go@1.16) below
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:$PATH
+        # /opt/homebrew is the expected path for anything installed with brew
+        # on M1 macs
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:/opt/homebrew/opt/go@1.16/bin:$PATH
         brew update
         brew install gpgme go@1.16 go-md2man
         go get -u golang.org/x/lint/golint
