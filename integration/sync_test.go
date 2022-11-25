@@ -14,6 +14,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
+	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"gopkg.in/check.v1"
 )
@@ -589,4 +590,199 @@ func (s *SyncSuite) TestFailsWithDirSourceNotExisting(c *check.C) {
 
 	assertSkopeoFails(c, ".*no such file or directory.*",
 		"sync", "--scoped", "--dest-tls-verify=false", "--src", "dir", "--dest", "docker", tmpDir, v2DockerRegistryURL)
+}
+
+func (s *SyncSuite) TestYamlV2TaggedTags(c *check.C) {
+	image := pullableRepo
+	imageRef, err := docker.ParseReference(fmt.Sprintf("//%s", image))
+	c.Assert(err, check.IsNil)
+
+	tag1 := "v1.8.0"
+	tag2 := "v1.7.1"
+
+	yamlConfig := fmt.Sprintf(`
+%s:
+  repos:
+    %s:
+      destination-repo: %s
+      mirror-tags:
+      - %s
+      - %s`, reference.Domain(imageRef.DockerReference()), reference.Path(imageRef.DockerReference()), reference.Path(imageRef.DockerReference()), tag1, tag2)
+
+	// sync to the local registry
+	tmpDir := c.MkDir()
+	yamlFile := path.Join(tmpDir, "registries.yaml")
+	err = os.WriteFile(yamlFile, []byte(yamlConfig), 0644)
+	c.Assert(err, check.IsNil)
+	assertSkopeoSucceeds(c, "", "sync", "--scoped", "--src", "yaml2", "--dest", "docker", "--dest-tls-verify=false", yamlFile, v2DockerRegistryURL)
+
+	localImageRef, err := docker.ParseReference(fmt.Sprintf("//%s/%s", v2DockerRegistryURL, reference.Path(imageRef.DockerReference())))
+	c.Assert(err, check.IsNil)
+
+	sysCtx := types.SystemContext{
+		DockerInsecureSkipTLSVerify: types.NewOptionalBool(true),
+	}
+	localTags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, localImageRef)
+	c.Assert(err, check.IsNil)
+	c.Assert(len(localTags), check.Equals, 2)
+	c.Assert(localTags, check.Not(check.Equals), 0)
+
+	contains := func(val string, list []string) (_ bool) {
+		for _, l := range list {
+			if l == val {
+				return true
+			}
+		}
+		return
+	}
+	c.Assert(contains(tag1, localTags), check.Equals, true)
+	c.Assert(contains(tag2, localTags), check.Equals, true)
+}
+
+func (s *SyncSuite) TestYamlV2TaggedWillSyncAll(c *check.C) {
+	image := pullableRepo
+	imageRef, err := docker.ParseReference(fmt.Sprintf("//%s", image))
+	c.Assert(err, check.IsNil)
+
+	sysCtx := types.SystemContext{}
+	tags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, imageRef)
+	c.Assert(err, check.IsNil)
+	c.Check(len(tags), check.Not(check.Equals), 0)
+
+	yamlConfig := fmt.Sprintf(`
+%s:
+  repos:
+    %s:
+      destination-repo: %s
+`, reference.Domain(imageRef.DockerReference()), reference.Path(imageRef.DockerReference()), reference.Path(imageRef.DockerReference()))
+
+	tmpDir := c.MkDir()
+	yamlFile := path.Join(tmpDir, "registries.yaml")
+	err = os.WriteFile(yamlFile, []byte(yamlConfig), 0644)
+	c.Assert(err, check.IsNil)
+	assertSkopeoSucceeds(c, "", "sync", "--scoped", "--src", "yaml2", "--dest", "docker", "--dest-tls-verify=false", yamlFile, v2DockerRegistryURL)
+
+	localImageRef, err := docker.ParseReference(fmt.Sprintf("//%s/%s", v2DockerRegistryURL, reference.Path(imageRef.DockerReference())))
+	c.Assert(err, check.IsNil)
+
+	sysCtx = types.SystemContext{
+		DockerInsecureSkipTLSVerify: types.NewOptionalBool(true),
+	}
+	localTags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, localImageRef)
+	c.Assert(err, check.IsNil)
+	c.Assert(len(localTags), check.Equals, len(tags))
+}
+
+func (s *SyncSuite) TestYamlV2TaggedDigest(c *check.C) {
+	image := pullableRepoWithLatestTag
+	imageRef, err := docker.ParseReference(fmt.Sprintf("//%s", image))
+	c.Assert(err, check.IsNil)
+
+	srcDomain := reference.Domain(imageRef.DockerReference())
+	imagePath := reference.Path(imageRef.DockerReference())
+
+	srcDigestStr := "sha256:59eec8837a4d942cc19a52b8c09ea75121acc38114a2c68b98983ce9356b8610"
+	imageDigest, err := digest.Parse(srcDigestStr)
+	c.Assert(err, check.IsNil)
+
+	yamlConfig := fmt.Sprintf(`
+%s:
+  repos:
+    %s:
+      destination-repo: %s
+      mirror-digests:
+      - %s`, srcDomain, imagePath, imagePath, srcDigestStr)
+
+	tmpDir := c.MkDir()
+	yamlFile := path.Join(tmpDir, "registries.yaml")
+	err = os.WriteFile(yamlFile, []byte(yamlConfig), 0644)
+	c.Assert(err, check.IsNil)
+
+	assertSkopeoSucceeds(c, "", "sync", "--scoped", "--src", "yaml2", "--dest", "docker", "--dest-tls-verify=false", yamlFile, v2DockerRegistryURL)
+
+	localNamedRef, err := reference.ParseNormalizedNamed(fmt.Sprintf("%s/%s", v2DockerRegistryURL, imagePath))
+	c.Assert(err, check.IsNil)
+
+	localDigestedRef, err := reference.WithDigest(localNamedRef, imageDigest)
+	c.Assert(err, check.IsNil)
+
+	localImageRef, err := docker.ParseReference(fmt.Sprintf("//%s", localDigestedRef.String()))
+	c.Assert(err, check.IsNil)
+
+	sysCtx := types.SystemContext{
+		DockerInsecureSkipTLSVerify: types.NewOptionalBool(true),
+	}
+	localDigests, err := docker.GetDigest(context.Background(), &sysCtx, localImageRef)
+	c.Assert(err, check.IsNil)
+	c.Assert(imageDigest.String(), check.Equals, localDigests.String())
+}
+
+func (s *SyncSuite) TestYamlV2TaggedTagRegex(c *check.C) {
+	image := "gcr.io/google-containers/busybox"
+	imageRef, err := docker.ParseReference(fmt.Sprintf("//%s", image))
+	c.Assert(err, check.IsNil)
+
+	srcDomain := reference.Domain(imageRef.DockerReference())
+	imagePath := reference.Path(imageRef.DockerReference())
+
+	yamlConfig := fmt.Sprintf(`
+%s:
+  repos: 
+    %s:
+      destination-repo: %s
+      mirror-by-tag-regex: ^1\.2[0-9]$
+`, srcDomain, imagePath, imagePath)
+
+	tmpDir := c.MkDir()
+	yamlFile := path.Join(tmpDir, "registries.yaml")
+	err = os.WriteFile(yamlFile, []byte(yamlConfig), 0644)
+	c.Assert(err, check.IsNil)
+
+	assertSkopeoSucceeds(c, "", "sync", "--scoped", "--src", "yaml2", "--dest", "docker", "--dest-tls-verify=false", yamlFile, v2DockerRegistryURL)
+
+	localImageRef, err := docker.ParseReference(fmt.Sprintf("//%s/%s", v2DockerRegistryURL, imagePath))
+	c.Assert(err, check.IsNil)
+
+	sysCtx := types.SystemContext{
+		DockerInsecureSkipTLSVerify: types.NewOptionalBool(true),
+	}
+	localTags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, localImageRef)
+	c.Assert(err, check.IsNil)
+	c.Assert(len(localTags), check.Equals, 2)
+}
+
+func (s *SyncSuite) TestYamlV2TagRepoRename(c *check.C) {
+	image := pullableRepo
+	imageRef, err := docker.ParseReference(fmt.Sprintf("//%s", image))
+	c.Assert(err, check.IsNil)
+
+	sysCtx := types.SystemContext{}
+	tags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, imageRef)
+	c.Assert(err, check.IsNil)
+	c.Check(len(tags), check.Not(check.Equals), 0)
+
+	localImagePath := "renamed/image"
+
+	yamlConfig := fmt.Sprintf(`
+%s:
+  repos:
+    %s:
+      destination-repo: %s
+`, reference.Domain(imageRef.DockerReference()), reference.Path(imageRef.DockerReference()), localImagePath)
+
+	tmpDir := c.MkDir()
+	yamlFile := path.Join(tmpDir, "registries.yaml")
+	err = os.WriteFile(yamlFile, []byte(yamlConfig), 0644)
+	c.Assert(err, check.IsNil)
+	assertSkopeoSucceeds(c, "", "sync", "--scoped", "--src", "yaml2", "--dest", "docker", "--dest-tls-verify=false", yamlFile, v2DockerRegistryURL)
+
+	localImageRef, err := docker.ParseReference(fmt.Sprintf("//%s/%s", v2DockerRegistryURL, localImagePath))
+	c.Assert(err, check.IsNil)
+
+	sysCtx = types.SystemContext{
+		DockerInsecureSkipTLSVerify: types.NewOptionalBool(true),
+	}
+	localTags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, localImageRef)
+	c.Assert(err, check.IsNil)
+	c.Assert(len(localTags), check.Equals, len(tags))
 }
