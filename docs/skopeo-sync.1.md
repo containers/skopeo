@@ -66,6 +66,8 @@ Print usage statement.
 
 **--scoped** Prefix images with the source image path, so that multiple images with the same name can be stored at _destination_.
 
+**--scoped-append-registry** Add root registry name to DESTINATION image prefix when using `--scoped`. Defaults to `true`. Useful for YAML source to skip appending _source_ image registry to _destination_ scope.
+
 **--preserve-digests** Preserve the digests during copying. Fail if the digest cannot be preserved. Consider using `--all` at the same time.
 
 **--remove-signatures** Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.

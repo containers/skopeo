@@ -42,6 +42,7 @@ type syncOptions struct {
 	source                   string                    // Source repository name
 	destination              string                    // Destination registry name
 	scoped                   bool                      // When true, namespace copied images at destination using the source repository name
+	scopedAppendRegistry     bool                      // When true, omits repository name from final namespace when using skoped
 	all                      bool                      // Copy all of the images if an image in the source is a list
 	dryRun                   bool                      // Don't actually copy anything, just output what it would have done
 	preserveDigests          bool                      // Preserve digests during sync
@@ -111,7 +112,8 @@ See skopeo-sync(1) for details.
 	flags.VarP(commonFlag.NewOptionalStringValue(&opts.format), "format", "f", `MANIFEST TYPE (oci, v2s1, or v2s2) to use when syncing image(s) to a destination (default is manifest type of source, with fallbacks)`)
 	flags.StringVarP(&opts.source, "src", "s", "", "SOURCE transport type")
 	flags.StringVarP(&opts.destination, "dest", "d", "", "DESTINATION transport type")
-	flags.BoolVar(&opts.scoped, "scoped", false, "Images at DESTINATION are prefix using the full source image path as scope")
+	flags.BoolVar(&opts.scoped, "scoped", false, "Images at DESTINATION are prefixed using the full source image path as scope")
+	flags.BoolVar(&opts.scopedAppendRegistry, "scoped-append-registry", true, "Add root registry name to DESTINATION image prefix when using --scoped")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
 	flags.BoolVar(&opts.dryRun, "dry-run", false, "Run without actually copying data")
 	flags.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
@@ -635,6 +637,12 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 				if destSuffix == "" {
 					// if source is a full path to an image, have destPath scoped to repo:tag
 					destSuffix = path.Base(srcRepo.DirBasePath)
+				}
+			}
+
+			if !opts.scopedAppendRegistry {
+				if strings.Contains(destSuffix, "/") {
+					destSuffix = strings.SplitN(destSuffix, "/", 2)[1]
 				}
 			}
 
