@@ -245,6 +245,18 @@ docker run -v $PWD:/src -w /src -e CGO_ENABLED=0 golang \
 make BUILDTAGS=containers_image_openpgp GO_DYN_FLAGS=
 ```
 
+On Windows something like this might work (even more unsupported):
+
+```batch
+REM get git ref
+@echo off && for /f "tokens=*" %i in ('git rev-parse --short HEAD') do set skgitref=%i && @echo on
+REM build bin\skopeo.exe
+set CGO_ENABLED=0
+set GOOS=windows
+go build -mod=vendor -buildmode=pie -ldflags "-X main.gitCommit=%skgitref%" -gcflags "" -tags "containers_image_openpgp" -o ./bin/skopeo.exe ./cmd/skopeo
+```
+
+
 Keep in mind that the resulting binary is unsupported and might crash randomly. Only use if you know what you're doing!
 
 For more information, history, and context about static builds, check the following issues:
