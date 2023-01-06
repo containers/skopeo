@@ -98,7 +98,7 @@ osx_task:
         brew install gpgme go@1.16 go-md2man
         go get -u golang.org/x/lint/golint
     test_script: |
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:$PATH
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:/opt/homebrew/opt/go@1.16/bin:$PATH
         go version
         go env
         make validate-local test-unit-local bin/skopeo
