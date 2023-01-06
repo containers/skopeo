@@ -93,12 +93,12 @@ osx_task:
         # /usr/local/opt/go@1.16 will be populated by (brew install go@1.16) below
         # /opt/homebrew is the expected path for anything installed with brew
         # on M1 macs
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:/opt/homebrew/opt/go@1.16/bin:$PATH
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:/opt/homebrew/opt/go@1.16/bin:/opt/homebrew/bin:$PATH
         brew update
         brew install gpgme go@1.16 go-md2man
         go get -u golang.org/x/lint/golint
     test_script: |
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:/opt/homebrew/opt/go@1.16/bin:$PATH
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:/opt/homebrew/opt/go@1.16/bin:/opt/homebrew/bin:$PATH
         go version
         go env
         make validate-local test-unit-local bin/skopeo
