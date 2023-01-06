@@ -88,12 +88,14 @@ osx_task:
         image: ghcr.io/cirruslabs/macos-ventura-base:latest
     setup_script: |
         # /usr/local/opt/go@1.18 will be populated by (brew install go@1.18) below
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.18/bin:$PATH
+        # /opt/homebrew is the expected path for anything installed with brew
+        # on M1 macs
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.18/bin:/opt/homebrew/opt/go@1.18/bin:/opt/homebrew/bin:$PATH
         brew update
         brew install gpgme go@1.18 go-md2man
         go install golang.org/x/lint/golint@latest
     test_script: |
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.18/bin:$PATH
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.18/bin:/opt/homebrew/opt/go@1.18/bin:/opt/homebrew/bin:$PATH
         go version
         go env
         make validate-local test-unit-local bin/skopeo
