@@ -88,15 +88,15 @@ osx_task:
     depends_on:
         - validate
     macos_instance:
-        image: catalina-xcode
+        image: ghcr.io/cirruslabs/macos-ventura-base:latest
     setup_script: |
-        # /usr/local/opt/go@1.16 will be populated by (brew install go@1.16) below
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:$PATH
+        export PATH="/opt/homebrew/opt/go@1.16/bin:$GOPATH/bin:$PATH"
+        echo GOPATH
         brew update
         brew install gpgme go@1.16 go-md2man
         go get -u golang.org/x/lint/golint
     test_script: |
-        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:$PATH
+        export PATH="/opt/homebrew/opt/go@1.16/bin:$GOPATH/bin:$PATH"
         go version
         go env
         make validate-local test-unit-local bin/skopeo
