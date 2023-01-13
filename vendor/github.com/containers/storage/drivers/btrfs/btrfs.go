@@ -6,6 +6,9 @@ package btrfs
 /*
 #include <stdlib.h>
 #include <dirent.h>
+
+// keep struct field name compatible with btrfs-progs < 6.1.
+#define max_referenced max_rfer
 #include <btrfs/ioctl.h>
 #include <btrfs/ctree.h>
 
@@ -382,7 +385,7 @@ func subvolLimitQgroup(path string, size uint64) error {
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
-	args.lim.max_referenced = C.__u64(size)
+	args.lim.max_rfer = C.__u64(size)
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))
@@ -674,6 +677,11 @@ func (d *Driver) Exists(id string) bool {
 	dir := d.subvolumesDirID(id)
 	_, err := os.Stat(dir)
 	return err == nil
+}
+
+// List layers (not including additional image stores)
+func (d *Driver) ListLayers() ([]string, error) {
+	return nil, graphdriver.ErrNotSupported
 }
 
 // AdditionalImageStores returns additional image stores supported by the driver

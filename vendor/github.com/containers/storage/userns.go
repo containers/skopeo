@@ -197,7 +197,7 @@ outer:
 		return 0, err
 	}
 	defer func() {
-		if _, err2 := rlstore.Unmount(clayer.ID, true); err2 != nil {
+		if _, err2 := rlstore.unmount(clayer.ID, true, false); err2 != nil {
 			if retErr == nil {
 				retErr = fmt.Errorf("unmounting temporary layer %#v: %w", clayer.ID, err2)
 			} else {
@@ -264,7 +264,7 @@ func (s *store) getAutoUserNS(options *types.AutoUserNsOptions, image *Image, rl
 			}
 		}
 		if s.autoNsMaxSize > 0 && size > s.autoNsMaxSize {
-			return nil, nil, fmt.Errorf("the container needs a user namespace with size %q that is bigger than the maximum value allowed with userns=auto %q", size, s.autoNsMaxSize)
+			return nil, nil, fmt.Errorf("the container needs a user namespace with size %v that is bigger than the maximum value allowed with userns=auto %v", size, s.autoNsMaxSize)
 		}
 	}
 
