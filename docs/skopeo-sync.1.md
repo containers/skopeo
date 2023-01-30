@@ -68,6 +68,8 @@ Print usage statement.
 
 **--append-suffix** _tag-suffix_ String to append to destination tags.
 
+**--top-refs** Only synchronize for top latest refs after sorting by [Semver](https://semver.org/) provided by [go-version](https://github.com/hashicorp/go-version) lib. Fail if image's refs not follow Semantic versioning.
+
 **--preserve-digests** Preserve the digests during copying. Fail if the digest cannot be preserved. Consider using `--all` at the same time.
 
 **--remove-signatures** Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.

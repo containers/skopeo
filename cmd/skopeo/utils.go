@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/containers/image/v5/docker/reference"
 	"io"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	"github.com/hashicorp/go-version"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -408,4 +410,19 @@ func promptForPassphrase(privateKeyFile string, stdin, stdout *os.File) (string,
 	}
 	fmt.Fprintf(stdout, "\n")
 	return string(passphrase), nil
+}
+
+// Filter out refs which are not follow Semantic versioning
+func filterOutRefsNonSemver(imgRefs []types.ImageReference) ([]types.ImageReference, []types.ImageReference) {
+	var semverRefs []types.ImageReference
+	var nonSemverRefs []types.ImageReference
+	for _, ref := range imgRefs {
+		_, err := version.NewVersion(ref.DockerReference().(reference.Tagged).Tag())
+		if err != nil {
+			nonSemverRefs = append(nonSemverRefs, ref)
+			continue
+		}
+		semverRefs = append(semverRefs, ref)
+	}
+	return semverRefs, nonSemverRefs
 }

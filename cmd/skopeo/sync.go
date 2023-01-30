@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/go-version"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	commonFlag "github.com/containers/common/pkg/flag"
@@ -50,6 +52,7 @@ type syncOptions struct {
 	preserveDigests          bool                      // Preserve digests during sync
 	keepGoing                bool                      // Whether or not to abort the sync if there are any errors during syncing the images
 	appendSuffix             string                    // Suffix to append to destination image tag
+	topRefs                  int                       // Only get amount of top largest refs after sorted by Semantic versioning
 }
 
 // repoDescriptor contains information of a single repository used as a sync source.
@@ -118,6 +121,7 @@ See skopeo-sync(1) for details.
 	flags.StringVarP(&opts.destination, "dest", "d", "", "DESTINATION transport type")
 	flags.BoolVar(&opts.scoped, "scoped", false, "Images at DESTINATION are prefix using the full source image path as scope")
 	flags.StringVar(&opts.appendSuffix, "append-suffix", "", "String to append to DESTINATION tags")
+	flags.IntVar(&opts.topRefs, "top-refs", 0, "Only get amount of top largest refs after sorted by Semantic versioning")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
 	flags.BoolVar(&opts.dryRun, "dry-run", false, "Run without actually copying data")
 	flags.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
@@ -647,6 +651,31 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	for _, srcRepo := range srcRepoList {
 		options.SourceCtx = srcRepo.Context
+		// only proceed for top refs if defined
+		if opts.topRefs > 0 {
+			// Check Refs follow Semantic Versioning
+			semverRefs, nonSemverRefs := filterOutRefsNonSemver(srcRepo.ImageRefs)
+			if len(nonSemverRefs) > 0 {
+				logrus.Warnf("Filtered out %d ref(s) are not follow Semver in total %d ref(s)", len(nonSemverRefs), len(srcRepo.ImageRefs))
+			}
+			// Sort semverRefs
+			sort.Slice(semverRefs, func(i, j int) bool {
+				v1, _ := version.NewVersion(semverRefs[i].DockerReference().(reference.Tagged).Tag())
+				v2, _ := version.NewVersion(semverRefs[j].DockerReference().(reference.Tagged).Tag())
+				return v1.LessThan(v2)
+			})
+			topRefs := opts.topRefs
+			totalRefs := len(srcRepo.ImageRefs)
+			totalSemverRefs := len(semverRefs)
+			if totalSemverRefs == 0 {
+				return errors.New("ERROR: Not found any refs follow Semantic versioning. Check your tag's regex configuration OR doesn't it follow Semantic versioning?")
+			}
+			if topRefs > totalSemverRefs {
+				topRefs = totalSemverRefs
+			}
+			logrus.Infof("Only sync top largest %d ref(s) follow Semver in %d ref(s) from the total %d ref(s)", topRefs, totalSemverRefs, totalRefs)
+			srcRepo.ImageRefs = semverRefs[totalSemverRefs-topRefs:]
+		}
 		for counter, ref := range srcRepo.ImageRefs {
 			var destSuffix string
 			switch ref.Transport() {

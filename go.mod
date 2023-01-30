@@ -8,6 +8,7 @@ require (
 	github.com/containers/ocicrypt v1.1.7
 	github.com/containers/storage v1.45.3
 	github.com/docker/distribution v2.8.1+incompatible
+	github.com/hashicorp/go-version v1.6.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/opencontainers/image-tools v1.0.0-rc3
