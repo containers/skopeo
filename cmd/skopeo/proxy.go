@@ -95,7 +95,8 @@ import (
 // 0.2.3: Added GetFullConfig
 // 0.2.4: Added OpenImageOptional
 // 0.2.5: Added LayerInfoJSON
-const protocolVersion = "0.2.5"
+// 0.2.6: OpenImage now accepts a second argument with an array of options
+const protocolVersion = "0.2.6"
 
 // maxMsgSize is the current limit on a packet size.
 // Note that all non-metadata (i.e. payload data) is sent over a pipe.
@@ -214,8 +215,18 @@ func (h *proxyHandler) Initialize(args []interface{}) (replyBuf, error) {
 
 // OpenImage accepts a string image reference i.e. TRANSPORT:REF - like `skopeo copy`.
 // The return value is an opaque integer handle.
+//
+// A second argument may be present; if so, it is an array of string-valued flags.
+//
+// - optional: Do not error if the image is not present; instead return a zero imageid.  Since: 0.2.6
 func (h *proxyHandler) OpenImage(args []interface{}) (replyBuf, error) {
-	return h.openImageImpl(args, false)
+	opts := openOptions{}
+	if len(args) > 1 {
+		if err := opts.parse(args[1]); err != nil {
+			return replyBuf{}, err
+		}
+	}
+	return h.openImageImpl(args, opts)
 }
 
 // isDockerManifestUnknownError is a copy of code from containers/image,
@@ -237,7 +248,32 @@ func isNotFoundImageError(err error) bool {
 		errors.Is(err, ocilayout.ImageNotFoundError{})
 }
 
-func (h *proxyHandler) openImageImpl(args []interface{}, allowNotFound bool) (replyBuf, error) {
+type openOptions struct {
+	optional bool
+}
+
+func (o *openOptions) parse(argsval interface{}) error {
+	args, ok := argsval.([]interface{})
+	if !ok {
+		return fmt.Errorf("expecting array for options, not %T", argsval)
+	}
+	for _, argv := range args {
+		arg, ok := argv.(string)
+		if !ok {
+			return fmt.Errorf("expecting string option, not %T", arg)
+		}
+		switch arg {
+		case "optional":
+			o.optional = true
+		default:
+			return fmt.Errorf("unknown option %s", arg)
+		}
+	}
+
+	return nil
+}
+
+func (h *proxyHandler) openImageImpl(args []interface{}, opts openOptions) (replyBuf, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	var ret replyBuf
@@ -245,7 +281,12 @@ func (h *proxyHandler) openImageImpl(args []interface{}, allowNotFound bool) (re
 	if h.sysctx == nil {
 		return ret, fmt.Errorf("client error: must invoke Initialize")
 	}
-	if len(args) != 1 {
+	switch len(args) {
+	case 1:
+		// This is is the default
+	case 2:
+		// The second argument, if present should have been parsed by the caller
+	default:
 		return ret, fmt.Errorf("invalid request, expecting one argument")
 	}
 	imageref, ok := args[0].(string)
@@ -259,7 +300,7 @@ func (h *proxyHandler) openImageImpl(args []interface{}, allowNotFound bool) (re
 	}
 	imgsrc, err := imgRef.NewImageSource(context.Background(), h.sysctx)
 	if err != nil {
-		if allowNotFound && isNotFoundImageError(err) {
+		if opts.optional && isNotFoundImageError(err) {
 			ret.value = sentinelImageID
 			return ret, nil
 		}
@@ -283,7 +324,9 @@ func (h *proxyHandler) openImageImpl(args []interface{}, allowNotFound bool) (re
 // The return value is an opaque integer handle.  If the image does not exist, zero
 // is returned.
 func (h *proxyHandler) OpenImageOptional(args []interface{}) (replyBuf, error) {
-	return h.openImageImpl(args, true)
+	return h.openImageImpl(args, openOptions{
+		optional: true,
+	})
 }
 
 func (h *proxyHandler) CloseImage(args []interface{}) (replyBuf, error) {

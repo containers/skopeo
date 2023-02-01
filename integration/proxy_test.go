@@ -332,6 +332,23 @@ func runTestOpenImageOptionalNotFound(p *proxy, img string) error {
 	if imgid != 0 {
 		return fmt.Errorf("Unexpected optional image id %v", imgid)
 	}
+
+	// Also verify the optional options
+	opts := []string{"optional"}
+	v, err = p.callNoFd("OpenImage", []interface{}{img, opts})
+	if err != nil {
+		return fmt.Errorf("calling OpenImage with flag optional: %w ", err)
+	}
+
+	imgidv, ok = v.(float64)
+	if !ok {
+		return fmt.Errorf("OpenImage return value is %T", v)
+	}
+	imgid = uint32(imgidv)
+	if imgid != 0 {
+		return fmt.Errorf("Unexpected optional image id %v", imgid)
+	}
+
 	return nil
 }
 
