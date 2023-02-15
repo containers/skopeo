@@ -6,9 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"testing"
 	"time"
 
-	"gopkg.in/check.v1"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -24,9 +25,9 @@ type testRegistryV2 struct {
 	email    string
 }
 
-func setupRegistryV2At(c *check.C, url string, auth, schema1 bool) *testRegistryV2 {
-	reg, err := newTestRegistryV2At(c, url, auth, schema1)
-	c.Assert(err, check.IsNil)
+func setupRegistryV2At(t *testing.T, url string, auth, schema1 bool) *testRegistryV2 {
+	reg, err := newTestRegistryV2At(t, url, auth, schema1)
+	require.NoError(t, err)
 
 	// Wait for registry to be ready to serve requests.
 	for i := 0; i != 50; i++ {
@@ -37,13 +38,13 @@ func setupRegistryV2At(c *check.C, url string, auth, schema1 bool) *testRegistry
 	}
 
 	if err != nil {
-		c.Fatal("Timeout waiting for test registry to become available")
+		t.Fatal("Timeout waiting for test registry to become available")
 	}
 	return reg
 }
 
-func newTestRegistryV2At(c *check.C, url string, auth, schema1 bool) (*testRegistryV2, error) {
-	tmp := c.MkDir()
+func newTestRegistryV2At(t *testing.T, url string, auth, schema1 bool) (*testRegistryV2, error) {
+	tmp := t.TempDir()
 	template := `version: 0.1
 loglevel: debug
 storage:
@@ -94,10 +95,10 @@ compatibility:
 		cmd = exec.Command(binaryV2, "serve", confPath)
 	}
 
-	consumeAndLogOutputs(c, fmt.Sprintf("registry-%s", url), cmd)
+	consumeAndLogOutputs(t, fmt.Sprintf("registry-%s", url), cmd)
 	if err := cmd.Start(); err != nil {
 		if os.IsNotExist(err) {
-			c.Skip(err.Error())
+			t.Skip(err.Error())
 		}
 		return nil, err
 	}
@@ -110,9 +111,9 @@ compatibility:
 	}, nil
 }
 
-func (t *testRegistryV2) Ping() error {
+func (r *testRegistryV2) Ping() error {
 	// We always ping through HTTP for our test registry.
-	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", t.url))
+	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", r.url))
 	if err != nil {
 		return err
 	}
@@ -123,8 +124,8 @@ func (t *testRegistryV2) Ping() error {
 	return nil
 }
 
-func (t *testRegistryV2) tearDown(c *check.C) {
+func (r *testRegistryV2) tearDown(t *testing.T) {
 	// It’s undocumented what Kill() returns if the process has terminated,
 	// so we couldn’t check just for that. This is running in a container anyway…
-	_ = t.cmd.Process.Kill()
+	_ = r.cmd.Process.Kill()
 }

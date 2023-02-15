@@ -6,22 +6,27 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"testing"
 
 	"github.com/containers/image/v5/signature"
-	"gopkg.in/check.v1"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
 	gpgBinary = "gpg"
 )
 
-func init() {
-	check.Suite(&SigningSuite{})
+func TestSigning(t *testing.T) {
+	suite.Run(t, &signingSuite{})
 }
 
-type SigningSuite struct {
+type signingSuite struct {
+	suite.Suite
 	fingerprint string
 }
+
+var _ = suite.SetupAllSuite(&signingSuite{})
 
 func findFingerprint(lineBytes []byte) (string, error) {
 	lines := string(lineBytes)
@@ -34,43 +39,41 @@ func findFingerprint(lineBytes []byte) (string, error) {
 	return "", errors.New("No fingerprint found")
 }
 
-func (s *SigningSuite) SetUpSuite(c *check.C) {
+func (s *signingSuite) SetupSuite() {
+	t := s.T()
 	_, err := exec.LookPath(skopeoBinary)
-	c.Assert(err, check.IsNil)
+	require.NoError(t, err)
 
-	gpgHome := c.MkDir()
-	os.Setenv("GNUPGHOME", gpgHome)
+	gpgHome := t.TempDir()
+	t.Setenv("GNUPGHOME", gpgHome)
 
-	runCommandWithInput(c, "Key-Type: RSA\nName-Real: Testing user\n%no-protection\n%commit\n", gpgBinary, "--homedir", gpgHome, "--batch", "--gen-key")
+	runCommandWithInput(t, "Key-Type: RSA\nName-Real: Testing user\n%no-protection\n%commit\n", gpgBinary, "--homedir", gpgHome, "--batch", "--gen-key")
 
 	lines, err := exec.Command(gpgBinary, "--homedir", gpgHome, "--with-colons", "--no-permission-warning", "--fingerprint").Output()
-	c.Assert(err, check.IsNil)
+	require.NoError(t, err)
 	s.fingerprint, err = findFingerprint(lines)
-	c.Assert(err, check.IsNil)
+	require.NoError(t, err)
 }
 
-func (s *SigningSuite) TearDownSuite(c *check.C) {
-	os.Unsetenv("GNUPGHOME")
-}
-
-func (s *SigningSuite) TestSignVerifySmoke(c *check.C) {
+func (s *signingSuite) TestSignVerifySmoke() {
+	t := s.T()
 	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
-	c.Assert(err, check.IsNil)
+	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures
-		c.Skip(fmt.Sprintf("Signing not supported: %v", err))
+		t.Skipf("Signing not supported: %v", err)
 	}
 
 	manifestPath := "fixtures/image.manifest.json"
 	dockerReference := "testing/smoketest"
 
 	sigOutput, err := os.CreateTemp("", "sig")
-	c.Assert(err, check.IsNil)
+	require.NoError(t, err)
 	defer os.Remove(sigOutput.Name())
-	assertSkopeoSucceeds(c, "^$", "standalone-sign", "-o", sigOutput.Name(),
+	assertSkopeoSucceeds(t, "^$", "standalone-sign", "-o", sigOutput.Name(),
 		manifestPath, dockerReference, s.fingerprint)
 
 	expected := fmt.Sprintf("^Signature verified, digest %s\n$", TestImageManifestDigest)
-	assertSkopeoSucceeds(c, expected, "standalone-verify", manifestPath,
+	assertSkopeoSucceeds(t, expected, "standalone-verify", manifestPath,
 		dockerReference, s.fingerprint, sigOutput.Name())
 }

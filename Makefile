@@ -56,17 +56,11 @@ ifeq ($(GOOS), linux)
 endif
 
 # If $TESTFLAGS is set, it is passed as extra arguments to 'go test'.
-# You can increase test output verbosity with the option '-test.vv'.
-# You can select certain tests to run, with `-test.run <regex>` for example:
+# You can select certain tests to run, with `-run <regex>` for example:
 #
-#     make test-unit TESTFLAGS='-test.run ^TestManifestDigest$'
-#
-# For integration test, we use [gocheck](https://labix.org/gocheck).
-# You can increase test output verbosity with the option '-check.vv'.
-# You can limit test selection with `-check.f <regex>`, for example:
-#
-#     make test-integration TESTFLAGS='-check.f CopySuite.TestCopy.*'
-export TESTFLAGS ?= -v -check.v -test.timeout=15m
+#     make test-unit TESTFLAGS='-run ^TestManifestDigest$'
+#     make test-integration TESTFLAGS='-run copySuite.TestCopy.*'
+export TESTFLAGS ?= -timeout=15m
 
 # This is assumed to be set non-empty when operating inside a CI/automation environment
 CI ?=

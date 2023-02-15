@@ -7,7 +7,8 @@ import (
 	"os"
 	"os/exec"
 
-	"gopkg.in/check.v1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -20,7 +21,7 @@ To use it, run:
 
 to start a container, then within the container:
 
-	SKOPEO_CONTAINER_TESTS=1 PS1='nested> ' go test -tags openshift_shell -timeout=24h ./integration -v -check.v -check.vv -check.f='CopySuite.TestRunShell'
+	SKOPEO_CONTAINER_TESTS=1 PS1='nested> ' go test -tags openshift_shell -timeout=24h ./integration -v -run='copySuite.TestRunShell'
 
 An example of what can be done within the container:
 
@@ -33,13 +34,14 @@ An example of what can be done within the container:
 	curl -L -v 'http://localhost:5000/v2/myns/personal/manifests/personal' --header 'Authorization: Bearer $token_from_oauth'
 	curl -L -v 'http://localhost:5000/extensions/v2/myns/personal/signatures/$manifest_digest' --header 'Authorization: Bearer $token_from_oauth'
 */
-func (s *CopySuite) TestRunShell(c *check.C) {
+func (s *copySuite) TestRunShell() {
+	t := s.T()
 	cmd := exec.Command("bash", "-i")
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-	c.Assert(err, check.IsNil)
+	require.NoError(t, err)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 	err = cmd.Run()
-	c.Assert(err, check.IsNil)
+	assert.NoError(t, err)
 }

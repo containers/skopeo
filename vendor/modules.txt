@@ -380,12 +380,6 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/klauspost/pgzip v1.2.6-0.20220930104621-17e8dac29df8
 ## explicit
 github.com/klauspost/pgzip
-# github.com/kr/pretty v0.3.0
-## explicit; go 1.12
-github.com/kr/pretty
-# github.com/kr/text v0.2.0
-## explicit
-github.com/kr/text
 # github.com/leodido/go-urn v1.2.1
 ## explicit; go 1.13
 github.com/leodido/go-urn
@@ -473,9 +467,6 @@ github.com/proglottis/gpgme
 # github.com/rivo/uniseg v0.4.3
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/rogpeppe/go-internal v1.8.0
-## explicit; go 1.11
-github.com/rogpeppe/go-internal/fmtsort
 # github.com/russross/blackfriday v2.0.0+incompatible
 ## explicit
 # github.com/segmentio/ksuid v1.0.4
@@ -522,6 +513,7 @@ github.com/stefanberger/go-pkcs11uri
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+github.com/stretchr/testify/suite
 # github.com/sylabs/sif/v2 v2.9.1
 ## explicit; go 1.19
 github.com/sylabs/sif/v2/pkg/sif
@@ -765,9 +757,6 @@ google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
-## explicit; go 1.11
-gopkg.in/check.v1
 # gopkg.in/go-jose/go-jose.v2 v2.6.1
 ## explicit
 gopkg.in/go-jose/go-jose.v2
