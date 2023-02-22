@@ -8,10 +8,7 @@ skopeo\-sync - Synchronize images between registry repositories and local direct
 **skopeo sync** [*options*] --src _transport_ --dest _transport_ _source_ _destination_
 
 ## DESCRIPTION
-Synchronize images between registry repoositories and local directories.
-The synchronization is achieved by copying all the images found at _source_ to _destination_.
-
-Useful to synchronize a local container registry mirror, and to to populate registries running inside of air-gapped environments.
+Synchronize images between registry repositories and local directories. Synchronization is achieved by copying all the images found at _source_ to _destination_ - useful when synchronizing a local container registry mirror or for populating registries running inside of air-gapped environments.
 
 Differently from other skopeo commands, skopeo sync requires both source and destination transports to be specified separately from _source_ and _destination_.
 One of the problems of prefixing a destination with its transport is that, the registry `docker://hostname:port` would be wrongly interpreted as an image reference at a non-fully qualified registry, with `hostname` and `port` the image name and tag.
