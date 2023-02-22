@@ -3,7 +3,6 @@
 ## NAME
 skopeo\-sync - Synchronize images between registry repositories and local directories.
 
-
 ## SYNOPSIS
 **skopeo sync** [*options*] --src _transport_ --dest _transport_ _source_ _destination_
 
