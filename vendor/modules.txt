@@ -596,7 +596,7 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/scrypt
 golang.org/x/crypto/sha3
-# golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
+# golang.org/x/exp v0.0.0-20230306221820-f0f767cdffd6
 ## explicit; go 1.18
 golang.org/x/exp/constraints
 golang.org/x/exp/maps
