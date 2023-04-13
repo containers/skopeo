@@ -55,11 +55,19 @@ sudo apk add skopeo
 
 [Package Info](https://pkgs.alpinelinux.org/packages?name=skopeo)
 
-### macOS
-
+### macOS - Homebrew
 ```sh
 brew install skopeo
 ```
+
+[Package info](https://formulae.brew.sh/formula/skopeo#default)
+
+### macOS - MacPorts
+```sh
+sudo port install skopeo
+```
+
+[Package info](https://ports.macports.org/port/skopeo/)
 
 ### Nix / NixOS
 ```sh
