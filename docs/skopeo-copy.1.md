@@ -79,9 +79,19 @@ Print usage statement
 Control what is copied if _source-image_ refers to a multi-architecture image. Default is system.
 
 Options:
-- system: Copy only the image that matches the system architecture
-- all: Copy the full multi-architecture image
-- index-only: Copy only the index
+
+- "system": Copy only the image that matches the system architecture
+
+- "all": Copy the full multi-architecture image
+
+- "index-only": Copy only the index
+
+- "sparse:_criteria_": Copy the index and images which match any of a comma-separated list of criteria.
+Recognized criteria include:
+  - "system": the current platform, possibly with OS, architecture, and variant values overridden by global options
+  - "arch=[arm64,ppc64le,...]": lists of _architecture_ or _architecture/variant_ values for the current OS, or the OS overridden by th global **--override-os** option
+  - "platform=[linux/riscv,...]": lists of _os/architecture_ or _os/architecture/variant_ values
+  - "digest=[sha256:...,sha256:...,...]": lists of digests of specific images to copy
 
 The index-only option usually fails unless the referenced per-architecture images are already present in the destination, or the target registry supports sparse indexes.
 
