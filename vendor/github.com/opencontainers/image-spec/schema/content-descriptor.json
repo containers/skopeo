@@ -1,6 +1,6 @@
 {
   "description": "OpenContainer Content Descriptor Specification",
-  "$schema": "https://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://opencontainers.org/schema/descriptor",
   "type": "object",
   "properties": {
@@ -19,6 +19,14 @@
     "urls": {
       "description": "a list of urls from which this object may be downloaded",
       "$ref": "defs-descriptor.json#/definitions/urls"
+    },
+    "data": {
+      "description": "an embedding of the targeted content (base64 encoded)",
+      "$ref": "defs.json#/definitions/base64"
+    },
+    "artifactType": {
+      "description": "the IANA media type of this artifact",
+      "$ref": "defs-descriptor.json#/definitions/mediaType"
     },
     "annotations": {
       "id": "https://opencontainers.org/schema/descriptor/annotations",

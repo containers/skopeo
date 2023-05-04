@@ -1,6 +1,6 @@
 {
   "description": "OpenContainer Image Manifest Specification",
-  "$schema": "https://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://opencontainers.org/schema/image/manifest",
   "type": "object",
   "properties": {
@@ -15,7 +15,14 @@
       "description": "the mediatype of the referenced object",
       "$ref": "defs-descriptor.json#/definitions/mediaType"
     },
+    "artifactType": {
+      "description": "the artifact mediatype of the referenced object",
+      "$ref": "defs-descriptor.json#/definitions/mediaType"
+    },
     "config": {
+      "$ref": "content-descriptor.json"
+    },
+    "subject": {
       "$ref": "content-descriptor.json"
     },
     "layers": {

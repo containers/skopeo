@@ -1,6 +1,6 @@
 {
   "description": "OpenContainer Image Layout Schema",
-  "$schema": "https://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://opencontainers.org/schema/image/layout",
   "type": "object",
   "properties": {

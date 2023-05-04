@@ -92,7 +92,7 @@ func (v Validator) Validate(src io.Reader) error {
 
 type unimplemented string
 
-func (v unimplemented) Validate(src io.Reader) error {
+func (v unimplemented) Validate(_ io.Reader) error {
 	return fmt.Errorf("%s: unimplemented", v)
 }
 
@@ -117,9 +117,9 @@ func validateManifest(r io.Reader) error {
 		if layer.MediaType != string(v1.MediaTypeImageLayer) &&
 			layer.MediaType != string(v1.MediaTypeImageLayerGzip) &&
 			layer.MediaType != string(v1.MediaTypeImageLayerZstd) &&
-			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributable) &&
-			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableGzip) &&
-			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableZstd) {
+			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributable) && //nolint:staticcheck
+			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableGzip) && //nolint:staticcheck
+			layer.MediaType != string(v1.MediaTypeImageLayerNonDistributableZstd) { //nolint:staticcheck
 			fmt.Printf("warning: layer %s has an unknown media type: %s\n", layer.Digest, layer.MediaType)
 		}
 	}
