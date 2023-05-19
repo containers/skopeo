@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	commonFlag "github.com/containers/common/pkg/flag"
 	"github.com/containers/common/pkg/retry"
 	"github.com/containers/image/v5/copy"
@@ -19,6 +21,8 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	encconfig "github.com/containers/ocicrypt/config"
 	enchelpers "github.com/containers/ocicrypt/helpers"
+	"github.com/opencontainers/go-digest"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
 )
 
@@ -99,24 +103,122 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 }
 
 // parseMultiArch parses the list processing selection
-// It returns the copy.ImageListSelection to use with image.Copy option
-func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
-	switch multiArch {
-	case "system":
-		return copy.CopySystemImage, nil
-	case "all":
-		return copy.CopyAllImages, nil
-	// There is no CopyNoImages value in copy.ImageListSelection, but because we
-	// don't provide an option to select a set of images to copy, we can use
-	// CopySpecificImages.
-	case "index-only":
-		return copy.CopySpecificImages, nil
-	// We don't expose CopySpecificImages other than index-only above, because
-	// we currently don't provide an option to choose the images to copy. That
-	// could be added in the future.
+// It returns the copy.ImageListSelection, instance list, and platform list to use in image.Copy option
+func parseMultiArch(globalOptions *globalOptions, multiArch string) (copy.ImageListSelection, []digest.Digest, []imgspecv1.Platform, error) {
+	switch {
+	case multiArch == "system":
+		return copy.CopySystemImage, nil, nil, nil
+	case multiArch == "all":
+		return copy.CopyAllImages, nil, nil, nil
+	case multiArch == "index-only":
+		// There is no CopyNoImages value in copy.ImageListSelection per se, but
+		// we can get the desired effect by using CopySpecificImages.
+		return copy.CopySpecificImages, nil, nil, nil
+	case strings.HasPrefix(multiArch, "sparse:"):
+		sparseArg := strings.TrimPrefix(multiArch, "sparse:")
+		platformList, instanceList, err := parseMultiArchSparse(globalOptions, sparseArg)
+		if err != nil {
+			return copy.CopySpecificImages, nil, nil, err
+		}
+		return copy.CopySpecificImages, instanceList, platformList, nil
 	default:
-		return copy.CopySystemImage, fmt.Errorf("unknown multi-arch option %q. Choose one of the supported options: 'system', 'all', or 'index-only'", multiArch)
+		return copy.CopySystemImage, nil, nil, fmt.Errorf("unknown multi-arch option %q. Choose one of the supported options: 'system', 'sparse:...', 'all', or 'index-only'", multiArch)
 	}
+}
+
+func parseMultiArchSparse(globalOptions *globalOptions, sparseArg string) ([]imgspecv1.Platform, []digest.Digest, error) {
+	var platformList []imgspecv1.Platform
+	var instanceList []digest.Digest
+	remainder := "," + sparseArg
+	for remainder != "" {
+		parseArg := func(argStart string, argEnd string, fn func(argVal string) (bool, error)) (bool, error) {
+			if newRemainder, isArg := strings.CutPrefix(remainder, ","+argStart); isArg {
+				if !isArg {
+					return false, nil
+				}
+				var argSpec string
+				if argEnd != "" {
+					var foundArgEnd bool
+					argSpec, newRemainder, foundArgEnd = strings.Cut(newRemainder, argEnd)
+					if !foundArgEnd {
+						return false, fmt.Errorf("--multi-arch=sparse:%s: end of argument marker %s not found", argStart, argEnd)
+					}
+				}
+				handled, err := fn(argSpec)
+				if err != nil {
+					return false, err
+				}
+				if handled {
+					remainder = newRemainder
+					return true, nil
+				}
+				return false, nil
+			}
+			return false, nil
+		}
+		if isSystem, err := parseArg("system", "", func(string) (bool, error) {
+			systemPlatform := imgspecv1.Platform{
+				OS:           globalOptions.overrideOS,
+				Architecture: globalOptions.overrideArch,
+				Variant:      globalOptions.overrideVariant,
+			}
+			platformList = append(platformList, systemPlatform)
+			return true, nil
+		}); err != nil {
+			return nil, nil, err
+		} else if isSystem {
+			continue
+		}
+		if isDigest, err := parseArg("digest=[", "]", func(digestSpecList string) (bool, error) {
+			for _, digestSpec := range strings.Split(digestSpecList, ",") {
+				instanceDigest, err := digest.Parse(digestSpec)
+				if err != nil {
+					return false, fmt.Errorf("while parsing instance digest %q: %w", digestSpec, err)
+				}
+				instanceList = append(instanceList, instanceDigest)
+			}
+			return true, nil
+		}); err != nil {
+			return nil, nil, err
+		} else if isDigest {
+			continue
+		}
+		if isArch, err := parseArg("arch=[", "]", func(archSpecList string) (bool, error) {
+			wantedOS := runtime.GOOS
+			if globalOptions.overrideOS != "" {
+				wantedOS = globalOptions.overrideOS
+			}
+			for _, archSpec := range strings.Split(archSpecList, ",") {
+				p := strings.SplitN(archSpec, "/", 2)
+				if len(p) > 1 {
+					platformList = append(platformList, imgspecv1.Platform{OS: wantedOS, Architecture: p[0], Variant: p[1]})
+				} else {
+					platformList = append(platformList, imgspecv1.Platform{OS: wantedOS, Architecture: p[0]})
+				}
+			}
+			return true, nil
+		}); err != nil {
+			return nil, nil, err
+		} else if isArch {
+			continue
+		}
+		if isPlatform, err := parseArg("platform=[", "]", func(platformSpecList string) (bool, error) {
+			for _, platformSpec := range strings.Split(platformSpecList, ",") {
+				p, err := platforms.Parse(platformSpec)
+				if err != nil {
+					return false, fmt.Errorf("while parsing platform specifier %q: %w", platformSpec, err)
+				}
+				platformList = append(platformList, p)
+			}
+			return true, nil
+		}); err != nil {
+			return nil, nil, err
+		} else if isPlatform {
+			continue
+		}
+		return nil, nil, fmt.Errorf("--multi-arch=sparse: unrecognized value %q", strings.TrimPrefix(remainder, ","))
+	}
+	return platformList, instanceList, nil
 }
 
 func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
@@ -186,11 +288,13 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	}
 
 	imageListSelection := copy.CopySystemImage
+	var instanceDigests []digest.Digest
+	var instancePlatforms []imgspecv1.Platform
 	if opts.multiArch.Present() && opts.all {
 		return fmt.Errorf("Cannot use --all and --multi-arch flags together")
 	}
 	if opts.multiArch.Present() {
-		imageListSelection, err = parseMultiArch(opts.multiArch.Value())
+		imageListSelection, instanceDigests, instancePlatforms, err = parseMultiArch(opts.global, opts.multiArch.Value())
 		if err != nil {
 			return err
 		}
@@ -296,6 +400,8 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 			DestinationCtx:                   destinationCtx,
 			ForceManifestMIMEType:            manifestType,
 			ImageListSelection:               imageListSelection,
+			Instances:                        instanceDigests,
+			InstancePlatforms:                instancePlatforms,
 			PreserveDigests:                  opts.preserveDigests,
 			OciDecryptConfig:                 decConfig,
 			OciEncryptLayers:                 encLayers,
