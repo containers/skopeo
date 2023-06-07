@@ -155,7 +155,7 @@ clean:
 install: install-binary install-docs install-completions
 	install -d -m 755 ${DESTDIR}${LOOKASIDEDIR}
 	install -d -m 755 ${DESTDIR}${CONTAINERSCONFDIR}
-	install -m 644 default-policy.json ${DESTDIR}${CONTAINERSCONFDIR}/policy.json
+	install -m 644 cmd/skopeo/fixtures/default-policy.json ${DESTDIR}${CONTAINERSCONFDIR}/policy.json
 	install -d -m 755 ${DESTDIR}${REGISTRIESDDIR}
 	install -m 644 default.yaml ${DESTDIR}${REGISTRIESDDIR}/default.yaml
 

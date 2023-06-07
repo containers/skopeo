@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -133,6 +135,9 @@ func main() {
 	}
 }
 
+//go:embed fixtures/default-policy.json
+var defaultPolicyBytes []byte
+
 // getPolicyContext returns a *signature.PolicyContext based on opts.
 func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) {
 	var policy *signature.Policy // This could be cached across calls in opts.
@@ -141,6 +146,11 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 		policy = &signature.Policy{Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()}}
 	} else if opts.policyPath == "" {
 		policy, err = signature.DefaultPolicy(nil)
+		// Check if the error is due to the default policy file not being found
+		// so we don't supress other errors like bad JSON in the policy file.
+		if err != nil && os.IsNotExist(err) {
+			policy, err = signature.NewPolicyFromBytes(defaultPolicyBytes)
+		}
 	} else {
 		policy, err = signature.NewPolicyFromFile(opts.policyPath)
 	}
