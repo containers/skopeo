@@ -71,7 +71,7 @@ github.com/containers/common/pkg/flag
 github.com/containers/common/pkg/report
 github.com/containers/common/pkg/report/camelcase
 github.com/containers/common/pkg/retry
-# github.com/containers/image/v5 v5.26.0
+# github.com/containers/image/v5 v5.26.1
 ## explicit; go 1.18
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -162,7 +162,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.47.0
+# github.com/containers/storage v1.48.0
 ## explicit; go 1.19
 github.com/containers/storage
 github.com/containers/storage/drivers
