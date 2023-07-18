@@ -14,6 +14,7 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/cli"
 	"github.com/containers/image/v5/pkg/cli/sigstore"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/signature/signer"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -159,10 +160,18 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	}
 
 	var manifestType string
+	var requiredCompression string
 	if opts.format.Present() {
-		manifestType, err = parseManifestFormat(opts.format.Value())
+		manifestType, requiredCompression, err = parseManifestFormat(opts.format.Value())
 		if err != nil {
 			return err
+		}
+		if requiredCompression != "" {
+			cf, err := compression.AlgorithmByName(requiredCompression)
+			if err != nil {
+				return err
+			}
+			destinationCtx.CompressionFormat = &cf
 		}
 	}
 

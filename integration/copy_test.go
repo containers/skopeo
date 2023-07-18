@@ -1138,6 +1138,13 @@ func (s *copySuite) TestCopyManifestConversion() {
 	// convert from v2s1 to v2s2
 	assertSkopeoSucceeds(t, "", "copy", "--format=v2s2", "dir:"+destDir1, "dir:"+destDir2)
 	verifyManifestMIMEType(t, destDir2, manifest.DockerV2Schema2MediaType)
+
+	// convert from v2s2 to oci
+	assertSkopeoSucceeds(t, "", "copy", "--format=oci", "dir:"+srcDir, "dir:"+destDir1)
+	verifyManifestMIMEType(t, destDir1, imgspecv1.MediaTypeImageManifest)
+	// verify oci gzip getting convert to zstd
+	assertSkopeoSucceeds(t, "", "copy", "--format=zstd", "dir:"+destDir1, "dir:"+destDir2)
+	verifyInstanceZstdCompression(t, destDir2, imgspecv1.MediaTypeImageManifest)
 }
 
 func (s *copySuite) TestCopyPreserveDigests() {

@@ -349,16 +349,18 @@ func parseImageSource(ctx context.Context, opts *imageOptions, name string) (typ
 
 // parseManifestFormat parses format parameter for copy and sync command.
 // It returns string value to use as manifest MIME type
-func parseManifestFormat(manifestFormat string) (string, error) {
+func parseManifestFormat(manifestFormat string) (string, string, error) {
 	switch manifestFormat {
+	case "zstd":
+		return imgspecv1.MediaTypeImageManifest, "zstd", nil
 	case "oci":
-		return imgspecv1.MediaTypeImageManifest, nil
+		return imgspecv1.MediaTypeImageManifest, "", nil
 	case "v2s1":
-		return manifest.DockerV2Schema1SignedMediaType, nil
+		return manifest.DockerV2Schema1SignedMediaType, "", nil
 	case "v2s2":
-		return manifest.DockerV2Schema2MediaType, nil
+		return manifest.DockerV2Schema2MediaType, "", nil
 	default:
-		return "", fmt.Errorf("unknown format %q. Choose one of the supported formats: 'oci', 'v2s1', or 'v2s2'", manifestFormat)
+		return "", "", fmt.Errorf("unknown format %q. Choose one of the supported formats: 'oci', 'v2s1', or 'v2s2'", manifestFormat)
 	}
 }
 

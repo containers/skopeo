@@ -214,3 +214,22 @@ func verifyManifestMIMEType(t *testing.T, dir string, expectedMIMEType string) {
 	mimeType := manifest.GuessMIMEType(manifestBlob)
 	assert.Equal(t, expectedMIMEType, mimeType)
 }
+
+// Verifies if all instances have been compression with zstd
+func verifyInstanceZstdCompression(t *testing.T, dir string, expectedMIMEType string) {
+	manifestBlob, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	require.NoError(t, err)
+	mimeType := manifest.GuessMIMEType(manifestBlob)
+	assert.Equal(t, expectedMIMEType, mimeType)
+
+	list, err := manifest.ListFromBlob(manifestBlob, mimeType)
+	require.NoError(t, err)
+
+	instances := list.Instances()
+	annotations := map[string]string{"io.github.containers.compression.zstd": "true"}
+	for _, digest := range instances {
+		instance, err := list.Instance(digest)
+		require.NoError(t, err)
+		assert.Equal(t, annotations, instance.ReadOnly.Annotations)
+	}
+}

@@ -556,7 +556,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	var manifestType string
 	if opts.format.Present() {
-		manifestType, err = parseManifestFormat(opts.format.Value())
+		manifestType, _, err = parseManifestFormat(opts.format.Value())
 		if err != nil {
 			return err
 		}
