@@ -26,7 +26,7 @@ env:
     FEDORA_NAME: "fedora-38"
 
     # Google-cloud VM Images
-    IMAGE_SUFFIX: "c20230614t132754z-f38f37d13"
+    IMAGE_SUFFIX: "c20230810t201257z-f38f37d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
 
     # Container FQIN's
@@ -247,7 +247,13 @@ test_image_build_task:
     trigger_type: manual
     # Overwrite all 'env', don't push anything, just do the build.
     env:
+        A_DEBUG: 1
         DRYRUN: 1
+        BP_URL: 'https://raw.githubusercontent.com/containers/automation/0136451ea1340e627415eb936d2720131f169ba1/build-push/bin/build-push.sh'
+    main_script:
+        - curl --silent --show-error --location -o /usr/share/automation/bin/build-push.sh --url "$BP_URL"
+        - source /etc/automation_environment
+        - env BUILDPUSHAUTOUPDATED=1 main.sh $CIRRUS_REPO_CLONE_URL $CTXDIR
 
 
 # This task is critical.  It updates the "last-used by" timestamp stored
