@@ -95,7 +95,7 @@ type addedLayerInfo struct {
 // newImageDestination sets us up to write a new image, caching blobs in a temporary directory until
 // it's time to Commit() the image
 func newImageDestination(sys *types.SystemContext, imageRef storageReference) (*storageImageDestination, error) {
-	directory, err := tmpdir.MkDirBigFileTemp(sys, "storage")
+	directory, err := os.MkdirTemp(tmpdir.TemporaryDirectoryForBigFiles(sys), "storage")
 	if err != nil {
 		return nil, fmt.Errorf("creating a temporary directory: %w", err)
 	}
@@ -921,7 +921,10 @@ func (s *storageImageDestination) PutSignaturesWithFormat(ctx context.Context, s
 			return err
 		}
 		sizes = append(sizes, len(sig))
-		sigblob = append(sigblob, sig...)
+		newblob := make([]byte, len(sigblob)+len(sig))
+		copy(newblob, sigblob)
+		copy(newblob[len(sigblob):], sig)
+		sigblob = newblob
 	}
 	if instanceDigest == nil {
 		s.signatures = sigblob

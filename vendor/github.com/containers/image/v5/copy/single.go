@@ -360,7 +360,6 @@ func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context,
 		logrus.Debugf("Unable to create destination image %s source: %v", ic.c.dest.Reference(), err)
 		return nil, nil
 	}
-	defer destImageSource.Close()
 
 	destManifest, destManifestType, err := destImageSource.GetManifest(ctx, targetInstance)
 	if err != nil {
