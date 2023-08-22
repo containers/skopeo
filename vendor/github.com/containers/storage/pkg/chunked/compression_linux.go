@@ -3,6 +3,7 @@ package chunked
 import (
 	archivetar "archive/tar"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -149,7 +150,7 @@ func readEstargzChunkedManifest(blobStream ImageSourceSeekable, blobSize int64, 
 // readZstdChunkedManifest reads the zstd:chunked manifest from the seekable stream blobStream.  The blob total size must
 // be specified.
 // This function uses the io.github.containers.zstd-chunked. annotations when specified.
-func readZstdChunkedManifest(blobStream ImageSourceSeekable, blobSize int64, annotations map[string]string) ([]byte, []byte, int64, error) {
+func readZstdChunkedManifest(ctx context.Context, blobStream ImageSourceSeekable, blobSize int64, annotations map[string]string) ([]byte, []byte, int64, error) {
 	footerSize := int64(internal.FooterSizeSupported)
 	if blobSize <= footerSize {
 		return nil, nil, 0, errors.New("blob too small")

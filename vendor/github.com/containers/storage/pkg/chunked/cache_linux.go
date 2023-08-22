@@ -15,7 +15,6 @@ import (
 	"unsafe"
 
 	storage "github.com/containers/storage"
-	graphdriver "github.com/containers/storage/drivers"
 	"github.com/containers/storage/pkg/chunked/internal"
 	"github.com/containers/storage/pkg/ioutils"
 	jsoniter "github.com/json-iterator/go"
@@ -110,7 +109,7 @@ func (c *layersCache) load() error {
 		}
 
 		bigData, err := c.store.LayerBigData(r.ID, cacheKey)
-		// if the cache already exists, read and use it
+		// if the cache areadly exists, read and use it
 		if err == nil {
 			defer bigData.Close()
 			metadata, err := readMetadataFromCache(bigData)
@@ -121,23 +120,6 @@ func (c *layersCache) load() error {
 			logrus.Warningf("Error reading cache file for layer %q: %v", r.ID, err)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
-		}
-
-		var lcd chunkedLayerData
-
-		clFile, err := c.store.LayerBigData(r.ID, chunkedLayerDataKey)
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		if clFile != nil {
-			cl, err := io.ReadAll(clFile)
-			if err != nil {
-				return fmt.Errorf("open manifest file for layer %q: %w", r.ID, err)
-			}
-			json := jsoniter.ConfigCompatibleWithStandardLibrary
-			if err := json.Unmarshal(cl, &lcd); err != nil {
-				return err
-			}
 		}
 
 		// otherwise create it from the layer TOC.
@@ -152,7 +134,7 @@ func (c *layersCache) load() error {
 			return fmt.Errorf("open manifest file for layer %q: %w", r.ID, err)
 		}
 
-		metadata, err := writeCache(manifest, lcd.Format, r.ID, c.store)
+		metadata, err := writeCache(manifest, r.ID, c.store)
 		if err == nil {
 			c.addLayer(r.ID, metadata)
 		}
@@ -229,13 +211,13 @@ type setBigData interface {
 // - digest(file.payload))
 // - digest(digest(file.payload) + file.UID + file.GID + file.mode + file.xattrs)
 // - digest(i) for each i in chunks(file payload)
-func writeCache(manifest []byte, format graphdriver.DifferOutputFormat, id string, dest setBigData) (*metadata, error) {
+func writeCache(manifest []byte, id string, dest setBigData) (*metadata, error) {
 	var vdata bytes.Buffer
 	tagLen := 0
 	digestLen := 0
 	var tagsBuffer bytes.Buffer
 
-	toc, err := prepareMetadata(manifest, format)
+	toc, err := prepareMetadata(manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -414,23 +396,12 @@ func readMetadataFromCache(bigData io.Reader) (*metadata, error) {
 	}, nil
 }
 
-func prepareMetadata(manifest []byte, format graphdriver.DifferOutputFormat) ([]*internal.FileMetadata, error) {
+func prepareMetadata(manifest []byte) ([]*internal.FileMetadata, error) {
 	toc, err := unmarshalToc(manifest)
 	if err != nil {
 		// ignore errors here.  They might be caused by a different manifest format.
 		logrus.Debugf("could not unmarshal manifest: %v", err)
 		return nil, nil //nolint: nilnil
-	}
-
-	switch format {
-	case graphdriver.DifferOutputFormatDir:
-	case graphdriver.DifferOutputFormatFlat:
-		toc.Entries, err = makeEntriesFlat(toc.Entries)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("unknown format %q", format)
 	}
 
 	var r []*internal.FileMetadata
@@ -449,7 +420,6 @@ func prepareMetadata(manifest []byte, format graphdriver.DifferOutputFormat) ([]
 			chunkSeen[cd] = true
 		}
 	}
-
 	return r, nil
 }
 
