@@ -332,6 +332,15 @@ func runTestOpenImageOptionalNotFound(p *proxy, img string) error {
 	return nil
 }
 
+// Verify that we do see an error if the parent directory doesn't exist
+func runTestOpenImageOptionalNoParentDirectory(p *proxy) error {
+	_, err := p.callNoFd("OpenImageOptional", []any{"oci-archive:/no/such/parent/directory/foo.ociarchive"})
+	if err == nil {
+		return fmt.Errorf("Successfully opened nonexistent parent directory")
+	}
+	return nil
+}
+
 func (s *proxySuite) TestProxy() {
 	t := s.T()
 	p, err := newProxy()
@@ -353,5 +362,15 @@ func (s *proxySuite) TestProxy() {
 	if err != nil {
 		err = fmt.Errorf("Testing optional image %s: %v", knownNotExtantImage, err)
 	}
+	assert.NoError(t, err)
+
+	nonExistentArchive := "oci-archive:/enoent"
+	err = runTestOpenImageOptionalNotFound(p, nonExistentArchive)
+	if err != nil {
+		err = fmt.Errorf("Testing optional image %s: %v", nonExistentArchive, err)
+	}
+	assert.NoError(t, err)
+
+	err = runTestOpenImageOptionalNoParentDirectory(p)
 	assert.NoError(t, err)
 }
