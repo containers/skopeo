@@ -106,6 +106,7 @@ Skopeo has not yet been packaged for Windows. There is an [open feature
 request](https://github.com/containers/skopeo/issues/715) and contributions are
 always welcome.
 
+Thanks to passcod there is a weekly build of skopeo for windows availaible @ https://github.com/passcod/winskopeo !
 
 ## Container Images
 
