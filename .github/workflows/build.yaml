@@ -59,6 +59,10 @@ jobs:
         working-directory: skopeo-${{ env.VERSION }}
         run: make bin/skopeo.windows.amd64.exe
 
+      - name: Build skopeo.linux.amd64
+        working-directory: skopeo-${{ env.VERSION }}
+        run: make bin/skopeo.linux.amd64
+
       - name: Create release 
         uses: actions/github-script@v6
         with:
@@ -80,3 +84,12 @@ jobs:
               name: 'skopeo.exe',
               data: require('fs').readFileSync(`skopeo-${process.env.VERSION}/bin/skopeo.windows.amd64.exe`),
             });
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: 'skopeo.linux.amd64',
+              data: require('fs').readFileSync(`skopeo-${process.env.VERSION}/bin/skopeo.linux.amd64`),
+            });
+
