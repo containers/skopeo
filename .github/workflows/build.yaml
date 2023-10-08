@@ -73,7 +73,7 @@ jobs:
       
       - name: Build skopeo.darwin.amd64
         working-directory: skopeo-${{ env.VERSION }}
-        run:  bin/skopeo.darwin.amd64
+        run:  make bin/skopeo.darwin.amd64
 
       - name: Create release 
         uses: actions/github-script@v6
