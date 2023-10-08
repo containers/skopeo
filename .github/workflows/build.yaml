@@ -1,0 +1,82 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0' # once a week
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.result }}
+    steps:
+      - name: Find latest version
+        uses: actions/github-script@v6
+        id: version
+        with:
+          result-encoding: string
+          script: |
+            const result = await github.graphql(`query {
+              remote: repository(owner:"containers", name:"skopeo") {
+                latestRelease {
+                  tagName
+                }
+              }
+            }`);
+            console.log(result);
+
+            const remote = result?.remote?.latestRelease?.tagName;
+            const local = result?.local?.latestRelease?.tagName;
+            if (remote !== local && remote !== null) {
+              return remote.replace(/^v/, '');
+            } else {
+              return 'nope';
+            }
+  build:
+    needs: version
+    if: needs.version.outputs.version != 'nope'
+
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 curl golang make
+
+      - name: Fetch source
+        run: curl -L https://github.com/containers/skopeo/archive/refs/tags/v${{ env.VERSION }}.tar.gz -o - | tar xzv
+
+      - name: Build skopeo.windows.amd64.exe
+        working-directory: skopeo-${{ env.VERSION }}
+        run: make bin/skopeo.windows.amd64.exe
+
+      - name: Create release 
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${process.env.VERSION}`,
+              name: `v${process.env.VERSION}`,
+              draft: false,
+              prerelease: false,
+              body: `Skopeo v${process.env.VERSION} for Windows (no signing/gpg support)`,
+            });
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: 'skopeo.exe',
+              data: require('fs').readFileSync(`skopeo-${process.env.VERSION}/bin/skopeo.windows.amd64.exe`),
+            });
