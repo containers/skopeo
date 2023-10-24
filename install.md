@@ -109,11 +109,11 @@ always welcome.
 
 ## Container Images
 
-Skopeo container images are available at `quay.io/skopeo/stable:latest`.
+Skopeo container images are available at `quay.io/containers/skopeo/stable:latest`.
 For example,
 
 ```bash
-podman run docker://quay.io/skopeo/stable:latest copy --help
+podman run docker://quay.io/containers/skopeo/stable:latest copy --help
 ```
 
 [Read more](./contrib/skopeoimage/README.md).
