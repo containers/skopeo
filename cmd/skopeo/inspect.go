@@ -29,6 +29,7 @@ type inspectOptions struct {
 	raw           bool // Output the raw manifest instead of parsing information about the image
 	config        bool // Output the raw config blob instead of parsing information about the image
 	doNotListTags bool // Do not list all tags available in the same repository
+	checkPolicy   bool // Error out if image is not allowed to run
 }
 
 func inspectCmd(global *globalOptions) *cobra.Command {
@@ -61,6 +62,7 @@ skopeo inspect --format "Name: {{.Name}} Digest: {{.Digest}}" docker://registry.
 	flags.BoolVar(&opts.config, "config", false, "output configuration")
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output to a Go template")
 	flags.BoolVarP(&opts.doNotListTags, "no-tags", "n", false, "Do not list the available tags from the repository in the output")
+	flags.BoolVar(&opts.checkPolicy, "check-policy", false, "Verify that the image pass the policy check")
 	flags.AddFlagSet(&sharedFlags)
 	flags.AddFlagSet(&imageFlags)
 	flags.AddFlagSet(&retryFlags)
@@ -106,6 +108,24 @@ func (opts *inspectOptions) run(args []string, stdout io.Writer) (retErr error) 
 		}
 	}()
 
+	unparsedImage := image.UnparsedInstance(src, nil)
+	if opts.checkPolicy {
+		policyContext, err := opts.global.getPolicyContext()
+		if err != nil {
+			return fmt.Errorf("Error loading trust policy: %v", err)
+		}
+		defer func() {
+			if err := policyContext.Destroy(); err != nil {
+				retErr = noteCloseFailure(retErr, "tearing down policy context", err)
+			}
+		}()
+
+		// Be paranoid and fail if either return value indicates so.
+		if allowed, err := policyContext.IsRunningImageAllowed(ctx, unparsedImage); !allowed || err != nil {
+			return fmt.Errorf("Image rejected: %w", err)
+		}
+	}
+
 	if err := retry.IfNecessary(ctx, func() error {
 		rawManifest, _, err = src.GetManifest(ctx, nil)
 		return err
@@ -122,7 +142,7 @@ func (opts *inspectOptions) run(args []string, stdout io.Writer) (retErr error) 
 		return nil
 	}
 
-	img, err := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(src, nil))
+	img, err := image.FromUnparsedImage(ctx, sys, unparsedImage)
 	if err != nil {
 		return fmt.Errorf("Error parsing manifest for image: %w", err)
 	}
