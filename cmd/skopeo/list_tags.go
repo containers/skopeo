@@ -78,16 +78,12 @@ See skopeo-list-tags(1) section "REPOSITORY NAMES" for the expected format
 // Customized version of the alltransports.ParseImageName and docker.ParseReference that does not place a default tag in the reference
 // Would really love to not have this, but needed to enforce tag-less and digest-less names
 func parseDockerRepositoryReference(refString string) (types.ImageReference, error) {
-	if !strings.HasPrefix(refString, docker.Transport.Name()+"://") {
+	dockerRefString, ok := strings.CutPrefix(refString, docker.Transport.Name()+"://")
+	if !ok {
 		return nil, fmt.Errorf("docker: image reference %s does not start with %s://", refString, docker.Transport.Name())
 	}
 
-	_, dockerImageName, hasColon := strings.Cut(refString, ":")
-	if !hasColon {
-		return nil, fmt.Errorf(`Invalid image name "%s", expected colon-separated transport:reference`, refString)
-	}
-
-	ref, err := reference.ParseNormalizedNamed(strings.TrimPrefix(dockerImageName, "//"))
+	ref, err := reference.ParseNormalizedNamed(dockerRefString)
 	if err != nil {
 		return nil, err
 	}
