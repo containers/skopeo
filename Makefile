@@ -219,8 +219,14 @@ test-system:
 	$(CONTAINER_RUNTIME) unshare rm -rf $$DTEMP; # This probably doesn't work with Docker, oh well, better than nothing... \
 	exit $$rc
 
+# The SKOPEO_BINARY envvar is used for running system tests with a prebuilt skopeo binary.
+ifdef SKOPEO_BINARY
+$(info Skipping build as SKOPEO_BINARY is specified)
+test-system-local:
+else
 # Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
 test-system-local: bin/skopeo
+endif
 	hack/warn-destructive-tests.sh
 	hack/test-system.sh
 
@@ -229,7 +235,7 @@ test-unit:
 	$(CONTAINER_RUN) $(MAKE) test-unit-local
 
 validate:
-	$(CONTAINER_RUN) $(MAKE) validate-local
+	$(CONTAINER_RUN) $(MAKE) tools validate-local
 
 # This target is only intended for development, e.g. executing it from an IDE. Use (make test) for CI or pre-release testing.
 test-all-local: validate-local validate-docs test-unit-local

@@ -72,7 +72,7 @@ BuildRequires: ostree-devel
 BuildRequires: glib2-devel
 BuildRequires: make
 BuildRequires: shadow-utils-subid-devel
-Requires: containers-common >= 4:1-21
+Requires: containers-common
 
 %description
 Command line utility to inspect images and repositories directly on Docker
