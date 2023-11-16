@@ -73,6 +73,7 @@ import (
 
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
+	ociarchive "github.com/containers/image/v5/oci/archive"
 	ocilayout "github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/pkg/blobinfocache"
 	"github.com/containers/image/v5/transports"
@@ -229,13 +230,22 @@ func isDockerManifestUnknownError(err error) bool {
 	return ec.ErrorCode() == dockerdistributionapi.ErrorCodeManifestUnknown
 }
 
+func isOciImageNotFound(err error) bool {
+	var lerr ocilayout.ImageNotFoundError
+	if errors.As(err, &lerr) {
+		return true
+	}
+	var aerr ociarchive.ImageNotFoundError
+	return errors.As(err, &aerr)
+}
+
 // isNotFoundImageError heuristically attempts to determine whether an error
 // is saying the remote source couldn't find the image (as opposed to an
 // authentication error, an I/O error etc.)
 // TODO drive this into containers/image properly
 func isNotFoundImageError(err error) bool {
 	return isDockerManifestUnknownError(err) ||
-		errors.Is(err, ocilayout.ImageNotFoundError{})
+		isOciImageNotFound(err)
 }
 
 func (h *proxyHandler) openImageImpl(args []any, allowNotFound bool) (retReplyBuf replyBuf, retErr error) {
