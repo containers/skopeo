@@ -10,5 +10,5 @@ int main() {
 }
 EOF
 if test $? -ne 0 ; then
-	echo libdm_no_deferred_remove
+	echo "libdm_no_deferred_remove exclude_graphdriver_devicemapper"
 fi
