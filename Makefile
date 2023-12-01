@@ -104,7 +104,7 @@ endif
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: bin/skopeo docs
+all: bin/skopeo docs completions
 
 codespell:
 	codespell -S Makefile,build,buildah,buildah.spec,imgtype,copy,AUTHORS,bin,vendor,.git,go.sum,CHANGELOG.md,changelog.txt,seccomp.json,.cirrus.yml,"*.xz,*.gz,*.tar,*.tgz,*ico,*.png,*.1,*.5,*.orig,*.rej" -L fpr,uint,iff,od,ERRO -w
@@ -148,7 +148,7 @@ docs-in-container:
 	${CONTAINER_RUN} $(MAKE) docs $(if $(DEBUG),DEBUG=$(DEBUG))
 
 .PHONY: completions
-completions: bin/skopeo
+completions:
 	install -d -m 755 completions/bash completions/zsh completions/fish completions/powershell
 	./bin/skopeo completion bash >| completions/bash/skopeo
 	./bin/skopeo completion zsh >| completions/zsh/_skopeo
@@ -165,17 +165,17 @@ install: install-binary install-docs install-completions
 	install -d -m 755 ${DESTDIR}${REGISTRIESDDIR}
 	install -m 644 default.yaml ${DESTDIR}${REGISTRIESDDIR}/default.yaml
 
-install-binary: bin/skopeo
+install-binary:
 	install -d -m 755 ${DESTDIR}${BINDIR}
 	install -m 755 bin/skopeo ${DESTDIR}${BINDIR}/skopeo
 
-install-docs: docs
+install-docs:
 ifneq ($(DISABLE_DOCS), 1)
 	install -d -m 755 ${DESTDIR}${MANDIR}/man1
 	install -m 644 docs/*.1 ${DESTDIR}${MANDIR}/man1
 endif
 
-install-completions: completions
+install-completions:
 	install -d -m 755 ${DESTDIR}${BASHINSTALLDIR}
 	install -m 644 completions/bash/skopeo ${DESTDIR}${BASHINSTALLDIR}
 	install -d -m 755 ${DESTDIR}${ZSHINSTALLDIR}

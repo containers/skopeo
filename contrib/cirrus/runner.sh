@@ -96,7 +96,7 @@ _run_vendor() {
 }
 
 _run_build() {
-    make bin/skopeo BUILDTAGS="$BUILDTAGS"
+    make bin/skopeo docs completions BUILDTAGS="$BUILDTAGS"
     make install PREFIX=/usr/local
 }
 

@@ -92,7 +92,7 @@ osx_task:
         export PATH=$GOPATH/bin:$PATH
         go version
         go env
-        make validate-local test-unit-local bin/skopeo
+        make validate-local test-unit-local bin/skopeo docs completions
         sudo make install
         /usr/local/bin/skopeo -v
 

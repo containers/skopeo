@@ -100,11 +100,6 @@ This package contains system tests for %{name}
 
 %prep
 %autosetup -Sgit %{name}-%{version}
-# The %%install stage should not rebuild anything but only install what's
-# built in the %%build stage. So, remove any dependency on build targets.
-sed -i 's/^install-binary: bin\/%{name}.*/install-binary:/' Makefile
-sed -i 's/^completions: bin\/%{name}.*/completions:/' Makefile
-sed -i 's/^install-docs: docs.*/install-docs:/' Makefile
 
 %build
 %set_build_flags
@@ -130,7 +125,7 @@ export BUILDTAGS="$BASEBUILDTAGS btrfs_noversion exclude_graphdriver_btrfs"
 LDFLAGS=''
 
 %gobuild -o bin/%{name} ./cmd/%{name}
-%{__make} docs
+%{__make} docs completions
 
 %install
 make \

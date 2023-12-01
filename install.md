@@ -187,7 +187,7 @@ git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers
 cd $GOPATH/src/github.com/containers/skopeo && make bin/skopeo
 ```
 
-By default the `make` command (make all) will build bin/skopeo and the documentation locally.
+By default the `make` command (make all) will build bin/skopeo with completions and the documentation locally.
 
 Building of documentation requires `go-md2man`. On systems that do not have this tool, the
 document generation can be skipped by passing `DISABLE_DOCS=1`:
