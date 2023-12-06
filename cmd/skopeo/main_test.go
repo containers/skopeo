@@ -27,12 +27,11 @@ func TestGlobalOptionsNewSystemContext(t *testing.T) {
 		// User-Agent is set by default.
 		DockerRegistryUserAgent: defaultUserAgent,
 	}, res)
+
 	// Set everything to non-default values.
 	opts, _ = fakeGlobalOptions(t, []string{
 		"--registries.d", "/srv/registries.d",
-		"--override-arch", "overridden-arch",
-		"--override-os", "overridden-os",
-		"--override-variant", "overridden-variant",
+		"--override-platform", "overridden-os/overridden-arch/overridden-variant",
 		"--tmpdir", "/srv",
 		"--registries-conf", "/srv/registries.conf",
 		"--tls-verify=false",
@@ -47,5 +46,19 @@ func TestGlobalOptionsNewSystemContext(t *testing.T) {
 		SystemRegistriesConfPath:    "/srv/registries.conf",
 		DockerInsecureSkipTLSVerify: types.OptionalBoolTrue,
 		DockerRegistryUserAgent:     defaultUserAgent,
+	}, res)
+
+	// Test legacy platform overrides.
+	opts, _ = fakeGlobalOptions(t, []string{
+		"--override-arch", "overridden-arch",
+		"--override-os", "overridden-os",
+		"--override-variant", "overridden-variant",
+	})
+	res = opts.newSystemContext()
+	assert.Equal(t, &types.SystemContext{
+		ArchitectureChoice:      "overridden-arch",
+		OSChoice:                "overridden-os",
+		VariantChoice:           "overridden-variant",
+		DockerRegistryUserAgent: defaultUserAgent,
 	}, res)
 }
