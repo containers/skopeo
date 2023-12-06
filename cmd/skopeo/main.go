@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	commonFlag "github.com/containers/common/pkg/flag"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
@@ -27,9 +28,7 @@ type globalOptions struct {
 	policyPath         string                  // Path to a signature verification policy file
 	insecurePolicy     bool                    // Use an "allow everything" signature verification policy
 	registriesDirPath  string                  // Path to a "registries.d" registry configuration directory
-	overrideArch       string                  // Architecture to use for choosing images, instead of the runtime one
-	overrideOS         string                  // OS to use for choosing images, instead of the runtime one
-	overrideVariant    string                  // Architecture variant to use for choosing images, instead of the runtime one
+	overridePlatform   platformSpecifier       // Platform specifier to use for choosing images, instead of the runtime one
 	commandTimeout     time.Duration           // Timeout for the command execution
 	registriesConfPath string                  // Path to the "registries.conf" file
 	tmpDir             string                  // Path to use for big temporary files
@@ -82,9 +81,10 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
-	rootCommand.PersistentFlags().StringVar(&opts.overrideArch, "override-arch", "", "use `ARCH` instead of the architecture of the machine for choosing images")
-	rootCommand.PersistentFlags().StringVar(&opts.overrideOS, "override-os", "", "use `OS` instead of the running OS for choosing images")
-	rootCommand.PersistentFlags().StringVar(&opts.overrideVariant, "override-variant", "", "use `VARIANT` instead of the running architecture variant for choosing images")
+	rootCommand.PersistentFlags().Var(&opts.overridePlatform, "override-platform", "use `PLATFORM` instead of the platform of the machine for choosing images")
+	rootCommand.PersistentFlags().StringVar(&opts.overridePlatform.architecture, "override-arch", "", "use `ARCH` instead of the architecture of the machine for choosing images")
+	rootCommand.PersistentFlags().StringVar(&opts.overridePlatform.os, "override-os", "", "use `OS` instead of the running OS for choosing images")
+	rootCommand.PersistentFlags().StringVar(&opts.overridePlatform.variant, "override-variant", "", "use `VARIANT` instead of the running architecture variant for choosing images")
 	rootCommand.PersistentFlags().DurationVar(&opts.commandTimeout, "command-timeout", 0, "timeout for the command execution")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesConfPath, "registries-conf", "", "path to the registries.conf file")
 	if err := rootCommand.PersistentFlags().MarkHidden("registries-conf"); err != nil {
@@ -166,9 +166,9 @@ func (opts *globalOptions) commandTimeoutContext() (context.Context, context.Can
 func (opts *globalOptions) newSystemContext() *types.SystemContext {
 	ctx := &types.SystemContext{
 		RegistriesDirPath:        opts.registriesDirPath,
-		ArchitectureChoice:       opts.overrideArch,
-		OSChoice:                 opts.overrideOS,
-		VariantChoice:            opts.overrideVariant,
+		ArchitectureChoice:       opts.overridePlatform.architecture,
+		OSChoice:                 opts.overridePlatform.os,
+		VariantChoice:            opts.overridePlatform.variant,
 		SystemRegistriesConfPath: opts.registriesConfPath,
 		BigFilesTemporaryDir:     opts.tmpDir,
 		DockerRegistryUserAgent:  defaultUserAgent,
@@ -178,4 +178,37 @@ func (opts *globalOptions) newSystemContext() *types.SystemContext {
 		ctx.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!opts.tlsVerify.Value())
 	}
 	return ctx
+}
+
+type platformSpecifier struct {
+	os           string
+	architecture string
+	variant      string
+}
+
+func (ps *platformSpecifier) Set(s string) error {
+	p, err := platforms.Parse(s)
+	if err != nil {
+		return err
+	}
+
+	ps.os = p.OS
+	ps.architecture = p.Architecture
+	ps.variant = p.Variant
+
+	return nil
+}
+
+func (ps *platformSpecifier) String() string {
+	components := make([]string, 0, 3)
+	for _, s := range []string{ps.os, ps.architecture, ps.variant} {
+		if s != "" {
+			components = append(components, s)
+		}
+	}
+	return strings.Join(components, "/")
+}
+
+func (*platformSpecifier) Type() string {
+	return "platform specifier"
 }
