@@ -23,11 +23,14 @@ GO ?= go
 GOBIN := $(shell $(GO) env GOBIN)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
+GOPATH ?= $(shell go env GOPATH)
 
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
 # (i.e. DO NOT ADD A 'v' prefix!)
 GOLANGCI_LINT_VERSION := 1.55.2
+
+GO_MD2MAN_VERSION := 2.0.3
 
 ifeq ($(GOBIN),)
 GOBIN := $(GOPATH)/bin
@@ -82,7 +85,7 @@ endif
 CONTAINER_GOSRC = /src/github.com/containers/skopeo
 CONTAINER_RUN ?= $(CONTAINER_CMD) --security-opt label=disable -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) $(SKOPEO_CIDEV_CONTAINER_FQIN)
 
-GIT_COMMIT := $(shell GIT_CEILING_DIRECTORIES=$$(cd ..; pwd) git rev-parse HEAD 2> /dev/null || true)
+GIT_COMMIT := $(shell GIT_CEILING_DIRECTORIES=$$(cd ..; pwd) git rev-parse HEAD || true)
 
 EXTRA_LDFLAGS ?=
 SKOPEO_LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} $(EXTRA_LDFLAGS)'
@@ -127,7 +130,8 @@ help:
 
 # Do the build and the output (skopeo) should appear in current dir
 binary: cmd/skopeo
-	$(CONTAINER_RUN) make bin/skopeo $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'
+	$(CONTAINER_RUN) bash -c \
+		"git config --global --add safe.directory $(CONTAINER_GOSRC) && make bin/skopeo $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'"
 
 # Build w/o using containers
 .PHONY: bin/skopeo
@@ -145,7 +149,8 @@ endif
 docs: $(MANPAGES)
 
 docs-in-container:
-	${CONTAINER_RUN} $(MAKE) docs $(if $(DEBUG),DEBUG=$(DEBUG))
+	${CONTAINER_RUN} bash -c \
+		"git config --global --add safe.directory $(CONTAINER_GOSRC) && $(MAKE) docs $(if $(DEBUG),DEBUG=$(DEBUG))"
 
 .PHONY: completions
 completions: bin/skopeo
@@ -188,6 +193,9 @@ shell:
 	$(CONTAINER_RUN) bash
 
 tools:
+	if [ ! -x "$(GOBIN)/go-md2man" ]; then \
+		go install github.com/cpuguy83/go-md2man/v2@v$(GO_MD2MAN_VERSION) ; \
+	fi
 	if [ ! -x "$(GOBIN)/golangci-lint" ]; then \
 		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v$(GOLANGCI_LINT_VERSION) ; \
 	fi
@@ -199,7 +207,8 @@ test-integration:
 # --cap-add=cap_mknod is important to allow skopeo to use containers-storage: directly as it exists in the callers’ environment, without
 # creating a nested user namespace (which requires /etc/subuid and /etc/subgid to be set up)
 	$(CONTAINER_CMD) --security-opt label=disable --cap-add=cap_mknod -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) $(SKOPEO_CIDEV_CONTAINER_FQIN) \
-		$(MAKE) test-integration-local
+		bash -c \
+		"git config --global --add safe.directory $(CONTAINER_GOSRC) && $(MAKE) test-integration-local"
 
 
 # Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
@@ -207,17 +216,27 @@ test-integration-local: bin/skopeo
 	hack/warn-destructive-tests.sh
 	hack/test-integration.sh
 
-# complicated set of options needed to run podman-in-podman
 test-system:
-	DTEMP=$(shell mktemp -d --tmpdir=/var/tmp podman-tmp.XXXXXX); \
-	$(CONTAINER_CMD) --privileged \
-		-v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) \
-		-v $$DTEMP:/var/lib/containers:Z -v /run/systemd/journal/socket:/run/systemd/journal/socket \
-		"$(SKOPEO_CIDEV_CONTAINER_FQIN)" \
-			$(MAKE) test-system-local; \
-	rc=$$?; \
-	$(CONTAINER_RUNTIME) unshare rm -rf $$DTEMP; # This probably doesn't work with Docker, oh well, better than nothing... \
-	exit $$rc
+	# complicated set of options needed to run podman-in-podman
+	if [ "$(CONTAINER_RUNTIME)" = "podman" ]; then \
+		DTEMP=$(shell mktemp -d --tmpdir=/var/tmp podman-tmp.XXXXXX); \
+		$(CONTAINER_CMD) --privileged \
+			-v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) \
+			-v $$DTEMP:/var/lib/containers:Z -v /run/systemd/journal/socket:/run/systemd/journal/socket \
+			"$(SKOPEO_CIDEV_CONTAINER_FQIN)" \
+			bash -c \
+			"git config --global --add safe.directory $(CONTAINER_GOSRC) && $(MAKE) test-system-local"; \
+		rc=$$?; \
+		$(CONTAINER_RUNTIME) unshare rm -rf $$DTEMP; \
+		exit $$rc; \
+	else \
+		$(CONTAINER_CMD) --privileged \
+			-v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) \
+			-v /run/systemd/journal/socket:/run/systemd/journal/socket \
+			"$(SKOPEO_CIDEV_CONTAINER_FQIN)" \
+			bash -c \
+			"git config --global --add safe.directory $(CONTAINER_GOSRC) && $(MAKE) test-system-local"; \
+	fi;
 
 # Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
 test-system-local: bin/skopeo
@@ -226,16 +245,18 @@ test-system-local: bin/skopeo
 
 test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences
-	$(CONTAINER_RUN) $(MAKE) test-unit-local
+	$(CONTAINER_RUN) bash -c \
+		"git config --global --add safe.directory $(CONTAINER_GOSRC) && $(MAKE) test-unit-local"
 
 validate:
-	$(CONTAINER_RUN) $(MAKE) validate-local
+	$(CONTAINER_RUN) bash -c \
+		"git config --global --add safe.directory $(CONTAINER_GOSRC) && $(MAKE) validate-local"
 
 # This target is only intended for development, e.g. executing it from an IDE. Use (make test) for CI or pre-release testing.
 test-all-local: validate-local validate-docs test-unit-local
 
 .PHONY: validate-local
-validate-local:
+validate-local: tools
 	hack/validate-git-marks.sh
 	hack/validate-gofmt.sh
 	GOBIN=$(GOBIN) hack/validate-lint.sh
