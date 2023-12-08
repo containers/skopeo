@@ -158,6 +158,15 @@ function setup() {
     expect_output "amd64"
 }
 
+@test "copy: --dry-run" {
+    local remote_image=docker://quay.io/libpod/busybox:latest
+    local dir=$TESTDIR/dir
+
+    run_skopeo copy --dry-run $remote_image oci:$dir:latest
+    expect_output --substring "Running in dry-run mode"
+    expect_output --substring "Would have copied from=${remote_image} to=oci:${dir}:latest"
+}
+
 teardown() {
     podman rm -f reg
 

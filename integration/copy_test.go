@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -125,6 +126,13 @@ func (s *copySuite) TestCopyAllWithManifestListRoundTrip() {
 	assertDirImagesAreEqual(t, dir1, dir2)
 	out := combinedOutputOfCommand(t, "diff", "-urN", oci1, oci2)
 	assert.Equal(t, "", out)
+}
+
+func (s *copySuite) TestCopyDryRun() {
+	t := s.T()
+	dir := t.TempDir()
+	assertSkopeoSucceeds(t, "", "copy", "--dry-run", knownListImage, "dir:"+dir)
+	assertDirIsEmpty(t, dir)
 }
 
 func (s *copySuite) TestCopyAllWithManifestListConverge() {
@@ -660,6 +668,14 @@ func assertSchema1DirImagesAreEqualExceptNames(t *testing.T, dir1, ref1, dir2, r
 	// Then compare the rest file by file.
 	out := combinedOutputOfCommand(t, "diff", "-urN", "-x", "manifest.json", dir1, dir2)
 	assert.Equal(t, "", out)
+}
+
+func assertDirIsEmpty(t *testing.T, dir string) {
+	d, err := os.Open(dir)
+	require.NoError(t, err)
+	defer d.Close()
+	_, err = d.Readdirnames(1)
+	assert.Equal(t, err, io.EOF)
 }
 
 // Streaming (skopeo copy)
