@@ -55,6 +55,14 @@ sudo apk add skopeo
 
 [Package Info](https://pkgs.alpinelinux.org/packages?name=skopeo)
 
+### Gentoo
+
+```sh
+sudo emerge app-containers/skopeo
+```
+
+[Package Info](https://packages.gentoo.org/packages/app-containers/skopeo)
+
 ### Arch Linux
 
 ```sh
