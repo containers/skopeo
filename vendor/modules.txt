@@ -73,7 +73,7 @@ github.com/containers/common/pkg/password
 github.com/containers/common/pkg/report
 github.com/containers/common/pkg/report/camelcase
 github.com/containers/common/pkg/retry
-# github.com/containers/image/v5 v5.29.2-0.20240119225553-e6e119441091
+# github.com/containers/image/v5 v5.29.2
 ## explicit; go 1.19
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -185,7 +185,6 @@ github.com/containers/storage/pkg/chunked
 github.com/containers/storage/pkg/chunked/compressor
 github.com/containers/storage/pkg/chunked/dump
 github.com/containers/storage/pkg/chunked/internal
-github.com/containers/storage/pkg/chunked/toc
 github.com/containers/storage/pkg/config
 github.com/containers/storage/pkg/devicemapper
 github.com/containers/storage/pkg/directory
