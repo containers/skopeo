@@ -194,23 +194,8 @@ func runDecompressDirs(t *testing.T, args ...string) {
 		m, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 		require.NoError(t, err)
 		t.Logf("manifest %d before: %s", i+1, string(m))
-
-		decompressDir(t, dir)
-
-		m, err = os.ReadFile(filepath.Join(dir, "manifest.json"))
-		require.NoError(t, err)
-		t.Logf("manifest %d after: %s", i+1, string(m))
 	}
-}
-
-// decompressDir modifies a dir:-formatted directory to replace gzip-compressed layers with uncompressed variants,
-// and to use a ~canonical formatting of manifest.json.
-func decompressDir(t *testing.T, dir string) {
-	out, err := exec.Command(decompressDirsBinary, dir).CombinedOutput()
-	assert.NoError(t, err, "%s", out)
-	if len(out) > 0 {
-		t.Logf("output: %s", out)
-	}
+	t.Fatalf("Forcing a failure to list contents")
 }
 
 // Verify manifest in a dir: image at dir is expectedMIMEType.
