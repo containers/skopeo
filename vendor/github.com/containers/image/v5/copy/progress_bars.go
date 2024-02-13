@@ -7,8 +7,8 @@ import (
 
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/types"
-	"github.com/vbauerster/mpb/v7"
-	"github.com/vbauerster/mpb/v7/decor"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 // newProgressPool creates a *mpb.Progress.
@@ -38,7 +38,8 @@ type progressBar struct {
 }
 
 // createProgressBar creates a progressBar in pool.  Note that if the copier's reportWriter
-// is io.Discard, the progress bar's output will be discarded
+// is io.Discard, the progress bar's output will be discarded.  Callers may call printCopyInfo()
+// to print a single line instead.
 //
 // NOTE: Every progress bar created within a progress pool must either successfully
 // complete or be aborted, or pool.Wait() will hang. That is typically done
@@ -83,6 +84,8 @@ func (c *copier) createProgressBar(pool *mpb.Progress, partial bool, info types.
 				),
 				mpb.AppendDecorators(
 					decor.OnComplete(decor.CountersKibiByte("%.1f / %.1f"), ""),
+					decor.Name(" | "),
+					decor.OnComplete(decor.EwmaSpeed(decor.SizeB1024(0), "% .1f", 30), ""),
 				),
 			)
 		}
@@ -93,14 +96,23 @@ func (c *copier) createProgressBar(pool *mpb.Progress, partial bool, info types.
 			mpb.PrependDecorators(
 				decor.OnComplete(decor.Name(prefix), onComplete),
 			),
+			mpb.AppendDecorators(
+				decor.OnComplete(decor.EwmaSpeed(decor.SizeB1024(0), "% .1f", 30), ""),
+			),
 		)
-	}
-	if c.progressOutput == io.Discard {
-		c.Printf("Copying %s %s\n", kind, info.Digest)
 	}
 	return &progressBar{
 		Bar:          bar,
 		originalSize: info.Size,
+	}
+}
+
+// printCopyInfo prints a "Copying ..." message on the copier if the output is
+// set to `io.Discard`.  In that case, the progress bars won't be rendered but
+// we still want to indicate when blobs and configs are copied.
+func (c *copier) printCopyInfo(kind string, info types.BlobInfo) {
+	if c.progressOutput == io.Discard {
+		c.Printf("Copying %s %s\n", kind, info.Digest)
 	}
 }
 
@@ -113,7 +125,7 @@ func (bar *progressBar) mark100PercentComplete() {
 		bar.SetCurrent(bar.originalSize) // This triggers the completion condition.
 	} else {
 		// -1 = unknown size
-		// 0 is somewhat of a a special case: Unlike c/image, where 0 is a definite known
+		// 0 is somewhat of a special case: Unlike c/image, where 0 is a definite known
 		// size (possible at least in theory), in mpb, zero-sized progress bars are treated
 		// as unknown size, in particular they are not configured to be marked as
 		// complete on bar.Current() reaching bar.total (because that would happen already

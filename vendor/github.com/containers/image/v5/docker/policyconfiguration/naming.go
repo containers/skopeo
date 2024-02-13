@@ -1,10 +1,11 @@
 package policyconfiguration
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/pkg/errors"
 )
 
 // DockerReferenceIdentity returns a string representation of the reference, suitable for policy lookup,
@@ -16,9 +17,9 @@ func DockerReferenceIdentity(ref reference.Named) (string, error) {
 	digested, isDigested := ref.(reference.Canonical)
 	switch {
 	case isTagged && isDigested: // Note that this CAN actually happen.
-		return "", errors.Errorf("Unexpected Docker reference %s with both a name and a digest", reference.FamiliarString(ref))
+		return "", fmt.Errorf("Unexpected Docker reference %s with both a name and a digest", reference.FamiliarString(ref))
 	case !isTagged && !isDigested: // This should not happen, the caller is expected to ensure !reference.IsNameOnly()
-		return "", errors.Errorf("Internal inconsistency: Docker reference %s with neither a tag nor a digest", reference.FamiliarString(ref))
+		return "", fmt.Errorf("Internal inconsistency: Docker reference %s with neither a tag nor a digest", reference.FamiliarString(ref))
 	case isTagged:
 		res = res + ":" + tagged.Tag()
 	case isDigested:
@@ -39,7 +40,7 @@ func DockerReferenceNamespaces(ref reference.Named) []string {
 	// then in its parent "docker.io/library"; in none of "busybox",
 	// un-namespaced "library" nor in "" supposedly implicitly representing "library/".
 	//
-	// ref.FullName() == ref.Hostname() + "/" + ref.RemoteName(), so the last
+	// ref.Name() == ref.Domain() + "/" + ref.Path(), so the last
 	// iteration matches the host name (for any namespace).
 	res := []string{}
 	name := ref.Name()

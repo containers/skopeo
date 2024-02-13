@@ -70,5 +70,5 @@ func applyNameOperation(oldNames []string, opParameters []string, op updateNameO
 	default:
 		return result, errInvalidUpdateNameOperation
 	}
-	return dedupeNames(result), nil
+	return dedupeStrings(result), nil
 }

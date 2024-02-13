@@ -3,29 +3,38 @@ package layout
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 
+	"github.com/containers/image/v5/internal/imagedestination/impl"
+	"github.com/containers/image/v5/internal/imagedestination/stubs"
+	"github.com/containers/image/v5/internal/manifest"
+	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/internal/putblobdigest"
-	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
 	imgspec "github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 )
 
 type ociImageDestination struct {
-	ref                      ociReference
-	index                    imgspecv1.Index
-	sharedBlobDir            string
-	acceptUncompressedLayers bool
+	impl.Compat
+	impl.PropertyMethodsInitialize
+	stubs.NoPutBlobPartialInitialize
+	stubs.NoSignaturesInitialize
+
+	ref           ociReference
+	index         imgspecv1.Index
+	sharedBlobDir string
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing directory.
-func newImageDestination(sys *types.SystemContext, ref ociReference) (types.ImageDestination, error) {
+func newImageDestination(sys *types.SystemContext, ref ociReference) (private.ImageDestination, error) {
 	var index *imgspecv1.Index
 	if indexExists(ref) {
 		var err error
@@ -42,10 +51,32 @@ func newImageDestination(sys *types.SystemContext, ref ociReference) (types.Imag
 		}
 	}
 
-	d := &ociImageDestination{ref: ref, index: *index}
+	desiredLayerCompression := types.Compress
+	if sys != nil && sys.OCIAcceptUncompressedLayers {
+		desiredLayerCompression = types.PreserveOriginal
+	}
+
+	d := &ociImageDestination{
+		PropertyMethodsInitialize: impl.PropertyMethods(impl.Properties{
+			SupportedManifestMIMETypes: []string{
+				imgspecv1.MediaTypeImageManifest,
+				imgspecv1.MediaTypeImageIndex,
+			},
+			DesiredLayerCompression:        desiredLayerCompression,
+			AcceptsForeignLayerURLs:        true,
+			MustMatchRuntimeOS:             false,
+			IgnoresEmbeddedDockerReference: false, // N/A, DockerReference() returns nil.
+			HasThreadSafePutBlob:           true,
+		}),
+		NoPutBlobPartialInitialize: stubs.NoPutBlobPartial(ref),
+		NoSignaturesInitialize:     stubs.NoSignatures("Pushing signatures for OCI images is not supported"),
+
+		ref:   ref,
+		index: *index,
+	}
+	d.Compat = impl.AddCompat(d)
 	if sys != nil {
 		d.sharedBlobDir = sys.OCISharedBlobDirPath
-		d.acceptUncompressedLayers = sys.OCIAcceptUncompressedLayers
 	}
 
 	if err := ensureDirectoryExists(d.ref.dir); err != nil {
@@ -54,7 +85,7 @@ func newImageDestination(sys *types.SystemContext, ref ociReference) (types.Imag
 	// Per the OCI image specification, layouts MUST have a "blobs" subdirectory,
 	// but it MAY be empty (e.g. if we never end up calling PutBlob)
 	// https://github.com/opencontainers/image-spec/blame/7c889fafd04a893f5c5f50b7ab9963d5d64e5242/image-layout.md#L19
-	if err := ensureDirectoryExists(filepath.Join(d.ref.dir, "blobs")); err != nil {
+	if err := ensureDirectoryExists(filepath.Join(d.ref.dir, imgspecv1.ImageBlobsDir)); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -71,61 +102,17 @@ func (d *ociImageDestination) Close() error {
 	return nil
 }
 
-func (d *ociImageDestination) SupportedManifestMIMETypes() []string {
-	return []string{
-		imgspecv1.MediaTypeImageManifest,
-		imgspecv1.MediaTypeImageIndex,
-	}
-}
-
-// SupportsSignatures returns an error (to be displayed to the user) if the destination certainly can't store signatures.
-// Note: It is still possible for PutSignatures to fail if SupportsSignatures returns nil.
-func (d *ociImageDestination) SupportsSignatures(ctx context.Context) error {
-	return errors.Errorf("Pushing signatures for OCI images is not supported")
-}
-
-func (d *ociImageDestination) DesiredLayerCompression() types.LayerCompression {
-	if d.acceptUncompressedLayers {
-		return types.PreserveOriginal
-	}
-	return types.Compress
-}
-
-// AcceptsForeignLayerURLs returns false iff foreign layers in manifest should be actually
-// uploaded to the image destination, true otherwise.
-func (d *ociImageDestination) AcceptsForeignLayerURLs() bool {
-	return true
-}
-
-// MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime architecture and OS. False otherwise.
-func (d *ociImageDestination) MustMatchRuntimeOS() bool {
-	return false
-}
-
-// IgnoresEmbeddedDockerReference returns true iff the destination does not care about Image.EmbeddedDockerReferenceConflicts(),
-// and would prefer to receive an unmodified manifest instead of one modified for the destination.
-// Does not make a difference if Reference().DockerReference() is nil.
-func (d *ociImageDestination) IgnoresEmbeddedDockerReference() bool {
-	return false // N/A, DockerReference() returns nil.
-}
-
-// HasThreadSafePutBlob indicates whether PutBlob can be executed concurrently.
-func (d *ociImageDestination) HasThreadSafePutBlob() bool {
-	return true
-}
-
-// PutBlob writes contents of stream and returns data representing the result.
+// PutBlobWithOptions writes contents of stream and returns data representing the result.
 // inputInfo.Digest can be optionally provided if known; if provided, and stream is read to the end without error, the digest MUST match the stream contents.
 // inputInfo.Size is the expected length of stream, if known.
 // inputInfo.MediaType describes the blob format, if known.
-// May update cache.
 // WARNING: The contents of stream are being verified on the fly.  Until stream.Read() returns io.EOF, the contents of the data SHOULD NOT be available
 // to any other readers for download using the supplied digest.
-// If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
-func (d *ociImageDestination) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool) (types.BlobInfo, error) {
+// If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlobWithOptions MUST 1) fail, and 2) delete any data stored so far.
+func (d *ociImageDestination) PutBlobWithOptions(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, options private.PutBlobOptions) (private.UploadedBlob, error) {
 	blobFile, err := os.CreateTemp(d.ref.dir, "oci-put-blob")
 	if err != nil {
-		return types.BlobInfo{}, err
+		return private.UploadedBlob{}, err
 	}
 	succeeded := false
 	explicitClosed := false
@@ -142,14 +129,14 @@ func (d *ociImageDestination) PutBlob(ctx context.Context, stream io.Reader, inp
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
 	if err != nil {
-		return types.BlobInfo{}, err
+		return private.UploadedBlob{}, err
 	}
 	blobDigest := digester.Digest()
 	if inputInfo.Size != -1 && size != inputInfo.Size {
-		return types.BlobInfo{}, errors.Errorf("Size mismatch when copying %s, expected %d, got %d", blobDigest, inputInfo.Size, size)
+		return private.UploadedBlob{}, fmt.Errorf("Size mismatch when copying %s, expected %d, got %d", blobDigest, inputInfo.Size, size)
 	}
 	if err := blobFile.Sync(); err != nil {
-		return types.BlobInfo{}, err
+		return private.UploadedBlob{}, err
 	}
 
 	// On POSIX systems, blobFile was created with mode 0600, so we need to make it readable.
@@ -158,54 +145,53 @@ func (d *ociImageDestination) PutBlob(ctx context.Context, stream io.Reader, inp
 	// always fails on Windows.
 	if runtime.GOOS != "windows" {
 		if err := blobFile.Chmod(0644); err != nil {
-			return types.BlobInfo{}, err
+			return private.UploadedBlob{}, err
 		}
 	}
 
 	blobPath, err := d.ref.blobPath(blobDigest, d.sharedBlobDir)
 	if err != nil {
-		return types.BlobInfo{}, err
+		return private.UploadedBlob{}, err
 	}
 	if err := ensureParentDirectoryExists(blobPath); err != nil {
-		return types.BlobInfo{}, err
+		return private.UploadedBlob{}, err
 	}
 
 	// need to explicitly close the file, since a rename won't otherwise not work on Windows
 	blobFile.Close()
 	explicitClosed = true
 	if err := os.Rename(blobFile.Name(), blobPath); err != nil {
-		return types.BlobInfo{}, err
+		return private.UploadedBlob{}, err
 	}
 	succeeded = true
-	return types.BlobInfo{Digest: blobDigest, Size: size}, nil
+	return private.UploadedBlob{Digest: blobDigest, Size: size}, nil
 }
 
-// TryReusingBlob checks whether the transport already contains, or can efficiently reuse, a blob, and if so, applies it to the current destination
+// TryReusingBlobWithOptions checks whether the transport already contains, or can efficiently reuse, a blob, and if so, applies it to the current destination
 // (e.g. if the blob is a filesystem layer, this signifies that the changes it describes need to be applied again when composing a filesystem tree).
 // info.Digest must not be empty.
-// If canSubstitute, TryReusingBlob can use an equivalent equivalent of the desired blob; in that case the returned info may not match the input.
-// If the blob has been successfully reused, returns (true, info, nil); info must contain at least a digest and size, and may
-// include CompressionOperation and CompressionAlgorithm fields to indicate that a change to the compression type should be
-// reflected in the manifest that will be written.
+// If the blob has been successfully reused, returns (true, info, nil).
 // If the transport can not reuse the requested blob, TryReusingBlob returns (false, {}, nil); it returns a non-nil error only on an unexpected failure.
-// May use and/or update cache.
-func (d *ociImageDestination) TryReusingBlob(ctx context.Context, info types.BlobInfo, cache types.BlobInfoCache, canSubstitute bool) (bool, types.BlobInfo, error) {
+func (d *ociImageDestination) TryReusingBlobWithOptions(ctx context.Context, info types.BlobInfo, options private.TryReusingBlobOptions) (bool, private.ReusedBlob, error) {
+	if !impl.OriginalBlobMatchesRequiredCompression(options) {
+		return false, private.ReusedBlob{}, nil
+	}
 	if info.Digest == "" {
-		return false, types.BlobInfo{}, errors.Errorf(`"Can not check for a blob with unknown digest`)
+		return false, private.ReusedBlob{}, errors.New("Can not check for a blob with unknown digest")
 	}
 	blobPath, err := d.ref.blobPath(info.Digest, d.sharedBlobDir)
 	if err != nil {
-		return false, types.BlobInfo{}, err
+		return false, private.ReusedBlob{}, err
 	}
 	finfo, err := os.Stat(blobPath)
 	if err != nil && os.IsNotExist(err) {
-		return false, types.BlobInfo{}, nil
+		return false, private.ReusedBlob{}, nil
 	}
 	if err != nil {
-		return false, types.BlobInfo{}, err
+		return false, private.ReusedBlob{}, err
 	}
 
-	return true, types.BlobInfo{Digest: info.Digest, Size: finfo.Size()}, nil
+	return true, private.ReusedBlob{Digest: info.Digest, Size: finfo.Size()}, nil
 }
 
 // PutManifest writes a manifest to the destination.  Per our list of supported manifest MIME types,
@@ -286,18 +272,8 @@ func (d *ociImageDestination) addManifest(desc *imgspecv1.Descriptor) {
 			return
 		}
 	}
-	// It's a new entry to be added to the index.
-	d.index.Manifests = append(d.index.Manifests, *desc)
-}
-
-// PutSignatures would add the given signatures to the oci layout (currently not supported).
-// If instanceDigest is not nil, it contains a digest of the specific manifest instance to write or overwrite the signatures for
-// (when the primary manifest is a manifest list); this should always be nil if the primary manifest is not a manifest list.
-func (d *ociImageDestination) PutSignatures(ctx context.Context, signatures [][]byte, instanceDigest *digest.Digest) error {
-	if len(signatures) != 0 {
-		return errors.Errorf("Pushing signatures for OCI images is not supported")
-	}
-	return nil
+	// It's a new entry to be added to the index. Use slices.Clone() to avoid a remote dependency on how d.index was created.
+	d.index.Manifests = append(slices.Clone(d.index.Manifests), *desc)
 }
 
 // Commit marks the process of storing the image as successful and asks for the image to be persisted.
@@ -308,7 +284,13 @@ func (d *ociImageDestination) PutSignatures(ctx context.Context, signatures [][]
 // - Uploaded data MAY be visible to others before Commit() is called
 // - Uploaded data MAY be removed or MAY remain around if Close() is called without Commit() (i.e. rollback is allowed but not guaranteed)
 func (d *ociImageDestination) Commit(context.Context, types.UnparsedImage) error {
-	if err := os.WriteFile(d.ref.ociLayoutPath(), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0644); err != nil {
+	layoutBytes, err := json.Marshal(imgspecv1.ImageLayout{
+		Version: imgspecv1.ImageLayoutVersion,
+	})
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(d.ref.ociLayoutPath(), layoutBytes, 0644); err != nil {
 		return err
 	}
 	indexJSON, err := json.Marshal(d.index)

@@ -53,7 +53,7 @@ var (
 
 // init registers the windows graph drivers to the register.
 func init() {
-	graphdriver.Register("windowsfilter", InitFilter)
+	graphdriver.MustRegister("windowsfilter", InitFilter)
 	// DOCKER_WINDOWSFILTER_NOREEXEC allows for inline processing which makes
 	// debugging issues in the re-exec codepath significantly easier.
 	if os.Getenv("DOCKER_WINDOWSFILTER_NOREEXEC") != "" {
@@ -64,8 +64,7 @@ func init() {
 	}
 }
 
-type checker struct {
-}
+type checker struct{}
 
 func (c *checker) IsMounted(path string) bool {
 	return false
@@ -102,7 +101,7 @@ func InitFilter(home string, options graphdriver.Options) (graphdriver.Driver, e
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
-	if err := idtools.MkdirAllAs(home, 0700, 0, 0); err != nil {
+	if err := idtools.MkdirAllAs(home, 0o700, 0, 0); err != nil {
 		return nil, fmt.Errorf("windowsfilter failed to create '%s': %w", home, err)
 	}
 
@@ -183,6 +182,11 @@ func (d *Driver) Exists(id string) bool {
 		return false
 	}
 	return result
+}
+
+// List layers (not including additional image stores)
+func (d *Driver) ListLayers() ([]string, error) {
+	return nil, graphdriver.ErrNotSupported
 }
 
 // CreateFromTemplate creates a layer with the same contents and parent as another layer.
@@ -880,7 +884,7 @@ func (d *Driver) resolveID(id string) (string, error) {
 
 // setID stores the layerId in disk.
 func (d *Driver) setID(id, altID string) error {
-	return os.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0600)
+	return os.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0o600)
 }
 
 // getLayerChain returns the layer chain information.
@@ -910,7 +914,7 @@ func (d *Driver) setLayerChain(id string, chain []string) error {
 	}
 
 	jPath := filepath.Join(d.dir(id), "layerchain.json")
-	err = os.WriteFile(jPath, content, 0600)
+	err = os.WriteFile(jPath, content, 0o600)
 	if err != nil {
 		return fmt.Errorf("unable to write layerchain file - %s", err)
 	}

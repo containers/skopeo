@@ -2,22 +2,43 @@ package layout
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/internal/imagesource/impl"
+	"github.com/containers/image/v5/internal/imagesource/stubs"
+	"github.com/containers/image/v5/internal/manifest"
+	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/pkg/tlsclientconfig"
 	"github.com/containers/image/v5/types"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
+// ImageNotFoundError is used when the OCI structure, in principle, exists and seems valid enough,
+// but nothing matches the “image” part of the provided reference.
+type ImageNotFoundError struct {
+	ref ociReference
+	// We may make members public, or add methods, in the future.
+}
+
+func (e ImageNotFoundError) Error() string {
+	return fmt.Sprintf("no descriptor found for reference %q", e.ref.image)
+}
+
 type ociImageSource struct {
+	impl.Compat
+	impl.PropertyMethodsInitialize
+	impl.NoSignatures
+	impl.DoesNotAffectLayerInfosForCopy
+	stubs.NoGetBlobAtInitialize
+
 	ref           ociReference
 	index         *imgspecv1.Index
 	descriptor    imgspecv1.Descriptor
@@ -26,7 +47,7 @@ type ociImageSource struct {
 }
 
 // newImageSource returns an ImageSource for reading from an existing directory.
-func newImageSource(sys *types.SystemContext, ref ociReference) (types.ImageSource, error) {
+func newImageSource(sys *types.SystemContext, ref ociReference) (private.ImageSource, error) {
 	tr := tlsclientconfig.NewTransport()
 	tr.TLSClientConfig = tlsconfig.ServerDefault()
 
@@ -39,7 +60,7 @@ func newImageSource(sys *types.SystemContext, ref ociReference) (types.ImageSour
 
 	client := &http.Client{}
 	client.Transport = tr
-	descriptor, err := ref.getManifestDescriptor()
+	descriptor, _, err := ref.getManifestDescriptor()
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +68,23 @@ func newImageSource(sys *types.SystemContext, ref ociReference) (types.ImageSour
 	if err != nil {
 		return nil, err
 	}
-	d := &ociImageSource{ref: ref, index: index, descriptor: descriptor, client: client}
+	s := &ociImageSource{
+		PropertyMethodsInitialize: impl.PropertyMethods(impl.Properties{
+			HasThreadSafeGetBlob: false,
+		}),
+		NoGetBlobAtInitialize: stubs.NoGetBlobAt(ref),
+
+		ref:        ref,
+		index:      index,
+		descriptor: descriptor,
+		client:     client,
+	}
 	if sys != nil {
 		// TODO(jonboulle): check dir existence?
-		d.sharedBlobDir = sys.OCISharedBlobDirPath
+		s.sharedBlobDir = sys.OCISharedBlobDirPath
 	}
-	return d, nil
+	s.Compat = impl.AddCompat(s)
+	return s, nil
 }
 
 // Reference returns the reference used to set up this source.
@@ -62,6 +94,7 @@ func (s *ociImageSource) Reference() types.ImageReference {
 
 // Close removes resources associated with an initialized ImageSource, if any.
 func (s *ociImageSource) Close() error {
+	s.client.CloseIdleConnections()
 	return nil
 }
 
@@ -75,7 +108,7 @@ func (s *ociImageSource) GetManifest(ctx context.Context, instanceDigest *digest
 	var err error
 
 	if instanceDigest == nil {
-		dig = digest.Digest(s.descriptor.Digest)
+		dig = s.descriptor.Digest
 		mimeType = s.descriptor.MediaType
 	} else {
 		dig = *instanceDigest
@@ -101,11 +134,6 @@ func (s *ociImageSource) GetManifest(ctx context.Context, instanceDigest *digest
 	}
 
 	return m, mimeType, nil
-}
-
-// HasThreadSafeGetBlob indicates whether GetBlob can be executed concurrently.
-func (s *ociImageSource) HasThreadSafeGetBlob() bool {
-	return false
 }
 
 // GetBlob returns a stream for the specified blob, and the blob’s size (or -1 if unknown).
@@ -137,14 +165,6 @@ func (s *ociImageSource) GetBlob(ctx context.Context, info types.BlobInfo, cache
 	return r, fi.Size(), nil
 }
 
-// GetSignatures returns the image's signatures.  It may use a remote (= slow) service.
-// If instanceDigest is not nil, it contains a digest of the specific manifest instance to retrieve signatures for
-// (when the primary manifest is a manifest list); this never happens if the primary manifest is not a manifest list
-// (e.g. if the source never returns manifest lists).
-func (s *ociImageSource) GetSignatures(ctx context.Context, instanceDigest *digest.Digest) ([][]byte, error) {
-	return [][]byte{}, nil
-}
-
 // getExternalBlob returns the reader of the first available blob URL from urls, which must not be empty.
 // This function can return nil reader when no url is supported by this function. In this case, the caller
 // should fallback to fetch the non-external blob (i.e. pull from the registry).
@@ -162,19 +182,19 @@ func (s *ociImageSource) getExternalBlob(ctx context.Context, urls []string) (io
 		hasSupportedURL = true
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
-			errWrap = errors.Wrapf(errWrap, "fetching %s failed %s", u, err.Error())
+			errWrap = fmt.Errorf("fetching %s failed %s: %w", u, err.Error(), errWrap)
 			continue
 		}
 
 		resp, err := s.client.Do(req)
 		if err != nil {
-			errWrap = errors.Wrapf(errWrap, "fetching %s failed %s", u, err.Error())
+			errWrap = fmt.Errorf("fetching %s failed %s: %w", u, err.Error(), errWrap)
 			continue
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			errWrap = errors.Wrapf(errWrap, "fetching %s failed, response code not 200", u)
+			errWrap = fmt.Errorf("fetching %s failed, response code not 200: %w", u, errWrap)
 			continue
 		}
 
@@ -185,18 +205,6 @@ func (s *ociImageSource) getExternalBlob(ctx context.Context, urls []string) (io
 	}
 
 	return nil, 0, errWrap
-}
-
-// LayerInfosForCopy returns either nil (meaning the values in the manifest are fine), or updated values for the layer
-// blobsums that are listed in the image's manifest.  If values are returned, they should be used when using GetBlob()
-// to read the image's layers.
-// If instanceDigest is not nil, it contains a digest of the specific manifest instance to retrieve BlobInfos for
-// (when the primary manifest is a manifest list); this never happens if the primary manifest is not a manifest list
-// (e.g. if the source never returns manifest lists).
-// The Digest field is guaranteed to be provided; Size may be -1.
-// WARNING: The list may contain duplicates, and they are semantically relevant.
-func (s *ociImageSource) LayerInfosForCopy(context.Context, *digest.Digest) ([]types.BlobInfo, error) {
-	return nil, nil
 }
 
 func getBlobSize(resp *http.Response) int64 {

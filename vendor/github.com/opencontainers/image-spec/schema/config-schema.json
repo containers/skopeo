@@ -95,6 +95,9 @@
         },
         "StopSignal": {
           "type": "string"
+        },
+        "ArgsEscaped": {
+          "type": "boolean"
         }
       }
     },

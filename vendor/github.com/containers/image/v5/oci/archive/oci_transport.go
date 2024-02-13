@@ -2,20 +2,21 @@ package archive
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
 	"github.com/containers/image/v5/directory/explicitfilepath"
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/image"
+	"github.com/containers/image/v5/internal/image"
 	"github.com/containers/image/v5/internal/tmpdir"
 	"github.com/containers/image/v5/oci/internal"
 	ocilayout "github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/pkg/errors"
 )
 
 func init() {
@@ -122,11 +123,7 @@ func (ref ociArchiveReference) PolicyConfigurationNamespaces() []string {
 // verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 // WARNING: This may not do the right thing for a manifest list, see image.FromSource for details.
 func (ref ociArchiveReference) NewImage(ctx context.Context, sys *types.SystemContext) (types.ImageCloser, error) {
-	src, err := newImageSource(ctx, sys, ref)
-	if err != nil {
-		return nil, err
-	}
-	return image.FromSource(ctx, sys, src)
+	return image.FromReference(ctx, sys, ref)
 }
 
 // NewImageSource returns a types.ImageSource for this reference.
@@ -143,7 +140,7 @@ func (ref ociArchiveReference) NewImageDestination(ctx context.Context, sys *typ
 
 // DeleteImage deletes the named image from the registry, if supported.
 func (ref ociArchiveReference) DeleteImage(ctx context.Context, sys *types.SystemContext) error {
-	return errors.Errorf("Deleting images not implemented for oci: images")
+	return errors.New("Deleting images not implemented for oci: images")
 }
 
 // struct to store the ociReference and temporary directory returned by createOCIRef
@@ -160,9 +157,9 @@ func (t *tempDirOCIRef) deleteTempDir() error {
 // createOCIRef creates the oci reference of the image
 // If SystemContext.BigFilesTemporaryDir not "", overrides the temporary directory to use for storing big files
 func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error) {
-	dir, err := os.MkdirTemp(tmpdir.TemporaryDirectoryForBigFiles(sys), "oci")
+	dir, err := tmpdir.MkDirBigFileTemp(sys, "oci")
 	if err != nil {
-		return tempDirOCIRef{}, errors.Wrapf(err, "creating temp directory")
+		return tempDirOCIRef{}, fmt.Errorf("creating temp directory: %w", err)
 	}
 	ociRef, err := ocilayout.NewReference(dir, image)
 	if err != nil {
@@ -175,23 +172,29 @@ func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error)
 
 // creates the temporary directory and copies the tarred content to it
 func createUntarTempDir(sys *types.SystemContext, ref ociArchiveReference) (tempDirOCIRef, error) {
-	tempDirRef, err := createOCIRef(sys, ref.image)
-	if err != nil {
-		return tempDirOCIRef{}, errors.Wrap(err, "creating oci reference")
-	}
 	src := ref.resolvedFile
-	dst := tempDirRef.tempDirectory
-	// TODO: This can take quite some time, and should ideally be cancellable using a context.Context.
 	arch, err := os.Open(src)
 	if err != nil {
-		return tempDirOCIRef{}, err
+		if errors.Is(err, fs.ErrNotExist) {
+			return tempDirOCIRef{}, ArchiveFileNotFoundError{ref: ref, path: src}
+		} else {
+			return tempDirOCIRef{}, err
+		}
 	}
 	defer arch.Close()
+
+	tempDirRef, err := createOCIRef(sys, ref.image)
+	if err != nil {
+		return tempDirOCIRef{}, fmt.Errorf("creating oci reference: %w", err)
+	}
+	dst := tempDirRef.tempDirectory
+
+	// TODO: This can take quite some time, and should ideally be cancellable using a context.Context.
 	if err := archive.NewDefaultArchiver().Untar(arch, dst, &archive.TarOptions{NoLchown: true}); err != nil {
 		if err := tempDirRef.deleteTempDir(); err != nil {
-			return tempDirOCIRef{}, errors.Wrapf(err, "deleting temp directory %q", tempDirRef.tempDirectory)
+			return tempDirOCIRef{}, fmt.Errorf("deleting temp directory %q: %w", tempDirRef.tempDirectory, err)
 		}
-		return tempDirOCIRef{}, errors.Wrapf(err, "untarring file %q", tempDirRef.tempDirectory)
+		return tempDirOCIRef{}, fmt.Errorf("untarring file %q: %w", tempDirRef.tempDirectory, err)
 	}
 	return tempDirRef, nil
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/storage/pkg/chunked/compressor"
 	"github.com/klauspost/pgzip"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/ulikunitz/xz"
 )
@@ -31,7 +30,7 @@ var (
 	// Zstd compression.
 	Zstd = internal.NewAlgorithm(types.ZstdAlgorithmName, types.ZstdAlgorithmName,
 		[]byte{0x28, 0xb5, 0x2f, 0xfd}, ZstdDecompressor, zstdCompressor)
-	// Zstd:chunked compression.
+	// ZstdChunked is a Zstd compression with chunk metadta which allows random access to individual files.
 	ZstdChunked = internal.NewAlgorithm(types.ZstdChunkedAlgorithmName, types.ZstdAlgorithmName, /* Note: InternalUnstableUndocumentedMIMEQuestionMark is not ZstdChunkedAlgorithmName */
 		nil, ZstdDecompressor, compressor.ZstdCompressor)
 
@@ -151,13 +150,13 @@ func DetectCompression(input io.Reader) (DecompressorFunc, io.Reader, error) {
 func AutoDecompress(stream io.Reader) (io.ReadCloser, bool, error) {
 	decompressor, stream, err := DetectCompression(stream)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "detecting compression")
+		return nil, false, fmt.Errorf("detecting compression: %w", err)
 	}
 	var res io.ReadCloser
 	if decompressor != nil {
 		res, err = decompressor(stream)
 		if err != nil {
-			return nil, false, errors.Wrapf(err, "initializing decompression")
+			return nil, false, fmt.Errorf("initializing decompression: %w", err)
 		}
 	} else {
 		res = io.NopCloser(stream)

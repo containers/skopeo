@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/image"
+	"github.com/containers/image/v5/internal/image"
 	"github.com/containers/image/v5/types"
-
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/exp/maps"
 )
 
 // ConfigUpdater is an interface that ImageReferences for "tarball" images also
@@ -35,9 +35,7 @@ func (r *tarballReference) ConfigUpdate(config imgspecv1.Image, annotations map[
 	if r.annotations == nil {
 		r.annotations = make(map[string]string)
 	}
-	for k, v := range annotations {
-		r.annotations[k] = v
-	}
+	maps.Copy(r.annotations, annotations)
 	return nil
 }
 
@@ -67,22 +65,13 @@ func (r *tarballReference) PolicyConfigurationNamespaces() []string {
 // verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 // WARNING: This may not do the right thing for a manifest list, see image.FromSource for details.
 func (r *tarballReference) NewImage(ctx context.Context, sys *types.SystemContext) (types.ImageCloser, error) {
-	src, err := r.NewImageSource(ctx, sys)
-	if err != nil {
-		return nil, err
-	}
-	img, err := image.FromSource(ctx, sys, src)
-	if err != nil {
-		src.Close()
-		return nil, err
-	}
-	return img, nil
+	return image.FromReference(ctx, sys, r)
 }
 
 func (r *tarballReference) DeleteImage(ctx context.Context, sys *types.SystemContext) error {
 	for _, filename := range r.filenames {
 		if err := os.Remove(filename); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("error removing %q: %v", filename, err)
+			return fmt.Errorf("error removing %q: %w", filename, err)
 		}
 	}
 	return nil

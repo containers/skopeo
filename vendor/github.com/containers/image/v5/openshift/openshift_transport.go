@@ -2,16 +2,16 @@ package openshift
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/containers/image/v5/docker/policyconfiguration"
 	"github.com/containers/image/v5/docker/reference"
-	genericImage "github.com/containers/image/v5/image"
+	genericImage "github.com/containers/image/v5/internal/image"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
-	"github.com/pkg/errors"
+	"github.com/containers/storage/pkg/regexp"
 )
 
 func init() {
@@ -35,7 +35,7 @@ func (t openshiftTransport) ParseReference(reference string) (types.ImageReferen
 // Note that imageNameRegexp is namespace/stream:tag, this
 // is HOSTNAME/namespace/stream:tag or parent prefixes.
 // Keep this in sync with imageNameRegexp!
-var scopeRegexp = regexp.MustCompile("^[^/]*(/[^:/]*(/[^:/]*(:[^:/]*)?)?)?$")
+var scopeRegexp = regexp.Delayed("^[^/]*(/[^:/]*(/[^:/]*(:[^:/]*)?)?)?$")
 
 // ValidatePolicyConfigurationScope checks that scope is a valid name for a signature.PolicyTransportScopes keys
 // (i.e. a valid PolicyConfigurationIdentity() or PolicyConfigurationNamespaces() return value).
@@ -43,7 +43,7 @@ var scopeRegexp = regexp.MustCompile("^[^/]*(/[^:/]*(/[^:/]*(:[^:/]*)?)?)?$")
 // scope passed to this function will not be "", that value is always allowed.
 func (t openshiftTransport) ValidatePolicyConfigurationScope(scope string) error {
 	if scopeRegexp.FindStringIndex(scope) == nil {
-		return errors.Errorf("Invalid scope name %s", scope)
+		return fmt.Errorf("Invalid scope name %s", scope)
 	}
 	return nil
 }
@@ -59,11 +59,11 @@ type openshiftReference struct {
 func ParseReference(ref string) (types.ImageReference, error) {
 	r, err := reference.ParseNormalizedNamed(ref)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse image reference %q", ref)
+		return nil, fmt.Errorf("failed to parse image reference %q: %w", ref, err)
 	}
 	tagged, ok := r.(reference.NamedTagged)
 	if !ok {
-		return nil, errors.Errorf("invalid image reference %s, expected format: 'hostname/namespace/stream:tag'", ref)
+		return nil, fmt.Errorf("invalid image reference %s, expected format: 'hostname/namespace/stream:tag'", ref)
 	}
 	return NewReference(tagged)
 }
@@ -72,7 +72,7 @@ func ParseReference(ref string) (types.ImageReference, error) {
 func NewReference(dockerRef reference.NamedTagged) (types.ImageReference, error) {
 	r := strings.SplitN(reference.Path(dockerRef), "/", 3)
 	if len(r) != 2 {
-		return nil, errors.Errorf("invalid image reference: %s, expected format: 'hostname/namespace/stream:tag'",
+		return nil, fmt.Errorf("invalid image reference: %s, expected format: 'hostname/namespace/stream:tag'",
 			reference.FamiliarString(dockerRef))
 	}
 	return openshiftReference{
@@ -89,7 +89,7 @@ func (ref openshiftReference) Transport() types.ImageTransport {
 // StringWithinTransport returns a string representation of the reference, which MUST be such that
 // reference.Transport().ParseReference(reference.StringWithinTransport()) returns an equivalent reference.
 // NOTE: The returned string is not promised to be equal to the original input to ParseReference;
-// e.g. default attribute values omitted by the user may be filled in in the return value, or vice versa.
+// e.g. default attribute values omitted by the user may be filled in the return value, or vice versa.
 // WARNING: Do not use the return value in the UI to describe an image, it does not contain the Transport().Name() prefix.
 func (ref openshiftReference) StringWithinTransport() string {
 	return reference.FamiliarString(ref.dockerReference)
@@ -132,11 +132,7 @@ func (ref openshiftReference) PolicyConfigurationNamespaces() []string {
 // verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 // WARNING: This may not do the right thing for a manifest list, see image.FromSource for details.
 func (ref openshiftReference) NewImage(ctx context.Context, sys *types.SystemContext) (types.ImageCloser, error) {
-	src, err := newImageSource(sys, ref)
-	if err != nil {
-		return nil, err
-	}
-	return genericImage.FromSource(ctx, sys, src)
+	return genericImage.FromReference(ctx, sys, ref)
 }
 
 // NewImageSource returns a types.ImageSource for this reference.
@@ -153,5 +149,5 @@ func (ref openshiftReference) NewImageDestination(ctx context.Context, sys *type
 
 // DeleteImage deletes the named image from the registry, if supported.
 func (ref openshiftReference) DeleteImage(ctx context.Context, sys *types.SystemContext) error {
-	return errors.Errorf("Deleting images not implemented for atomic: images")
+	return errors.New("Deleting images not implemented for atomic: images")
 }

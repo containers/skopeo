@@ -6,18 +6,18 @@ package ostree
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/containers/image/v5/directory/explicitfilepath"
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/image"
+	"github.com/containers/image/v5/internal/image"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
-	"github.com/pkg/errors"
+	"github.com/containers/storage/pkg/regexp"
 )
 
 const defaultOSTreeRepo = "/ostree/repo"
@@ -42,16 +42,16 @@ func init() {
 func (t ostreeTransport) ValidatePolicyConfigurationScope(scope string) error {
 	sep := strings.Index(scope, ":")
 	if sep < 0 {
-		return errors.Errorf("Invalid ostree: scope %s: Must include a repo", scope)
+		return fmt.Errorf("Invalid ostree: scope %s: Must include a repo", scope)
 	}
 	repo := scope[:sep]
 
 	if !strings.HasPrefix(repo, "/") {
-		return errors.Errorf("Invalid ostree: scope %s: repository must be an absolute path", scope)
+		return fmt.Errorf("Invalid ostree: scope %s: repository must be an absolute path", scope)
 	}
 	cleaned := filepath.Clean(repo)
 	if cleaned != repo {
-		return errors.Errorf(`Invalid ostree: scope %s: Uses non-canonical path format, perhaps try with path %s`, scope, cleaned)
+		return fmt.Errorf(`Invalid ostree: scope %s: Uses non-canonical path format, perhaps try with path %s`, scope, cleaned)
 	}
 
 	// FIXME? In the namespaces within a repo,
@@ -75,12 +75,11 @@ type ostreeImageCloser struct {
 
 func (t ostreeTransport) ParseReference(ref string) (types.ImageReference, error) {
 	var repo = ""
-	var image = ""
-	s := strings.SplitN(ref, "@/", 2)
-	if len(s) == 1 {
-		image, repo = s[0], defaultOSTreeRepo
+	image, repoPart, gotRepoPart := strings.Cut(ref, "@/")
+	if !gotRepoPart {
+		repo = defaultOSTreeRepo
 	} else {
-		image, repo = s[0], "/"+s[1]
+		repo = "/" + repoPart
 	}
 
 	return NewReference(image, repo)
@@ -117,7 +116,7 @@ func NewReference(image string, repo string) (types.ImageReference, error) {
 	// This is necessary to prevent directory paths returned by PolicyConfigurationNamespaces
 	// from being ambiguous with values of PolicyConfigurationIdentity.
 	if strings.Contains(resolved, ":") {
-		return nil, errors.Errorf("Invalid OSTree reference %s@%s: path %s contains a colon", image, repo, resolved)
+		return nil, fmt.Errorf("Invalid OSTree reference %s@%s: path %s contains a colon", image, repo, resolved)
 	}
 
 	return ostreeReference{
@@ -134,7 +133,7 @@ func (ref ostreeReference) Transport() types.ImageTransport {
 // StringWithinTransport returns a string representation of the reference, which MUST be such that
 // reference.Transport().ParseReference(reference.StringWithinTransport()) returns an equivalent reference.
 // NOTE: The returned string is not promised to be equal to the original input to ParseReference;
-// e.g. default attribute values omitted by the user may be filled in in the return value, or vice versa.
+// e.g. default attribute values omitted by the user may be filled in the return value, or vice versa.
 // WARNING: Do not use the return value in the UI to describe an image, it does not contain the Transport().Name() prefix.
 func (ref ostreeReference) StringWithinTransport() string {
 	return fmt.Sprintf("%s@%s", ref.image, ref.repo)
@@ -157,11 +156,11 @@ func (ref ostreeReference) PolicyConfigurationIdentity() string {
 // It is STRONGLY recommended for the first element, if any, to be a prefix of PolicyConfigurationIdentity(),
 // and each following element to be a prefix of the element preceding it.
 func (ref ostreeReference) PolicyConfigurationNamespaces() []string {
-	s := strings.SplitN(ref.image, ":", 2)
-	if len(s) != 2 { // Coverage: Should never happen, NewReference above ensures ref.image has a :tag.
+	repo, _, gotTag := strings.Cut(ref.image, ":")
+	if !gotTag { // Coverage: Should never happen, NewReference above ensures ref.image has a :tag.
 		panic(fmt.Sprintf("Internal inconsistency: ref.image value %q does not have a :tag", ref.image))
 	}
-	name := s[0]
+	name := repo
 	res := []string{}
 	for {
 		res = append(res, fmt.Sprintf("%s:%s", ref.repo, name))
@@ -184,17 +183,7 @@ func (s *ostreeImageCloser) Size() (int64, error) {
 // NOTE: If any kind of signature verification should happen, build an UnparsedImage from the value returned by NewImageSource,
 // verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 func (ref ostreeReference) NewImage(ctx context.Context, sys *types.SystemContext) (types.ImageCloser, error) {
-	var tmpDir string
-	if sys == nil || sys.OSTreeTmpDirPath == "" {
-		tmpDir = os.TempDir()
-	} else {
-		tmpDir = sys.OSTreeTmpDirPath
-	}
-	src, err := newImageSource(tmpDir, ref)
-	if err != nil {
-		return nil, err
-	}
-	return image.FromSource(ctx, sys, src)
+	return image.FromReference(ctx, sys, ref)
 }
 
 // NewImageSource returns a types.ImageSource for this reference.
@@ -223,10 +212,10 @@ func (ref ostreeReference) NewImageDestination(ctx context.Context, sys *types.S
 
 // DeleteImage deletes the named image from the registry, if supported.
 func (ref ostreeReference) DeleteImage(ctx context.Context, sys *types.SystemContext) error {
-	return errors.Errorf("Deleting images not implemented for ostree: images")
+	return errors.New("Deleting images not implemented for ostree: images")
 }
 
-var ostreeRefRegexp = regexp.MustCompile(`^[A-Za-z0-9.-]$`)
+var ostreeRefRegexp = regexp.Delayed(`^[A-Za-z0-9.-]$`)
 
 func encodeOStreeRef(in string) string {
 	var buffer bytes.Buffer
