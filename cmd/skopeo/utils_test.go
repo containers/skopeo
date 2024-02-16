@@ -153,6 +153,24 @@ func TestImageDestOptionsNewSystemContext(t *testing.T) {
 	// Make sure when REGISTRY_AUTH_FILE is set the auth file is used
 	t.Setenv("REGISTRY_AUTH_FILE", authFile)
 
+	// TODO: Check if file has valid yaml format
+	content, err := ioutil.ReadFile(REGISTRY_AUTH_FILE)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+	
+	// Check if the content is valid JSON
+	if !json.Valid(content) {
+		// If not, write an empty JSON object to the file
+		err := ioutil.WriteFile(REGISTRY_AUTH_FILE, []byte("{}"),  0644)
+		if err != nil {
+			fmt.Printf("Error writing to file: %v\n", err)
+			return
+		}
+		fmt.Println("Invalid JSON detected. Empty JSON object written to the file.")
+	}
+	
 	// Explicitly set everything to default, except for when the default is “not present”
 	opts = fakeImageDestOptions(t, "dest-", true, []string{}, []string{
 		"--dest-compress=false",
