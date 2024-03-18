@@ -1,0 +1,37 @@
+prepare:
+    - name: Distro specific setup
+      how: shell
+      script: bash ./plans/prepare.sh
+    - name: Install packages
+      how: install
+      package:
+        - bats
+        - firewalld
+        - golang
+        - httpd-tools
+        - make
+        - podman-docker
+
+/validate_test:
+    summary: Validate code
+    execute:
+        how: tmt
+        script: make validate
+
+/unit_test:
+    summary: Unit tests
+    execute:
+        how: tmt
+        script: make test-unit
+
+/integration_test:
+    summary: Integration tests
+    execute:
+        how: tmt
+        script: make test-integration
+
+/system_test:
+    summary: Run skopeo tests
+    execute:
+        how: tmt
+        script: SKOPEO_BINARY=/usr/bin/skopeo bats systemtest/
