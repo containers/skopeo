@@ -268,8 +268,8 @@ func decompressDir(t *testing.T, dir string) {
 		rawLayer["size"] = uncompressedSize
 		var mimeType string
 		getRawMapField(t, rawLayer, "mediaType", &mimeType)
-		if strings.HasSuffix(mimeType, ".gzip") { // This should use CutSuffix with Go ≥1.20
-			rawLayer["mediaType"] = strings.TrimSuffix(mimeType, ".gzip")
+		if uncompressedMIMEType, ok := strings.CutSuffix(mimeType, ".gzip"); ok {
+			rawLayer["mediaType"] = uncompressedMIMEType
 		}
 
 		rawLayers[i] = rawLayer
