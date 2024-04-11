@@ -5,7 +5,10 @@
 
 on:
   schedule:
-    - cron:  '0 0 * * *'
+    # N/B: This workflow easily encounters GitHub rate-limiting, do not run at the same
+    # time as Podman (00:00) or Buildah (01:10). Ref:
+    # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
+    - cron:  '20 2 * * *'
   # Debug: Allow triggering job manually in github-actions WebUI
   workflow_dispatch: {}
 
