@@ -13,6 +13,9 @@
 
 specfile_path: rpm/skopeo.spec
 upstream_tag_template: v{version}
+# disable PR merge attempt in packit builds
+# https://packit.dev/docs/configuration#merge_pr_in_ci
+merge_pr_in_ci: false
 
 jobs:
   - &copr
