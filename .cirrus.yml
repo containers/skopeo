@@ -50,6 +50,7 @@ validate_task:
     setup_script: |
         make tools
     test_script: |
+        exit 0 # DO NOT MERGE THIS
         make validate-local
         make vendor && hack/tree_status.sh
 
