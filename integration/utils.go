@@ -166,7 +166,7 @@ func modifyEnviron(env []string, name, value string) []string {
 	return append(res, prefix+value)
 }
 
-// fileFromFixtureFixture applies edits to inputPath and returns a path to the temporary file.
+// fileFromFixture applies edits to inputPath and returns a path to the temporary file.
 // Callers should defer os.Remove(the_returned_path)
 func fileFromFixture(t *testing.T, inputPath string, edits map[string]string) string {
 	contents, err := os.ReadFile(inputPath)
