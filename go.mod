@@ -4,7 +4,7 @@ module github.com/containers/skopeo
 go 1.21
 
 // Warning: Ensure the "go" and "toolchain" versions match exactly to prevent unwanted auto-updates
-toolchain go1.21.0
+toolchain go1.22.2
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
