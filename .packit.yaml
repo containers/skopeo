@@ -6,8 +6,18 @@
 # supported Fedora and CentOS Stream arches.
 # They do not block the current Cirrus-based workflow.
 
-specfile_path: rpm/skopeo.spec
+downstream_package_name: skopeo
 upstream_tag_template: v{version}
+
+packages:
+  skopeo-fedora:
+    pkg_tool: fedpkg
+    specfile_path: rpm/skopeo.spec
+  skopeo-centos:
+    pkg_tool: centpkg
+    specfile_path: rpm/skopeo.spec
+  skopeo-rhel:
+    specfile_path: rpm/skopeo.spec
 
 srpm_build_deps:
   - make
@@ -15,19 +25,40 @@ srpm_build_deps:
 jobs:
   - job: copr_build
     trigger: pull_request
-    notifications:
+    packages: [skopeo-fedora]
+    notifications: &copr_build_failure_notification
       failure_comment:
         message: "Ephemeral COPR build failed. @containers/packit-build please check."
-    enable_net: true
     targets:
-      - fedora-all-x86_64
-      - fedora-all-aarch64
-      - fedora-eln-x86_64
-      - fedora-eln-aarch64
-      - centos-stream+epel-next-9-x86_64
-      - centos-stream+epel-next-9-aarch64
-    additional_repos:
-      - "copr://rhcontainerbot/podman-next"
+      fedora-all-x86_64: {}
+      fedora-all-aarch64: {}
+      fedora-eln-x86_64:
+        additional_repos:
+          - "https://kojipkgs.fedoraproject.org/repos/eln-build/latest/x86_64/"
+      fedora-eln-aarch64:
+        additional_repos:
+          - "https://kojipkgs.fedoraproject.org/repos/eln-build/latest/aarch64/"
+    enable_net: true
+
+  - job: copr_build
+    trigger: pull_request
+    packages: [skopeo-centos]
+    notifications: *copr_build_failure_notification
+    targets:
+      - centos-stream-9-x86_64
+      - centos-stream-9-aarch64
+      - centos-stream-10-x86_64
+      - centos-stream-10-aarch64
+    enable_net: true
+
+  - job: copr_build
+    trigger: pull_request
+    packages: [skopeo-rhel]
+    notifications: *copr_build_failure_notification
+    targets:
+      - epel-9-x86_64
+      - epel-9-aarch64
+    enable_net: true
 
   # Run on commit to main branch
   - job: copr_build
@@ -40,11 +71,21 @@ jobs:
     project: podman-next
     enable_net: true
 
+  # Sync to Fedora
   - job: propose_downstream
     trigger: release
+    packages: [skopeo-fedora]
     update_release: false
     dist_git_branches:
       - fedora-all
+
+  # Sync to CentOS Stream
+  - job: propose_downstream
+    trigger: release
+    packages: [skopeo-centos]
+    update_release: false
+    dist_git_branches:
+      - c10s
 
   - job: koji_build
     trigger: commit
