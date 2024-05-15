@@ -56,9 +56,10 @@ type syncOptions struct {
 
 // repoDescriptor contains information of a single repository used as a sync source.
 type repoDescriptor struct {
-	DirBasePath string                 // base path when source is 'dir'
-	ImageRefs   []types.ImageReference // List of tagged image found for the repository
-	Context     *types.SystemContext   // SystemContext for the sync command
+	DirBasePath  string                 // base path when source is 'dir'
+	RegistryName string                 // Name of the registry
+	ImageRefs    []types.ImageReference // List of tagged image found for the repository
+	Context      *types.SystemContext   // SystemContext for the sync command
 }
 
 // tlsVerifyConfig is an implementation of the Unmarshaler interface, used to
@@ -374,8 +375,9 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 			continue
 		}
 		repoDescList = append(repoDescList, repoDescriptor{
-			ImageRefs: sourceReferences,
-			Context:   serverCtx})
+			RegistryName: registryName,
+			ImageRefs:    sourceReferences,
+			Context:      serverCtx})
 	}
 
 	// include repository descriptors for cfg.ImagesByTagRegex
@@ -453,8 +455,9 @@ func filterSourceReferences(sys *types.SystemContext, registryName string, colle
 		}
 
 		repoDescList = append(repoDescList, repoDescriptor{
-			ImageRefs: filteredSourceReferences,
-			Context:   sys,
+			RegistryName: registryName,
+			ImageRefs:    filteredSourceReferences,
+			Context:      sys,
 		})
 	}
 	return repoDescList
@@ -591,6 +594,16 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 	}
 
 	return descriptors, nil
+}
+
+// getSubPath takes a full and base path string. Normally this looks like
+// fullPath = "registry.fedoraproject.org/f38/flatpak-runtime:f38"
+// basePath = "registry.fedoraproject.org"
+// It returns a string with the basePath removed for example "f38/flatpak-runtime:f38".
+func getSubPath(fullPath, basePath string) string {
+	cleanBasePath := filepath.Clean(basePath)
+	cleanFullPath := filepath.Clean(fullPath)
+	return strings.TrimPrefix(cleanFullPath, cleanBasePath+"/")
 }
 
 func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
@@ -741,7 +754,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 			}
 
 			if !opts.scoped {
-				destSuffix = path.Base(destSuffix)
+				destSuffix = getSubPath(destSuffix, srcRepo.RegistryName)
 			}
 
 			destRef, err := destinationReference(path.Join(destination, destSuffix)+opts.appendSuffix, opts.destination)

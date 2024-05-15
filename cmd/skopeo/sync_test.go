@@ -44,3 +44,44 @@ func TestTLSVerifyConfig(t *testing.T) {
 	err := yaml.Unmarshal([]byte(`tls-verify: "not a valid bool"`), &config)
 	assert.Error(t, err)
 }
+
+func TestGetSubPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		registry string
+		fullPath string
+		expected string
+	}{
+		{
+			name:     "Registry",
+			registry: "registry.fedoraproject.org",
+			fullPath: "registry.fedoraproject.org/f38/flatpak-runtime:f38",
+			expected: "f38/flatpak-runtime:f38",
+		},
+		{
+			name:     "Registry with Subpath",
+			registry: "registry.fedoraproject.org/f38",
+			fullPath: "registry.fedoraproject.org/f38/flatpak-runtime:f38",
+			expected: "flatpak-runtime:f38",
+		},
+		{
+			name:     "Dir without registry",
+			registry: "",
+			fullPath: "/media/usb/",
+			expected: "/media/usb",
+		},
+		{
+			name:     "Repo without registy",
+			registry: "",
+			fullPath: "flatpak-runtime:f38",
+			expected: "flatpak-runtime:f38",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getSubPath(tt.fullPath, tt.registry)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
