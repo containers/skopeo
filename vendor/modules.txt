@@ -60,7 +60,7 @@ github.com/containerd/containerd/errdefs
 ## explicit; go 1.19
 github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
-# github.com/containers/common v0.57.4
+# github.com/containers/common v0.57.5
 ## explicit; go 1.18
 github.com/containers/common/pkg/auth
 github.com/containers/common/pkg/capabilities
@@ -70,7 +70,7 @@ github.com/containers/common/pkg/password
 github.com/containers/common/pkg/report
 github.com/containers/common/pkg/report/camelcase
 github.com/containers/common/pkg/retry
-# github.com/containers/image/v5 v5.29.2
+# github.com/containers/image/v5 v5.29.3
 ## explicit; go 1.19
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
