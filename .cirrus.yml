@@ -21,7 +21,7 @@ env:
     SCRIPT_BASE: "./contrib/cirrus"
 
     # Google-cloud VM Images
-    IMAGE_SUFFIX: "c20240411t124913z-f39f38d13"
+    IMAGE_SUFFIX: "c20240529t141726z-f40f39d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
 
     # Container FQIN's
@@ -81,20 +81,33 @@ osx_task:
         $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
     depends_on:
         - validate
-    macos_instance:
-        image: ghcr.io/cirruslabs/macos-ventura-base:latest
-    setup_script: |
-        export PATH=$GOPATH/bin:$PATH
-        brew update
-        brew install gpgme go go-md2man
-        make tools
-    test_script: |
-        export PATH=$GOPATH/bin:$PATH
-        go version
-        go env
-        make validate-local test-unit-local bin/skopeo
-        sudo make install
-        /usr/local/bin/skopeo -v
+    persistent_worker: &mac_pw
+        labels:
+            os: darwin
+            arch: arm64
+            purpose: prod
+    env:
+        CIRRUS_WORKING_DIR: "$HOME/ci/task-${CIRRUS_TASK_ID}"
+        # Prevent cache-pollution fron one task to the next.
+        GOPATH: "$CIRRUS_WORKING_DIR/.go"
+        GOCACHE: "$CIRRUS_WORKING_DIR/.go/cache"
+        GOENV: "$CIRRUS_WORKING_DIR/.go/support"
+        GOSRC: "$HOME/ci/task-${CIRRUS_TASK_ID}"
+        TMPDIR: "/private/tmp/ci"
+    # This host is/was shared with potentially many other CI tasks.
+    # The previous task may have been canceled or aborted.
+    prep_script: &mac_cleanup "contrib/cirrus/mac_cleanup.sh"
+    test_script:
+        - export PATH=$GOPATH/bin:$PATH
+        - go version
+        - go env
+        - make tools
+        - make validate-local test-unit-local bin/skopeo
+        - bin/skopeo -v
+    # This host is/was shared with potentially many other CI tasks.
+    # Ensure nothing is left running while waiting for the next task.
+    always:
+        task_cleanup_script: *mac_cleanup
 
 
 cross_task:

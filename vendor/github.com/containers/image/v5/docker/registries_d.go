@@ -288,10 +288,10 @@ func (ns registryNamespace) signatureTopLevel(write bool) string {
 // base is not nil from the caller
 // NOTE: Keep this in sync with docs/signature-protocols.md!
 func lookasideStorageURL(base lookasideStorageBase, manifestDigest digest.Digest, index int) (*url.URL, error) {
-	if err := manifestDigest.Validate(); err != nil { // digest.Digest.Hex() panics on failure, and could possibly result in a path with ../, so validate explicitly.
+	if err := manifestDigest.Validate(); err != nil { // digest.Digest.Encoded() panics on failure, and could possibly result in a path with ../, so validate explicitly.
 		return nil, err
 	}
 	sigURL := *base
-	sigURL.Path = fmt.Sprintf("%s@%s=%s/signature-%d", sigURL.Path, manifestDigest.Algorithm(), manifestDigest.Hex(), index+1)
+	sigURL.Path = fmt.Sprintf("%s@%s=%s/signature-%d", sigURL.Path, manifestDigest.Algorithm(), manifestDigest.Encoded(), index+1)
 	return &sigURL, nil
 }

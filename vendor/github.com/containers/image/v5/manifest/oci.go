@@ -260,7 +260,7 @@ func (m *OCI1) ImageID(diffIDs []digest.Digest) (string, error) {
 	if err := m.Config.Digest.Validate(); err != nil {
 		return "", err
 	}
-	return m.Config.Digest.Hex(), nil
+	return m.Config.Digest.Encoded(), nil
 }
 
 // CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image

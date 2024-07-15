@@ -8,7 +8,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -19,8 +18,9 @@ import (
 )
 
 type TOC struct {
-	Version int            `json:"version"`
-	Entries []FileMetadata `json:"entries"`
+	Version        int            `json:"version"`
+	Entries        []FileMetadata `json:"entries"`
+	TarSplitDigest digest.Digest  `json:"tarSplitDigest,omitempty"`
 }
 
 type FileMetadata struct {
@@ -85,8 +85,9 @@ func GetType(t byte) (string, error) {
 const (
 	ManifestChecksumKey = "io.github.containers.zstd-chunked.manifest-checksum"
 	ManifestInfoKey     = "io.github.containers.zstd-chunked.manifest-position"
-	TarSplitChecksumKey = "io.github.containers.zstd-chunked.tarsplit-checksum"
 	TarSplitInfoKey     = "io.github.containers.zstd-chunked.tarsplit-position"
+
+	TarSplitChecksumKey = "io.github.containers.zstd-chunked.tarsplit-checksum" // Deprecated: Use the TOC.TarSplitDigest field instead, this annotation is no longer read nor written.
 
 	// ManifestTypeCRFS is a manifest file compatible with the CRFS TOC file.
 	ManifestTypeCRFS = 1
@@ -134,8 +135,9 @@ func WriteZstdChunkedManifest(dest io.Writer, outMetadata map[string]string, off
 	manifestOffset := offset + zstdSkippableFrameHeader
 
 	toc := TOC{
-		Version: 1,
-		Entries: metadata,
+		Version:        1,
+		Entries:        metadata,
+		TarSplitDigest: tarSplitData.Digest,
 	}
 
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
@@ -171,7 +173,6 @@ func WriteZstdChunkedManifest(dest io.Writer, outMetadata map[string]string, off
 		return err
 	}
 
-	outMetadata[TarSplitChecksumKey] = tarSplitData.Digest.String()
 	tarSplitOffset := manifestOffset + uint64(len(compressedManifest)) + zstdSkippableFrameHeader
 	outMetadata[TarSplitInfoKey] = fmt.Sprintf("%d:%d:%d", tarSplitOffset, len(tarSplitData.Data), tarSplitData.UncompressedSize)
 	if err := appendZstdSkippableFrame(dest, tarSplitData.Data); err != nil {
@@ -183,11 +184,9 @@ func WriteZstdChunkedManifest(dest io.Writer, outMetadata map[string]string, off
 		Offset:                     manifestOffset,
 		LengthCompressed:           uint64(len(compressedManifest)),
 		LengthUncompressed:         uint64(len(manifest)),
-		ChecksumAnnotation:         "", // unused
 		OffsetTarSplit:             uint64(tarSplitOffset),
 		LengthCompressedTarSplit:   uint64(len(tarSplitData.Data)),
 		LengthUncompressedTarSplit: uint64(tarSplitData.UncompressedSize),
-		ChecksumAnnotationTarSplit: "", // unused
 	}
 
 	manifestDataLE := footerDataToBlob(footer)
@@ -201,18 +200,22 @@ func ZstdWriterWithLevel(dest io.Writer, level int) (*zstd.Encoder, error) {
 }
 
 // ZstdChunkedFooterData contains all the data stored in the zstd:chunked footer.
+// This footer exists to make the blobs self-describing, our implementation
+// never reads it:
+// Partial pull security hinges on the TOC digest, and that exists as a layer annotation;
+// so we are relying on the layer annotations anyway, and doing so means we can avoid
+// a round-trip to fetch this binary footer.
 type ZstdChunkedFooterData struct {
 	ManifestType uint64
 
 	Offset             uint64
 	LengthCompressed   uint64
 	LengthUncompressed uint64
-	ChecksumAnnotation string // Only used when reading a layer, not when creating it
 
 	OffsetTarSplit             uint64
 	LengthCompressedTarSplit   uint64
 	LengthUncompressedTarSplit uint64
-	ChecksumAnnotationTarSplit string // Only used when reading a layer, not when creating it
+	ChecksumAnnotationTarSplit string // Deprecated: This field is not a part of the footer and not used for any purpose.
 }
 
 func footerDataToBlob(footer ZstdChunkedFooterData) []byte {
@@ -228,50 +231,4 @@ func footerDataToBlob(footer ZstdChunkedFooterData) []byte {
 	copy(manifestDataLE[8*7:], ZstdChunkedFrameMagic)
 
 	return manifestDataLE
-}
-
-// ReadFooterDataFromAnnotations reads the zstd:chunked footer data from the given annotations.
-func ReadFooterDataFromAnnotations(annotations map[string]string) (ZstdChunkedFooterData, error) {
-	var footerData ZstdChunkedFooterData
-
-	footerData.ChecksumAnnotation = annotations[ManifestChecksumKey]
-	if footerData.ChecksumAnnotation == "" {
-		return footerData, fmt.Errorf("manifest checksum annotation %q not found", ManifestChecksumKey)
-	}
-
-	offsetMetadata := annotations[ManifestInfoKey]
-
-	if _, err := fmt.Sscanf(offsetMetadata, "%d:%d:%d:%d", &footerData.Offset, &footerData.LengthCompressed, &footerData.LengthUncompressed, &footerData.ManifestType); err != nil {
-		return footerData, err
-	}
-
-	if tarSplitInfoKeyAnnotation, found := annotations[TarSplitInfoKey]; found {
-		if _, err := fmt.Sscanf(tarSplitInfoKeyAnnotation, "%d:%d:%d", &footerData.OffsetTarSplit, &footerData.LengthCompressedTarSplit, &footerData.LengthUncompressedTarSplit); err != nil {
-			return footerData, err
-		}
-		footerData.ChecksumAnnotationTarSplit = annotations[TarSplitChecksumKey]
-	}
-	return footerData, nil
-}
-
-// ReadFooterDataFromBlob reads the zstd:chunked footer from the binary buffer.
-func ReadFooterDataFromBlob(footer []byte) (ZstdChunkedFooterData, error) {
-	var footerData ZstdChunkedFooterData
-
-	if len(footer) < FooterSizeSupported {
-		return footerData, errors.New("blob too small")
-	}
-	footerData.Offset = binary.LittleEndian.Uint64(footer[0:8])
-	footerData.LengthCompressed = binary.LittleEndian.Uint64(footer[8:16])
-	footerData.LengthUncompressed = binary.LittleEndian.Uint64(footer[16:24])
-	footerData.ManifestType = binary.LittleEndian.Uint64(footer[24:32])
-	footerData.OffsetTarSplit = binary.LittleEndian.Uint64(footer[32:40])
-	footerData.LengthCompressedTarSplit = binary.LittleEndian.Uint64(footer[40:48])
-	footerData.LengthUncompressedTarSplit = binary.LittleEndian.Uint64(footer[48:56])
-
-	// the magic number is stored in the last 8 bytes
-	if !bytes.Equal(ZstdChunkedFrameMagic, footer[len(footer)-len(ZstdChunkedFrameMagic):]) {
-		return footerData, errors.New("invalid magic number")
-	}
-	return footerData, nil
 }

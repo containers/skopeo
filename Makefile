@@ -27,7 +27,7 @@ GOARCH ?= $(shell go env GOARCH)
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
 # (i.e. DO NOT ADD A 'v' prefix!)
-GOLANGCI_LINT_VERSION := 1.58.1
+GOLANGCI_LINT_VERSION := 1.59.1
 
 ifeq ($(GOBIN),)
 GOBIN := $(GOPATH)/bin
@@ -93,10 +93,10 @@ MANPAGES ?= $(MANPAGES_MD:%.md=%)
 BTRFS_BUILD_TAG = $(shell hack/btrfs_tag.sh) $(shell hack/btrfs_installed_tag.sh)
 LIBSUBID_BUILD_TAG = $(shell hack/libsubid_tag.sh)
 LOCAL_BUILD_TAGS = $(BTRFS_BUILD_TAG) $(LIBSUBID_BUILD_TAG)
-BUILDTAGS += exclude_graphdriver_devicemapper $(LOCAL_BUILD_TAGS)
+BUILDTAGS += $(LOCAL_BUILD_TAGS)
 
 ifeq ($(DISABLE_CGO), 1)
-	override BUILDTAGS = exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp
+	override BUILDTAGS = exclude_graphdriver_btrfs containers_image_openpgp
 endif
 
 #   make all DEBUG=1

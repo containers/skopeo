@@ -479,7 +479,7 @@ func (s *copySuite) TestCopySimple() {
 
 	// FIXME: It would be nice to use one of the local Docker registries instead of needing an Internet connection.
 	// "pull": docker: → dir:
-	assertSkopeoSucceeds(t, "", "copy", "docker://k8s.gcr.io/pause", "dir:"+dir1)
+	assertSkopeoSucceeds(t, "", "copy", "docker://registry.k8s.io/pause", "dir:"+dir1)
 	// "push": dir: → docker(v2s2):
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "--debug", "copy", "dir:"+dir1, ourRegistry+"pause:unsigned")
 	// The result of pushing and pulling is an unmodified image.
@@ -493,14 +493,14 @@ func (s *copySuite) TestCopySimple() {
 	ociDest := "pause-latest-image"
 	ociImgName := "pause"
 	defer os.RemoveAll(ociDest)
-	assertSkopeoSucceeds(t, "", "copy", "docker://k8s.gcr.io/pause:latest", "oci:"+ociDest+":"+ociImgName)
+	assertSkopeoSucceeds(t, "", "copy", "docker://registry.k8s.io/pause:latest", "oci:"+ociDest+":"+ociImgName)
 	_, err := os.Stat(ociDest)
 	require.NoError(t, err)
 
 	// docker v2s2 -> OCI image layout without image name
 	ociDest = "pause-latest-noimage"
 	defer os.RemoveAll(ociDest)
-	assertSkopeoSucceeds(t, "", "copy", "docker://k8s.gcr.io/pause:latest", "oci:"+ociDest)
+	assertSkopeoSucceeds(t, "", "copy", "docker://registry.k8s.io/pause:latest", "oci:"+ociDest)
 	_, err = os.Stat(ociDest)
 	require.NoError(t, err)
 }

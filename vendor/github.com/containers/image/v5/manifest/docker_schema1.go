@@ -342,5 +342,5 @@ func (m *Schema1) ImageID(diffIDs []digest.Digest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return digest.FromBytes(image).Hex(), nil
+	return digest.FromBytes(image).Encoded(), nil
 }
