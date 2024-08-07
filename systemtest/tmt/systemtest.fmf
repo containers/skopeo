@@ -1,0 +1,11 @@
+require:
+    - make
+
+adjust:
+    duration: 10m
+    when: arch == aarch64
+
+/systemtest:
+    tag: [ upstream, downstream ]
+    summary: Run system tests
+    test: bash systemtest.sh

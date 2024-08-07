@@ -301,11 +301,11 @@ start_registry() {
     # it's fixed. It's simply a workaround, forcing podman to use runc,
     # which might work great for skopeo CI but breaks Fedora gating tests.
     # Instead of always forcing runc, do so only when under cgroups v1:
-    local runtime=
-    cgroup_type=$(stat -f -c %T /sys/fs/cgroup)
-    if [[ $cgroup_type == "tmpfs" ]]; then
-        runtime="--runtime runc"
-    fi
+    #local runtime=
+    #cgroup_type=$(stat -f -c %T /sys/fs/cgroup)
+    #if [[ $cgroup_type == "tmpfs" ]]; then
+    #    runtime="--runtime runc"
+    #fi
 
     # cgroup option necessary under podman-in-podman (CI tests),
     # and doesn't seem to do any harm otherwise.

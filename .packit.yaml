@@ -44,7 +44,7 @@ jobs:
     trigger: pull_request
     packages: [skopeo-centos]
     notifications: *copr_build_failure_notification
-    targets:
+    targets: &centos_targets
       - centos-stream-9-x86_64
       - centos-stream-9-aarch64
       - centos-stream-10-x86_64
@@ -71,6 +71,57 @@ jobs:
     owner: rhcontainerbot
     project: podman-next
     enable_net: true
+
+  # Tests on Fedora
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-fedora]
+      #notifications:
+      #failure_comment:
+      #  message: "skopeo system tests failed on RHEL. @containers/packit-build please check."
+    targets:
+      - fedora-all-x86_64
+      - fedora-all-aarch64
+    tf_extra_params:
+      environments:
+        - artifacts:
+          - type: repository-file
+            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/fedora-$releasever/rhcontainerbot-podman-next-fedora-$releasever.repo
+
+  # Tests on CentOS Stream
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-centos]
+      #notifications:
+      #failure_comment:
+      #  message: "skopeo system tests failed on RHEL. @containers/packit-build please check."
+    targets: *centos_targets
+    tf_extra_params:
+      environments:
+        - artifacts:
+          - type: repository-file
+            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/centos-stream-$releasever/rhcontainerbot-podman-next-centos-stream-$releasever.repo
+
+  # System tests on RHEL
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-rhel]
+    use_internal_tf: true
+      #notifications:
+      #failure_comment:
+      #  message: "skopeo system tests failed on RHEL. @containers/packit-build please check."
+    targets:
+      epel-9-aarch64:
+        distros: [RHEL-9-Nightly,RHEL-9.4.0-Nightly]
+      epel-9-x86_64:
+        distros: [RHEL-9-Nightly,RHEL-9.4.0-Nightly]
+    tf_extra_params:
+      environments:
+        - artifacts:
+          - type: repository-file
+            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/epel-$releasever/rhcontainerbot-podman-next-epel-$releasever.repo
+          - type: repository-file
+            id: https://src.fedoraproject.org/rpms/epel-release/raw/epel9/f/epel.repo
 
   # Sync to Fedora
   - job: propose_downstream
