@@ -1,0 +1,15 @@
+discover:
+    how: fmf
+execute:
+    how: tmt
+
+/ostree:
+    summary: Run ostree tests
+    discover+:
+        filter: tag:ostree
+    provision:
+        how: container
+        image: quay.io/coreos-assembler/fcos-buildroot:testing-devel
+    adjust+:
+        enabled: false
+        when: initiator is not defined or initiator != packit
