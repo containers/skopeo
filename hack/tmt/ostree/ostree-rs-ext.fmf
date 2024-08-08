@@ -1,0 +1,10 @@
+require:
+    - cargo
+    - git-core
+    - make
+
+duration: 30m
+
+tag: ostree
+summary: Run ostree-rs-ext
+test: bash ostree-rs-ext.sh
