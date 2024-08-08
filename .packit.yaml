@@ -78,7 +78,7 @@ jobs:
     packages: [skopeo-fedora]
     identifier: ostree
     targets:
-      - fedora-latest-stable
+      - fedora-rawhide
       #notifications:
       #failure_comment:
       #  message: "Tests failed. @containers/packit-build please check."
