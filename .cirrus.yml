@@ -157,14 +157,17 @@ ostree-rs-ext_task:
         EXT_REPO_HOME: $CIRRUS_WORKING_DIR/../$EXT_REPO_NAME
         EXT_REPO: https://github.com/ostreedev/${EXT_REPO_NAME}.git
     skopeo_build_script:
+        - cat /etc/os-release
         - dnf builddep -y skopeo
         - make
         - make install
     proxy_ostree_ext_build_script:
+        - cat /etc/os-release
         - git clone --depth 1 $EXT_REPO $EXT_REPO_HOME
         - cd $EXT_REPO_HOME
         - cargo test --no-run
     proxy_ostree_ext_test_script:
+        - cat /etc/os-release
         - cd $EXT_REPO_HOME
         - cargo test -- --nocapture --quiet
 
