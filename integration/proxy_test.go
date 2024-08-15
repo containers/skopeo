@@ -19,8 +19,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// This image is known to be x86_64 only right now
-const knownNotManifestListedImageX8664 = "docker://quay.io/coreos/11bot"
+// This image is known to be x86_64 only right now; TODO push
+// a non-manifest-listed fixture to quay.io/libpod
+const knownNotManifestListedImageX8664 = "docker://quay.io/cgwalters/ostest"
 
 // knownNotExtantImage would be very surprising if it did exist
 const knownNotExtantImage = "docker://quay.io/centos/centos:opensusewindowsubuntu"
@@ -173,7 +174,12 @@ func (p *proxy) callReadAllBytes(method string, args []any) (rval any, buf []byt
 	return
 }
 
-func newProxy() (*proxy, error) {
+type proxyConfig struct {
+	// policyFilePath is equivalent to skopeo --policy, an empty value is treated as unset
+	policyFilePath string
+}
+
+func newProxy(config proxyConfig) (*proxy, error) {
 	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_SEQPACKET, 0)
 	if err != nil {
 		return nil, err
@@ -189,7 +195,12 @@ func newProxy() (*proxy, error) {
 	}
 
 	// Note ExtraFiles starts at 3
-	proc := exec.Command("skopeo", "experimental-image-proxy", "--sockfd", "3")
+	args := []string{}
+	if config.policyFilePath != "" {
+		args = append(args, "--policy", config.policyFilePath)
+	}
+	args = append(args, "experimental-image-proxy", "--sockfd", "3")
+	proc := exec.Command("skopeo", args...)
 	proc.Stderr = os.Stderr
 	cmdLifecycleToParentIfPossible(proc)
 	proc.ExtraFiles = append(proc.ExtraFiles, theirfd)
@@ -334,7 +345,10 @@ func runTestOpenImageOptionalNotFound(p *proxy, img string) error {
 
 func (s *proxySuite) TestProxy() {
 	t := s.T()
-	p, err := newProxy()
+	config := proxyConfig{
+		policyFilePath: "",
+	}
+	p, err := newProxy(config)
 	require.NoError(t, err)
 
 	err = runTestGetManifestAndConfig(p, knownNotManifestListedImageX8664)
@@ -349,6 +363,33 @@ func (s *proxySuite) TestProxy() {
 	}
 	assert.NoError(t, err)
 
+	err = runTestOpenImageOptionalNotFound(p, knownNotExtantImage)
+	if err != nil {
+		err = fmt.Errorf("Testing optional image %s: %v", knownNotExtantImage, err)
+	}
+	assert.NoError(t, err)
+}
+
+// Verify that a policy that denies all images is correctly rejected
+// for both manifest listed and direct per-arch images.
+func (s *proxySuite) TestProxyPolicyRejectAll() {
+	t := s.T()
+	tempd := t.TempDir()
+	config := proxyConfig{
+		policyFilePath: tempd + "/policy.json",
+	}
+	err := os.WriteFile(config.policyFilePath, []byte("{ \"default\": [ { \"type\":\"reject\"} ] }"), 0o644)
+	require.NoError(t, err)
+	p, err := newProxy(config)
+	require.NoError(t, err)
+
+	err = runTestGetManifestAndConfig(p, knownNotManifestListedImageX8664)
+	assert.ErrorContains(t, err, "is rejected by policy")
+
+	err = runTestGetManifestAndConfig(p, knownListImage)
+	assert.ErrorContains(t, err, "is rejected by policy")
+
+	// This one should continue to be fine.
 	err = runTestOpenImageOptionalNotFound(p, knownNotExtantImage)
 	if err != nil {
 		err = fmt.Errorf("Testing optional image %s: %v", knownNotExtantImage, err)

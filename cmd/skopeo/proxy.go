@@ -153,9 +153,9 @@ type activePipe struct {
 // openImage is an opened image reference
 type openImage struct {
 	// id is an opaque integer handle
-	id        uint64
-	src       types.ImageSource
-	cachedimg types.Image
+	id  uint64
+	src types.ImageSource
+	img types.Image
 }
 
 // proxyHandler is the state associated with our socket.
@@ -225,6 +225,7 @@ func (h *proxyHandler) OpenImage(args []any) (replyBuf, error) {
 }
 
 func (h *proxyHandler) openImageImpl(args []any, allowNotFound bool) (retReplyBuf replyBuf, retErr error) {
+	ctx := context.Background()
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	var ret replyBuf
@@ -254,12 +255,53 @@ func (h *proxyHandler) openImageImpl(args []any, allowNotFound bool) (retReplyBu
 	}
 
 	unparsedTopLevel := image.UnparsedInstance(imgsrc, nil)
-	allowed, err := h.policyctx.IsRunningImageAllowed(context.Background(), unparsedTopLevel)
+	// Check the signature on the toplevel (possibly multi-arch) manifest, but we don't
+	// yet propagate the error here.
+	allowed, toplevelVerificationErr := h.policyctx.IsRunningImageAllowed(context.Background(), unparsedTopLevel)
+	if toplevelVerificationErr == nil && !allowed {
+		return ret, fmt.Errorf("internal inconsistency: policy verification failed without returning an error")
+	}
+
+	mfest, manifestType, err := unparsedTopLevel.Manifest(ctx)
 	if err != nil {
 		return ret, err
 	}
-	if !allowed {
-		return ret, fmt.Errorf("internal inconsistency: policy verification failed without returning an error")
+	var target *image.UnparsedImage
+	if manifest.MIMETypeIsMultiImage(manifestType) {
+		manifestList, err := manifest.ListFromBlob(mfest, manifestType)
+		if err != nil {
+			return ret, err
+		}
+		instanceDigest, err := manifestList.ChooseInstance(h.sysctx)
+		if err != nil {
+			return ret, err
+		}
+		target = image.UnparsedInstance(imgsrc, &instanceDigest)
+
+		allowed, targetVerificationErr := h.policyctx.IsRunningImageAllowed(context.Background(), target)
+		if targetVerificationErr == nil && !allowed {
+			return ret, fmt.Errorf("internal inconsistency: policy verification failed without returning an error")
+		}
+
+		// Now, we only error if *both* the toplevel and target verification failed.
+		// If either succeeded, that's OK. We want to support a case where the manifest
+		// list is signed, but the target is not (because we previously supported that behavior),
+		// and we want to support the case where only the target is signed (consistent with what c/image enforces).
+		if targetVerificationErr != nil && toplevelVerificationErr != nil {
+			return ret, targetVerificationErr
+		}
+	} else {
+		target = unparsedTopLevel
+
+		// We're not using a manifest list, so require verification of the single arch manifest.
+		if toplevelVerificationErr != nil {
+			return ret, toplevelVerificationErr
+		}
+	}
+
+	img, err := image.FromUnparsedImage(ctx, h.sysctx, target)
+	if err != nil {
+		return ret, err
 	}
 
 	// Note that we never return zero as an imageid; this code doesn't yet
@@ -268,6 +310,7 @@ func (h *proxyHandler) openImageImpl(args []any, allowNotFound bool) (retReplyBu
 	openimg := &openImage{
 		id:  h.imageSerial,
 		src: imgsrc,
+		img: img,
 	}
 	h.images[openimg.id] = openimg
 	ret.value = openimg.id
@@ -367,44 +410,6 @@ func (h *proxyHandler) returnBytes(retval any, buf []byte) (replyBuf, error) {
 	return ret, nil
 }
 
-// cacheTargetManifest is invoked when GetManifest or GetConfig is invoked
-// the first time for a given image.  If the requested image is a manifest
-// list, this function resolves it to the image matching the calling process'
-// operating system and architecture.
-//
-// TODO: Add GetRawManifest or so that exposes manifest lists
-func (h *proxyHandler) cacheTargetManifest(img *openImage) error {
-	ctx := context.Background()
-	if img.cachedimg != nil {
-		return nil
-	}
-	unparsedToplevel := image.UnparsedInstance(img.src, nil)
-	mfest, manifestType, err := unparsedToplevel.Manifest(ctx)
-	if err != nil {
-		return err
-	}
-	var target *image.UnparsedImage
-	if manifest.MIMETypeIsMultiImage(manifestType) {
-		manifestList, err := manifest.ListFromBlob(mfest, manifestType)
-		if err != nil {
-			return err
-		}
-		instanceDigest, err := manifestList.ChooseInstance(h.sysctx)
-		if err != nil {
-			return err
-		}
-		target = image.UnparsedInstance(img.src, &instanceDigest)
-	} else {
-		target = unparsedToplevel
-	}
-	cachedimg, err := image.FromUnparsedImage(ctx, h.sysctx, target)
-	if err != nil {
-		return err
-	}
-	img.cachedimg = cachedimg
-	return nil
-}
-
 // GetManifest returns a copy of the manifest, converted to OCI format, along with the original digest.
 // Manifest lists are resolved to the current operating system and architecture.
 func (h *proxyHandler) GetManifest(args []any) (replyBuf, error) {
@@ -424,14 +429,8 @@ func (h *proxyHandler) GetManifest(args []any) (replyBuf, error) {
 		return ret, err
 	}
 
-	err = h.cacheTargetManifest(imgref)
-	if err != nil {
-		return ret, err
-	}
-	img := imgref.cachedimg
-
 	ctx := context.Background()
-	rawManifest, manifestType, err := img.Manifest(ctx)
+	rawManifest, manifestType, err := imgref.img.Manifest(ctx)
 	if err != nil {
 		return ret, err
 	}
@@ -460,7 +459,7 @@ func (h *proxyHandler) GetManifest(args []any) (replyBuf, error) {
 	// docker schema and MIME types.
 	if manifestType != imgspecv1.MediaTypeImageManifest {
 		manifestUpdates := types.ManifestUpdateOptions{ManifestMIMEType: imgspecv1.MediaTypeImageManifest}
-		ociImage, err := img.UpdatedImage(ctx, manifestUpdates)
+		ociImage, err := imgref.img.UpdatedImage(ctx, manifestUpdates)
 		if err != nil {
 			return ret, err
 		}
@@ -494,14 +493,9 @@ func (h *proxyHandler) GetFullConfig(args []any) (replyBuf, error) {
 	if err != nil {
 		return ret, err
 	}
-	err = h.cacheTargetManifest(imgref)
-	if err != nil {
-		return ret, err
-	}
-	img := imgref.cachedimg
 
 	ctx := context.TODO()
-	config, err := img.OCIConfig(ctx)
+	config, err := imgref.img.OCIConfig(ctx)
 	if err != nil {
 		return ret, err
 	}
@@ -531,14 +525,9 @@ func (h *proxyHandler) GetConfig(args []any) (replyBuf, error) {
 	if err != nil {
 		return ret, err
 	}
-	err = h.cacheTargetManifest(imgref)
-	if err != nil {
-		return ret, err
-	}
-	img := imgref.cachedimg
 
 	ctx := context.TODO()
-	config, err := img.OCIConfig(ctx)
+	config, err := imgref.img.OCIConfig(ctx)
 	if err != nil {
 		return ret, err
 	}
@@ -641,19 +630,13 @@ func (h *proxyHandler) GetLayerInfo(args []any) (replyBuf, error) {
 
 	ctx := context.TODO()
 
-	err = h.cacheTargetManifest(imgref)
-	if err != nil {
-		return ret, err
-	}
-	img := imgref.cachedimg
-
-	layerInfos, err := img.LayerInfosForCopy(ctx)
+	layerInfos, err := imgref.img.LayerInfosForCopy(ctx)
 	if err != nil {
 		return ret, err
 	}
 
 	if layerInfos == nil {
-		layerInfos = img.LayerInfos()
+		layerInfos = imgref.img.LayerInfos()
 	}
 
 	layers := make([]convertedLayerInfo, 0, len(layerInfos))
@@ -699,7 +682,7 @@ func (h *proxyHandler) close() {
 		err := image.src.Close()
 		if err != nil {
 			// This shouldn't be fatal
-			logrus.Warnf("Failed to close image %s: %v", transports.ImageName(image.cachedimg.Reference()), err)
+			logrus.Warnf("Failed to close image %s: %v", transports.ImageName(image.img.Reference()), err)
 		}
 	}
 
