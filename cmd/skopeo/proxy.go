@@ -28,6 +28,7 @@ import (
 	"go.podman.io/image/v5/image"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/pkg/blobinfocache"
+	"go.podman.io/image/v5/signature"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/transports/alltransports"
 	"go.podman.io/image/v5/types"
@@ -129,9 +130,10 @@ type proxyHandler struct {
 	// lock protects everything else in this structure.
 	lock sync.Mutex
 	// opts is CLI options
-	opts   *proxyOptions
-	sysctx *types.SystemContext
-	cache  types.BlobInfoCache
+	opts      *proxyOptions
+	sysctx    *types.SystemContext
+	policyctx *signature.PolicyContext
+	cache     types.BlobInfoCache
 
 	// imageSerial is a counter for open images
 	imageSerial uint64
@@ -188,12 +190,19 @@ func (h *proxyHandler) Initialize(args []any) (replyBuf, error) {
 		return ret, fmt.Errorf("already initialized")
 	}
 
+	policyContext, err := h.opts.global.getPolicyContext()
+	if err != nil {
+		return ret, err
+	}
+
 	sysctx, err := h.opts.imageOpts.newSystemContext()
 	if err != nil {
 		return ret, err
 	}
 	h.sysctx = sysctx
 	h.cache = blobinfocache.DefaultCache(sysctx)
+
+	h.policyctx = policyContext
 
 	r := replyBuf{
 		value: protocolVersion,
@@ -236,18 +245,8 @@ func (h *proxyHandler) openImageImpl(args []any, allowNotFound bool) (retReplyBu
 		return ret, err
 	}
 
-	policyContext, err := h.opts.global.getPolicyContext()
-	if err != nil {
-		return ret, err
-	}
-	defer func() {
-		if err := policyContext.Destroy(); err != nil {
-			retErr = noteCloseFailure(retErr, "tearing down policy context", err)
-		}
-	}()
-
 	unparsedTopLevel := image.UnparsedInstance(imgsrc, nil)
-	allowed, err := policyContext.IsRunningImageAllowed(context.Background(), unparsedTopLevel)
+	allowed, err := h.policyctx.IsRunningImageAllowed(context.Background(), unparsedTopLevel)
 	if err != nil {
 		return ret, err
 	}
@@ -833,6 +832,12 @@ func (h *proxyHandler) close() {
 		if err != nil {
 			// This shouldn't be fatal
 			logrus.Warnf("Failed to close image %s: %v", transports.ImageName(image.cachedimg.Reference()), err)
+		}
+	}
+
+	if h.policyctx != nil {
+		if err := h.policyctx.Destroy(); err != nil {
+			logrus.Warnf("tearing down policy context: %v", err)
 		}
 	}
 }
