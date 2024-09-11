@@ -88,12 +88,14 @@ jobs:
     dist_git_branches:
       - c10s
 
+  # Fedora Koji build
   - job: koji_build
     trigger: commit
+    sidetag_group: podman-releases
+    # Dependents are not rpm dependencies, but the package whose bodhi update
+    # should include this package.
+    # Ref: https://packit.dev/docs/fedora-releases-guide/releasing-multiple-packages
+    dependents:
+      - podman
     dist_git_branches:
       - fedora-all
-
-  - job: bodhi_update
-    trigger: commit
-    dist_git_branches:
-      - fedora-branched # rawhide updates are created automatically
