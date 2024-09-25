@@ -1,7 +1,9 @@
 #!/bin/bash
-set -e
+set -exo pipefail
 
-make PREFIX=/usr install
+if [[ ! -f /usr/bin/skopeo ]]; then
+    make PREFIX=/usr install
+fi
 
 echo "cd ./integration;" go test $TESTFLAGS ${BUILDTAGS:+-tags "$BUILDTAGS"}
 cd ./integration

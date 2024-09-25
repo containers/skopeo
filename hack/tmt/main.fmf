@@ -1,0 +1,13 @@
+require:
+    - make
+    - podman-docker
+
+/unit:
+    tag: upstream
+    summary: Run unit test
+    test: make -C ../.. test-unit
+
+/validate:
+    tag: upstream
+    summary: Run validate test
+    test: make -C ../.. tools validate
