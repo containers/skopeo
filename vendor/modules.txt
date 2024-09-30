@@ -422,6 +422,9 @@ github.com/mitchellh/mapstructure
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
+# github.com/moby/sys/capability v0.3.0
+## explicit; go 1.21
+github.com/moby/sys/capability
 # github.com/moby/sys/mountinfo v0.7.2
 ## explicit; go 1.17
 github.com/moby/sys/mountinfo
