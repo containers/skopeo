@@ -687,6 +687,7 @@ func (h *proxyHandler) FinishPipe(args []any) (replyBuf, error) {
 
 	// Wait for the goroutine to complete
 	f.wg.Wait()
+	logrus.Debug("Completed pipe goroutine")
 	// And only now do we close the write half; this forces the client to call this API
 	f.w.Close()
 	// Propagate any errors from the goroutine worker
@@ -708,6 +709,7 @@ func (h *proxyHandler) close() {
 
 // send writes a reply buffer to the socket
 func (buf replyBuf) send(conn *net.UnixConn, err error) error {
+	logrus.Debugf("Sending reply: err=%v value=%v pipeid=%v", err, buf.value, buf.pipeid)
 	replyToSerialize := reply{
 		Success: err == nil,
 		Value:   buf.value,
@@ -782,6 +784,8 @@ func (h *proxyHandler) processRequest(readBytes []byte) (rb replyBuf, terminate 
 		err = fmt.Errorf("invalid request: %v", err)
 		return
 	}
+	logrus.Debugf("Executing method %s", req.Method)
+
 	// Dispatch on the method
 	switch req.Method {
 	case "Initialize":
@@ -845,6 +849,7 @@ func (opts *proxyOptions) run(args []string, stdout io.Writer) error {
 
 		rb, terminate, err := handler.processRequest(readbuf)
 		if terminate {
+			logrus.Debug("terminating")
 			return nil
 		}
 
