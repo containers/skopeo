@@ -21,8 +21,8 @@ FISHINSTALLDIR=${PREFIX}/share/fish/vendor_completions.d
 
 GO ?= go
 GOBIN := $(shell $(GO) env GOBIN)
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+GOOS ?= $(shell $(GO) env GOOS)
+GOARCH ?= $(shell $(GO) env GOARCH)
 
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
@@ -30,7 +30,7 @@ GOARCH ?= $(shell go env GOARCH)
 GOLANGCI_LINT_VERSION := 1.61.0
 
 ifeq ($(GOBIN),)
-GOBIN := $(GOPATH)/bin
+GOBIN := $(shell $(GO) env GOPATH | sed -e 's!\\!/!g')/bin
 endif
 
 # Scripts may also use CONTAINER_RUNTIME, so we need to export it.
@@ -99,11 +99,16 @@ ifeq ($(DISABLE_CGO), 1)
 	override BUILDTAGS = exclude_graphdriver_btrfs containers_image_openpgp
 endif
 
+BIN=bin/skopeo
+ifeq ($(OS),Windows_NT)
+BIN := $(BIN).exe
+endif
+
 #   make all DEBUG=1
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: bin/skopeo docs
+all: $(BIN) docs
 
 codespell:
 	codespell -S Makefile,build,buildah,buildah.spec,imgtype,copy,AUTHORS,bin,vendor,.git,go.sum,CHANGELOG.md,changelog.txt,seccomp.json,.cirrus.yml,"*.xz,*.gz,*.tar,*.tgz,*ico,*.png,*.1,*.5,*.orig,*.rej" -L fpr,uint,iff,od,ERRO -w
@@ -129,8 +134,8 @@ binary: cmd/skopeo
 	$(CONTAINER_RUN) make bin/skopeo $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'
 
 # Build w/o using containers
-.PHONY: bin/skopeo
-bin/skopeo:
+.PHONY: $(BIN)
+$(BIN):
 	$(GO) build ${GO_DYN_FLAGS} ${SKOPEO_LDFLAGS} -gcflags "$(GOGCFLAGS)" -tags "$(BUILDTAGS)" -o $@ ./cmd/skopeo
 bin/skopeo.%:
 	GOOS=$(word 2,$(subst ., ,$@)) GOARCH=$(word 3,$(subst ., ,$@)) $(GO) build ${SKOPEO_LDFLAGS} -tags "containers_image_openpgp $(BUILDTAGS)" -o $@ ./cmd/skopeo
@@ -138,7 +143,7 @@ local-cross: bin/skopeo.darwin.amd64 bin/skopeo.linux.arm bin/skopeo.linux.arm64
 
 $(MANPAGES): %: %.md
 ifneq ($(DISABLE_DOCS), 1)
-	sed -e 's/\((skopeo.*\.md)\)//' -e 's/\[\(skopeo.*\)\]/\1/' $<  | $(GOMD2MAN) -in /dev/stdin -out $@
+	sed -e 's/\((skopeo.*\.md)\)//' -e 's/\[\(skopeo.*\)\]/\1/' $<  | $(GOMD2MAN) -out $@
 endif
 
 docs: $(MANPAGES)
