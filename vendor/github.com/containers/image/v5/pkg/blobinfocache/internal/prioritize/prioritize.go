@@ -200,8 +200,6 @@ func (css *candidateSortState) compare(xi, xj CandidateWithTime) int {
 
 // destructivelyPrioritizeReplacementCandidatesWithMax is destructivelyPrioritizeReplacementCandidates with parameters for the
 // number of entries to limit for known and unknown location separately, only to make testing simpler.
-// TODO: following function is not destructive any more in the nature instead prioritized result is actually copies of the original
-// candidate set, so In future we might wanna re-name this public API and remove the destructive prefix.
 func destructivelyPrioritizeReplacementCandidatesWithMax(cs []CandidateWithTime, primaryDigest, uncompressedDigest digest.Digest, totalLimit int, noLocationLimit int) []blobinfocache.BICReplacementCandidate2 {
 	// split unknown candidates and known candidates
 	// and limit them separately.

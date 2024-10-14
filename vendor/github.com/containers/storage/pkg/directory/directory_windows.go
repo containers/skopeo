@@ -1,11 +1,10 @@
 //go:build windows
-// +build windows
 
 package directory
 
 import (
+	"errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
@@ -25,7 +24,7 @@ func Usage(dir string) (usage *DiskUsage, err error) {
 		if err != nil {
 			// if dir does not exist, Size() returns the error.
 			// if dir/x disappeared while walking, Size() ignores dir/x.
-			if os.IsNotExist(err) && path != dir {
+			if errors.Is(err, fs.ErrNotExist) && path != dir {
 				return nil
 			}
 			return err
@@ -40,6 +39,9 @@ func Usage(dir string) (usage *DiskUsage, err error) {
 
 		fileInfo, err := d.Info()
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
 			return err
 		}
 		usage.Size += fileInfo.Size()
