@@ -30,7 +30,7 @@ GOARCH ?= $(shell $(GO) env GOARCH)
 GOLANGCI_LINT_VERSION := 1.61.0
 
 ifeq ($(GOBIN),)
-GOBIN := $(shell $(GO) env GOPATH | sed -e 's!\\!/!g')/bin
+  GOBIN := $(subst \,/,$(shell $(GO) env GOPATH))/bin
 endif
 
 # Scripts may also use CONTAINER_RUNTIME, so we need to export it.
