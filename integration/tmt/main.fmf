@@ -1,0 +1,11 @@
+require:
+    - golang
+    - make
+    - podman
+    - skopeo
+
+duration: 30m
+
+tag: [ upstream, downstream ]
+summary: Run integration tests
+test: make -C ../.. test-integration

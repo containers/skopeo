@@ -1,0 +1,20 @@
+discover:
+    how: fmf
+execute:
+    how: tmt
+
+/upstream:
+    summary: Run tests on upstream PRs
+    discover+:
+        filter: tag:upstream
+    adjust+:
+        enabled: false
+        when: initiator is not defined or initiator != packit
+
+/downstream:
+    summary: Run tests on bodhi / errata and dist-git PRs
+    discover+:
+        filter: tag:downstream
+    adjust+:
+        enabled: false
+        when: initiator == packit

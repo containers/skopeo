@@ -202,7 +202,12 @@ test-integration:
 
 
 # Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
+ifdef SKOPEO_BINARY
+$(info Skipping build as SKOPEO_BINARY is specified)
+test-integration-local:
+else
 test-integration-local: bin/skopeo
+endif
 	hack/warn-destructive-tests.sh
 	hack/test-integration.sh
 
@@ -228,7 +233,7 @@ test-unit:
 	$(CONTAINER_RUN) $(MAKE) test-unit-local
 
 validate:
-	$(CONTAINER_RUN) $(MAKE) validate-local
+	$(CONTAINER_RUN) $(MAKE) tools validate-local
 
 # This target is only intended for development, e.g. executing it from an IDE. Use (make test) for CI or pre-release testing.
 test-all-local: validate-local validate-docs test-unit-local
