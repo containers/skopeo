@@ -28,6 +28,10 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 
 Use certificates at _path_ (\*.crt, \*.cert, \*.key) to connect to the registry.
 
+**--check-policy**
+
+Verify that the image pass the policy check.
+
 **--config**
 
 Output configuration in OCI format, default is to format in JSON format.
