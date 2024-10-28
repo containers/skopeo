@@ -53,7 +53,8 @@ func copyCmd(global *globalOptions) *cobra.Command {
 	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
 	destFlags, destOpts := imageDestFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")
 	retryFlags, retryOpts := retryFlags()
-	opts := copyOptions{global: global,
+	opts := copyOptions{
+		global:              global,
 		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
 		srcImage:            srcOpts,
 		destImage:           destOpts,
@@ -102,22 +103,31 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 
 // parseMultiArch parses the list processing selection
 // It returns the copy.ImageListSelection to use with image.Copy option
-func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
+func parseMultiArch(multiArch string) (copy.ImageListSelection, []manifest.Schema2PlatformSpec, error) {
 	switch multiArch {
 	case "system":
-		return copy.CopySystemImage, nil
+		return copy.CopySystemImage, nil, nil
 	case "all":
-		return copy.CopyAllImages, nil
+		return copy.CopyAllImages, nil, nil
 	// There is no CopyNoImages value in copy.ImageListSelection, but because we
 	// don't provide an option to select a set of images to copy, we can use
 	// CopySpecificImages.
 	case "index-only":
-		return copy.CopySpecificImages, nil
-	// We don't expose CopySpecificImages other than index-only above, because
-	// we currently don't provide an option to choose the images to copy. That
-	// could be added in the future.
+		return copy.CopySpecificImages, nil, nil
 	default:
-		return copy.CopySystemImage, fmt.Errorf("unknown multi-arch option %q. Choose one of the supported options: 'system', 'all', or 'index-only'", multiArch)
+		platformsArr := strings.Split(multiArch, ",")
+		platforms := []manifest.Schema2PlatformSpec{}
+		for _, platform := range platformsArr {
+			parts := strings.SplitN(platform, "/", 2)
+			if len(parts) != 2 {
+				return copy.CopySystemImage, nil, fmt.Errorf("invalid platform format %q: expected os/arch", platform)
+			}
+
+			os := parts[0]
+			arch := parts[1]
+			platforms = append(platforms, manifest.Schema2PlatformSpec{OS: os, Architecture: arch})
+		}
+		return copy.CopyCustomArchImages, platforms, nil
 	}
 }
 
@@ -188,11 +198,12 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	}
 
 	imageListSelection := copy.CopySystemImage
+	imageListPlatforms := []manifest.Schema2PlatformSpec{}
 	if opts.multiArch.Present() && opts.all {
 		return fmt.Errorf("Cannot use --all and --multi-arch flags together")
 	}
 	if opts.multiArch.Present() {
-		imageListSelection, err = parseMultiArch(opts.multiArch.Value())
+		imageListSelection, imageListPlatforms, err = parseMultiArch(opts.multiArch.Value())
 		if err != nil {
 			return err
 		}
@@ -303,6 +314,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 			OciEncryptLayers:                 encLayers,
 			OciEncryptConfig:                 encConfig,
 			MaxParallelDownloads:             opts.imageParallelCopies,
+			ImageListPlatforms:               imageListPlatforms,
 		})
 		if err != nil {
 			return err
@@ -312,7 +324,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 			if err != nil {
 				return err
 			}
-			if err = os.WriteFile(opts.digestFile, []byte(manifestDigest.String()), 0644); err != nil {
+			if err = os.WriteFile(opts.digestFile, []byte(manifestDigest.String()), 0o644); err != nil {
 				return fmt.Errorf("Failed to write digest to file %q: %w", opts.digestFile, err)
 			}
 		}

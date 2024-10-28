@@ -82,6 +82,7 @@ Options:
 - system: Copy only the image that matches the system architecture
 - all: Copy the full multi-architecture image
 - index-only: Copy only the index
+- targetPlatforms: Copy only the images that match the specified platforms (e.g. linux/amd64,linux/arm64)
 
 The index-only option usually fails unless the referenced per-architecture images are already present in the destination, or the target registry supports sparse indexes.
 
