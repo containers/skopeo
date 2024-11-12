@@ -8,7 +8,7 @@ ARG CIRRUS_IMAGE_VERSION
 ENV CIRRUS_IMAGE_VERSION=$CIRRUS_IMAGE_VERSION
 ADD https://sh.rustup.rs /var/tmp/rustup_installer.sh
 
-RUN dnf erase -y rust && \
+RUN dnf remove -y rust && \
     chmod +x /var/tmp/rustup_installer.sh && \
     /var/tmp/rustup_installer.sh -y --default-toolchain stable --profile minimal
 
