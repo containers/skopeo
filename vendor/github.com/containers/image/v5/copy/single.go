@@ -323,10 +323,7 @@ func checkImageDestinationForCurrentRuntime(ctx context.Context, sys *types.Syst
 		if err != nil {
 			return fmt.Errorf("parsing image configuration: %w", err)
 		}
-		wantedPlatforms, err := platform.WantedPlatforms(sys)
-		if err != nil {
-			return fmt.Errorf("getting current platform information %#v: %w", sys, err)
-		}
+		wantedPlatforms := platform.WantedPlatforms(sys)
 
 		options := newOrderedSet()
 		match := false
@@ -822,11 +819,16 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 				logrus.Debugf("Retrieved partial blob %v", srcInfo.Digest)
 				return true, updatedBlobInfoFromUpload(srcInfo, uploadedBlob), nil
 			}
-			logrus.Debugf("Failed to retrieve partial blob: %v", err)
-			return false, types.BlobInfo{}, nil
+			// On a "partial content not available" error, ignore it and retrieve the whole layer.
+			var perr private.ErrFallbackToOrdinaryLayerDownload
+			if errors.As(err, &perr) {
+				logrus.Debugf("Failed to retrieve partial blob: %v", err)
+				return false, types.BlobInfo{}, nil
+			}
+			return false, types.BlobInfo{}, err
 		}()
 		if err != nil {
-			return types.BlobInfo{}, "", err
+			return types.BlobInfo{}, "", fmt.Errorf("partial pull of blob %s: %w", srcInfo.Digest, err)
 		}
 		if reused {
 			return blobInfo, cachedDiffID, nil

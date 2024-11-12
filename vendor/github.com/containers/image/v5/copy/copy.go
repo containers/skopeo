@@ -137,6 +137,17 @@ type Options struct {
 	// DestinationCtx.CompressionFormat is used exclusively, and blobs of other
 	// compression algorithms are not reused.
 	ForceCompressionFormat bool
+
+	// ReportResolvedReference, if set, asks the destination transport to store
+	// a “resolved” (more detailed) reference to the created image
+	// into the value this option points to.
+	// What “resolved” means is transport-specific.
+	// Most transports don’t support this, and cause the value to be set to nil.
+	//
+	// For the containers-storage: transport, the reference contains an image ID,
+	// so that storage.ResolveReference returns exactly the created image.
+	// WARNING: It is unspecified whether the reference also contains a reference.Named element.
+	ReportResolvedReference *types.ImageReference
 }
 
 // OptionCompressionVariant allows to supply information about
@@ -193,35 +204,33 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 		reportWriter = options.ReportWriter
 	}
 
+	// safeClose amends retErr with an error from c.Close(), if any.
+	safeClose := func(name string, c io.Closer) {
+		err := c.Close()
+		if err == nil {
+			return
+		}
+		// Do not use %w for err as we don't want it to be unwrapped by callers.
+		if retErr != nil {
+			retErr = fmt.Errorf(" (%s: %s): %w", name, err.Error(), retErr)
+		} else {
+			retErr = fmt.Errorf(" (%s: %s)", name, err.Error())
+		}
+	}
+
 	publicDest, err := destRef.NewImageDestination(ctx, options.DestinationCtx)
 	if err != nil {
 		return nil, fmt.Errorf("initializing destination %s: %w", transports.ImageName(destRef), err)
 	}
 	dest := imagedestination.FromPublic(publicDest)
-	defer func() {
-		if err := dest.Close(); err != nil {
-			if retErr != nil {
-				retErr = fmt.Errorf(" (dest: %v): %w", err, retErr)
-			} else {
-				retErr = fmt.Errorf(" (dest: %v)", err)
-			}
-		}
-	}()
+	defer safeClose("dest", dest)
 
 	publicRawSource, err := srcRef.NewImageSource(ctx, options.SourceCtx)
 	if err != nil {
 		return nil, fmt.Errorf("initializing source %s: %w", transports.ImageName(srcRef), err)
 	}
 	rawSource := imagesource.FromPublic(publicRawSource)
-	defer func() {
-		if err := rawSource.Close(); err != nil {
-			if retErr != nil {
-				retErr = fmt.Errorf(" (src: %v): %w", err, retErr)
-			} else {
-				retErr = fmt.Errorf(" (src: %v)", err)
-			}
-		}
-	}()
+	defer safeClose("src", rawSource)
 
 	// If reportWriter is not a TTY (e.g., when piping to a file), do not
 	// print the progress bars to avoid long and hard to parse output.
@@ -339,7 +348,13 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 		}
 	}
 
-	if err := c.dest.Commit(ctx, c.unparsedToplevel); err != nil {
+	if options.ReportResolvedReference != nil {
+		*options.ReportResolvedReference = nil // The default outcome, if not specifically supported by the transport.
+	}
+	if err := c.dest.CommitWithOptions(ctx, private.CommitOptions{
+		UnparsedToplevel:        c.unparsedToplevel,
+		ReportResolvedReference: options.ReportResolvedReference,
+	}); err != nil {
 		return nil, fmt.Errorf("committing the finished image: %w", err)
 	}
 

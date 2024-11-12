@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package unshare
 
@@ -21,9 +20,9 @@ import (
 
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/gocapability/capability"
 )
 
 // Cmd wraps an exec.Cmd created by the reexec package in unshare(), and

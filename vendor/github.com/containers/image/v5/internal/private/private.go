@@ -53,8 +53,9 @@ type ImageDestinationInternalOnly interface {
 	// PutBlobPartial attempts to create a blob using the data that is already present
 	// at the destination. chunkAccessor is accessed in a non-sequential way to retrieve the missing chunks.
 	// It is available only if SupportsPutBlobPartial().
-	// Even if SupportsPutBlobPartial() returns true, the call can fail, in which case the caller
-	// should fall back to PutBlobWithOptions.
+	// Even if SupportsPutBlobPartial() returns true, the call can fail.
+	// If the call fails with ErrFallbackToOrdinaryLayerDownload, the caller can fall back to PutBlobWithOptions.
+	// The fallback _must not_ be done otherwise.
 	PutBlobPartial(ctx context.Context, chunkAccessor BlobChunkAccessor, srcInfo types.BlobInfo, options PutBlobPartialOptions) (UploadedBlob, error)
 
 	// TryReusingBlobWithOptions checks whether the transport already contains, or can efficiently reuse, a blob, and if so, applies it to the current destination
@@ -69,6 +70,12 @@ type ImageDestinationInternalOnly interface {
 	// (when the primary manifest is a manifest list); this should always be nil if the primary manifest is not a manifest list.
 	// MUST be called after PutManifest (signatures may reference manifest contents).
 	PutSignaturesWithFormat(ctx context.Context, signatures []signature.Signature, instanceDigest *digest.Digest) error
+
+	// CommitWithOptions marks the process of storing the image as successful and asks for the image to be persisted.
+	// WARNING: This does not have any transactional semantics:
+	// - Uploaded data MAY be visible to others before CommitWithOptions() is called
+	// - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
+	CommitWithOptions(ctx context.Context, options CommitOptions) error
 }
 
 // ImageDestination is an internal extension to the types.ImageDestination
@@ -145,6 +152,19 @@ type ReusedBlob struct {
 	MatchedByTOCDigest bool // Whether the layer was reused/matched by TOC digest. Used only for UI purposes.
 }
 
+// CommitOptions are used in CommitWithOptions
+type CommitOptions struct {
+	// UnparsedToplevel contains data about the top-level manifest of the source (which may be a single-arch image or a manifest list
+	// if PutManifest was only called for the single-arch image with instanceDigest == nil), primarily to allow lookups by the
+	// original manifest list digest, if desired.
+	UnparsedToplevel types.UnparsedImage
+	// ReportResolvedReference, if set, asks the transport to store a “resolved” (more detailed) reference to the created image
+	// into the value this option points to.
+	// What “resolved” means is transport-specific.
+	// Transports which don’t support reporting resolved references can ignore the field; the generic copy code writes "nil" into the value.
+	ReportResolvedReference *types.ImageReference
+}
+
 // ImageSourceChunk is a portion of a blob.
 // This API is experimental and can be changed without bumping the major version number.
 type ImageSourceChunk struct {
@@ -182,4 +202,23 @@ type UnparsedImage interface {
 	types.UnparsedImage
 	// UntrustedSignatures is like ImageSource.GetSignaturesWithFormat, but the result is cached; it is OK to call this however often you need.
 	UntrustedSignatures(ctx context.Context) ([]signature.Signature, error)
+}
+
+// ErrFallbackToOrdinaryLayerDownload is a custom error type returned by PutBlobPartial.
+// It suggests to the caller that a fallback mechanism can be used instead of a hard failure;
+// otherwise the caller of PutBlobPartial _must not_ fall back to PutBlob.
+type ErrFallbackToOrdinaryLayerDownload struct {
+	err error
+}
+
+func (c ErrFallbackToOrdinaryLayerDownload) Error() string {
+	return c.err.Error()
+}
+
+func (c ErrFallbackToOrdinaryLayerDownload) Unwrap() error {
+	return c.err
+}
+
+func NewErrFallbackToOrdinaryLayerDownload(err error) error {
+	return ErrFallbackToOrdinaryLayerDownload{err: err}
 }

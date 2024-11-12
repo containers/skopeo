@@ -117,8 +117,9 @@ func (d *ociArchiveImageDestination) PutBlobWithOptions(ctx context.Context, str
 // PutBlobPartial attempts to create a blob using the data that is already present
 // at the destination. chunkAccessor is accessed in a non-sequential way to retrieve the missing chunks.
 // It is available only if SupportsPutBlobPartial().
-// Even if SupportsPutBlobPartial() returns true, the call can fail, in which case the caller
-// should fall back to PutBlobWithOptions.
+// Even if SupportsPutBlobPartial() returns true, the call can fail.
+// If the call fails with ErrFallbackToOrdinaryLayerDownload, the caller can fall back to PutBlobWithOptions.
+// The fallback _must not_ be done otherwise.
 func (d *ociArchiveImageDestination) PutBlobPartial(ctx context.Context, chunkAccessor private.BlobChunkAccessor, srcInfo types.BlobInfo, options private.PutBlobPartialOptions) (private.UploadedBlob, error) {
 	return d.unpackedDest.PutBlobPartial(ctx, chunkAccessor, srcInfo, options)
 }
@@ -149,13 +150,12 @@ func (d *ociArchiveImageDestination) PutSignaturesWithFormat(ctx context.Context
 	return d.unpackedDest.PutSignaturesWithFormat(ctx, signatures, instanceDigest)
 }
 
-// Commit marks the process of storing the image as successful and asks for the image to be persisted
-// unparsedToplevel contains data about the top-level manifest of the source (which may be a single-arch image or a manifest list
-// if PutManifest was only called for the single-arch image with instanceDigest == nil), primarily to allow lookups by the
-// original manifest list digest, if desired.
-// after the directory is made, it is tarred up into a file and the directory is deleted
-func (d *ociArchiveImageDestination) Commit(ctx context.Context, unparsedToplevel types.UnparsedImage) error {
-	if err := d.unpackedDest.Commit(ctx, unparsedToplevel); err != nil {
+// CommitWithOptions marks the process of storing the image as successful and asks for the image to be persisted.
+// WARNING: This does not have any transactional semantics:
+// - Uploaded data MAY be visible to others before CommitWithOptions() is called
+// - Uploaded data MAY be removed or MAY remain around if Close() is called without CommitWithOptions() (i.e. rollback is allowed but not guaranteed)
+func (d *ociArchiveImageDestination) CommitWithOptions(ctx context.Context, options private.CommitOptions) error {
+	if err := d.unpackedDest.CommitWithOptions(ctx, options); err != nil {
 		return fmt.Errorf("storing image %q: %w", d.ref.image, err)
 	}
 
