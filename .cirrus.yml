@@ -151,7 +151,7 @@ ostree-rs-ext_task:
         dockerfile: contrib/cirrus/ostree_ext.dockerfile
         docker_arguments:  # required build-args
             BASE_FQIN: quay.io/coreos-assembler/fcos-buildroot:testing-devel
-            CIRRUS_IMAGE_VERSION: 2
+            CIRRUS_IMAGE_VERSION: 2testingOnlyShouldNotConflict
     env:
         EXT_REPO_NAME: ostree-rs-ext
         EXT_REPO_HOME: $CIRRUS_WORKING_DIR/../$EXT_REPO_NAME
