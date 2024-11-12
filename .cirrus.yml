@@ -38,104 +38,9 @@ timeout_in: 45m
 gcp_credentials: ENCRYPTED[52d9e807b531b37ab14e958cb5a72499460663f04c8d73e22ad608c027a31118420f1c80f0be0882fbdf96f49d8f9ac0]
 
 
-validate_task:
-    # The git-validation tool doesn't work well on branch or tag push,
-    # under Cirrus-CI, due to challenges obtaining the starting commit ID.
-    # Only do validation for PRs.
-    only_if: &is_pr $CIRRUS_PR != ''
-    container:
-        image: '${SKOPEO_CIDEV_CONTAINER_FQIN}'
-        cpu: 4
-        memory: 8
-    setup_script: |
-        make tools
-    test_script: |
-        make validate-local
-        make vendor && hack/tree_status.sh
-
-doccheck_task:
-    only_if: *is_pr
-    depends_on:
-      - validate
-    container:
-        image: "${FEDORA_CONTAINER_FQIN}"
-        cpu: 4
-        memory: 8
-    env:
-        BUILDTAGS: &withopengpg 'btrfs_noversion libdm_no_deferred_remove containers_image_openpgp'
-    script: |
-      # TODO: Can't use 'runner.sh setup' inside container.  However,
-      # removing the pre-installed package is the only necessary step
-      # at the time of this comment.
-      dnf erase -y skopeo  # Guarantee non-interference
-      "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
-      "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
-
-osx_task:
-    # Don't run for docs-only builds.
-    # Also don't run on release-branches or their PRs,
-    # since base container-image is not version-constrained.
-    only_if: &not_docs_or_release_branch >-
-        ($CIRRUS_BASE_BRANCH == $CIRRUS_DEFAULT_BRANCH ||
-         $CIRRUS_BRANCH == $CIRRUS_DEFAULT_BRANCH ) &&
-        $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
-    depends_on:
-        - validate
-    persistent_worker: &mac_pw
-        labels:
-            os: darwin
-            arch: arm64
-            purpose: prod
-    env:
-        CIRRUS_WORKING_DIR: "$HOME/ci/task-${CIRRUS_TASK_ID}"
-        # Prevent cache-pollution fron one task to the next.
-        GOPATH: "$CIRRUS_WORKING_DIR/.go"
-        GOCACHE: "$CIRRUS_WORKING_DIR/.go/cache"
-        GOENV: "$CIRRUS_WORKING_DIR/.go/support"
-        GOSRC: "$HOME/ci/task-${CIRRUS_TASK_ID}"
-        TMPDIR: "/private/tmp/ci"
-    # This host is/was shared with potentially many other CI tasks.
-    # The previous task may have been canceled or aborted.
-    prep_script: &mac_cleanup "contrib/cirrus/mac_cleanup.sh"
-    test_script:
-        - export PATH=$GOPATH/bin:$PATH
-        - go version
-        - go env
-        - make tools
-        - make validate-local test-unit-local bin/skopeo
-        - bin/skopeo -v
-    # This host is/was shared with potentially many other CI tasks.
-    # Ensure nothing is left running while waiting for the next task.
-    always:
-        task_cleanup_script: *mac_cleanup
-
-
-cross_task:
-    alias: cross
-    only_if: >-
-        $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
-    depends_on:
-        - validate
-    gce_instance: &standardvm
-        image_project: libpod-218412
-        zone: "us-central1-f"
-        cpu: 2
-        memory: "4Gb"
-        # Required to be 200gig, do not modify - has i/o performance impact
-        # according to gcloud CLI tool warning messages.
-        disk: 200
-        image_name: ${FEDORA_CACHE_IMAGE_NAME}
-    env:
-        BUILDTAGS: *withopengpg
-    setup_script: >-
-        "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
-    cross_script: >-
-        "${GOSRC}/${SCRIPT_BASE}/runner.sh" cross
-
-
+# TRY THIS
 ostree-rs-ext_task:
     alias: proxy_ostree_ext
-    only_if: *not_docs_or_release_branch
     # WARNING: This task potentially performs a container image
     # build (on change) with runtime package installs.  Therefore,
     # its behavior can be unpredictable and potentially flake-prone.
@@ -143,8 +48,6 @@ ostree-rs-ext_task:
     #
     # skip: $CI == "true"
     #
-    depends_on:
-        - validate
     # Ref: https://cirrus-ci.org/guide/docker-builder-vm/#dockerfile-as-a-ci-environment
     container:
         # The runtime image will be rebuilt on change
@@ -169,73 +72,6 @@ ostree-rs-ext_task:
         - cargo test -- --nocapture --quiet
 
 
-#####
-##### NOTE: This task is subtantially duplicated in the containers/image
-##### repository's `.cirrus.yml`.  Changes made here should be fully merged
-##### prior to being manually duplicated and maintained in containers/image.
-#####
-test_skopeo_task:
-    alias: test_skopeo
-    # Don't test for [CI:DOCS], [CI:BUILD].
-    only_if: >-
-        $CIRRUS_CHANGE_TITLE !=~ '.*CI:BUILD.*' &&
-        $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
-    depends_on:
-        - validate
-    gce_instance:
-        image_project: libpod-218412
-        zone: "us-central1-f"
-        cpu: 2
-        memory: "4Gb"
-        # Required to be 200gig, do not modify - has i/o performance impact
-        # according to gcloud CLI tool warning messages.
-        disk: 200
-        image_name: ${FEDORA_CACHE_IMAGE_NAME}
-    matrix:
-        - name: "Skopeo Test"  # N/B: Name ref. by hack/get_fqin.sh
-          env:
-              BUILDTAGS: 'btrfs_noversion libdm_no_deferred_remove'
-        - name: "Skopeo Test w/ opengpg"
-          env:
-              BUILDTAGS: *withopengpg
-    setup_script: >-
-        "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
-    vendor_script: >-
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" vendor
-    build_script: >-
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" build
-    unit_script: >-
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" unit
-    integration_script: >-
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" integration
-    system_script: >
-        "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" system
-
-
-# This task is critical.  It updates the "last-used by" timestamp stored
-# in metadata for all VM images.  This mechanism functions in tandem with
-# an out-of-band pruning operation to remove disused VM images.
-meta_task:
-    name: "VM img. keepalive"
-    alias: meta
-    container: &smallcontainer
-        cpu: 2
-        memory: 2
-        image: quay.io/libpod/imgts:latest
-    env:
-        # Space-separated list of images used by this repository state
-        IMGNAMES: |
-            ${FEDORA_CACHE_IMAGE_NAME}
-            build-push-${IMAGE_SUFFIX}
-        BUILDID: "${CIRRUS_BUILD_ID}"
-        REPOREF: "${CIRRUS_REPO_NAME}"
-        GCPJSON: ENCRYPTED[6867b5a83e960e7c159a98fe6c8360064567a071c6f4b5e7d532283ecd870aa65c94ccd74bdaa9bf7aadac9d42e20a67]
-        GCPNAME: ENCRYPTED[1cf558ae125e3c39ec401e443ad76452b25d790c45eb73d77c83eb059a0f7fd5085ef7e2f7e410b04ea6e83b0aab2eb1]
-        GCPPROJECT: libpod-218412
-    clone_script: &noop mkdir -p "$CIRRUS_WORKING_DIR"
-    script: /usr/local/bin/entrypoint.sh
-
-
 # Status aggregator for all tests.  This task simply ensures a defined
 # set of tasks all passed, and allows confirming that based on the status
 # of this task.
@@ -244,16 +80,13 @@ success_task:
     alias: success
     # N/B: ALL tasks must be listed here, minus their '_task' suffix.
     depends_on:
-        - validate
-        - doccheck
-        - osx
-        - cross
         - proxy_ostree_ext
-        - test_skopeo
-        - meta
-    container: *smallcontainer
+    container:
+        cpu: 2
+        memory: 2
+        image: quay.io/libpod/imgts:latest
     env:
         CTR_FQIN: ${FEDORA_CONTAINER_FQIN}
         TEST_ENVIRON: container
-    clone_script: *noop
-    script: /bin/true
+    clone_script: mkdir -p "$CIRRUS_WORKING_DIR"
+    script: /bin/false
