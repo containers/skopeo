@@ -89,7 +89,8 @@ type chunkedDiffer struct {
 	// is no TOC referenced by the manifest.
 	blobDigest digest.Digest
 
-	blobSize int64
+	blobSize            int64
+	uncompressedTarSize int64 // -1 if unknown
 
 	pullOptions map[string]string
 
@@ -143,43 +144,98 @@ func (c *chunkedDiffer) convertTarToZstdChunked(destDirectory string, payload *o
 }
 
 // GetDiffer returns a differ than can be used with ApplyDiffWithDiffer.
+// If it returns an error that implements IsErrFallbackToOrdinaryLayerDownload, the caller can
+// retry the operation with a different method.
 func GetDiffer(ctx context.Context, store storage.Store, blobDigest digest.Digest, blobSize int64, annotations map[string]string, iss ImageSourceSeekable) (graphdriver.Differ, error) {
 	pullOptions := store.PullOptions()
 
-	if !parseBooleanPullOption(pullOptions, "enable_partial_images", true) {
-		return nil, errors.New("enable_partial_images not configured")
+	if !parseBooleanPullOption(pullOptions, "enable_partial_images", false) {
+		// If convertImages is set, the two options disagree whether fallback is permissible.
+		// Right now, we enable it, but that’s not a promise; rather, such a configuration should ideally be rejected.
+		return nil, newErrFallbackToOrdinaryLayerDownload(errors.New("partial images are disabled"))
+	}
+	// convertImages also serves as a “must not fallback to non-partial pull” option (?!)
+	convertImages := parseBooleanPullOption(pullOptions, "convert_images", false)
+
+	graphDriver, err := store.GraphDriver()
+	if err != nil {
+		return nil, err
+	}
+	if _, partialSupported := graphDriver.(graphdriver.DriverWithDiffer); !partialSupported {
+		if convertImages {
+			return nil, fmt.Errorf("graph driver %s does not support partial pull but convert_images requires that", graphDriver.String())
+		}
+		return nil, newErrFallbackToOrdinaryLayerDownload(fmt.Errorf("graph driver %s does not support partial pull", graphDriver.String()))
 	}
 
+	differ, canFallback, err := getProperDiffer(store, blobDigest, blobSize, annotations, iss, pullOptions)
+	if err != nil {
+		if !canFallback {
+			return nil, err
+		}
+		// If convert_images is enabled, always attempt to convert it instead of returning an error or falling back to a different method.
+		if convertImages {
+			logrus.Debugf("Created differ to convert blob %q", blobDigest)
+			return makeConvertFromRawDiffer(store, blobDigest, blobSize, iss, pullOptions)
+		}
+		return nil, newErrFallbackToOrdinaryLayerDownload(err)
+	}
+
+	return differ, nil
+}
+
+// getProperDiffer is an implementation detail of GetDiffer.
+// It returns a “proper” differ (not a convert_images one) if possible.
+// On error, the second parameter is true if a fallback to an alternative (either the makeConverToRaw differ, or a non-partial pull)
+// is permissible.
+func getProperDiffer(store storage.Store, blobDigest digest.Digest, blobSize int64, annotations map[string]string, iss ImageSourceSeekable, pullOptions map[string]string) (graphdriver.Differ, bool, error) {
 	zstdChunkedTOCDigestString, hasZstdChunkedTOC := annotations[internal.ManifestChecksumKey]
 	estargzTOCDigestString, hasEstargzTOC := annotations[estargz.TOCJSONDigestAnnotation]
 
-	if hasZstdChunkedTOC && hasEstargzTOC {
-		return nil, errors.New("both zstd:chunked and eStargz TOC found")
-	}
+	switch {
+	case hasZstdChunkedTOC && hasEstargzTOC:
+		return nil, false, errors.New("both zstd:chunked and eStargz TOC found")
 
-	if hasZstdChunkedTOC {
+	case hasZstdChunkedTOC:
 		zstdChunkedTOCDigest, err := digest.Parse(zstdChunkedTOCDigestString)
 		if err != nil {
-			return nil, fmt.Errorf("parsing zstd:chunked TOC digest %q: %w", zstdChunkedTOCDigestString, err)
+			return nil, false, err
 		}
-		return makeZstdChunkedDiffer(store, blobSize, zstdChunkedTOCDigest, annotations, iss, pullOptions)
-	}
-	if hasEstargzTOC {
+		differ, err := makeZstdChunkedDiffer(store, blobSize, zstdChunkedTOCDigest, annotations, iss, pullOptions)
+		if err != nil {
+			logrus.Debugf("Could not create zstd:chunked differ for blob %q: %v", blobDigest, err)
+			// If the error is a bad request to the server, then signal to the caller that it can try a different method.
+			var badRequestErr ErrBadRequest
+			return nil, errors.As(err, &badRequestErr), err
+		}
+		logrus.Debugf("Created zstd:chunked differ for blob %q", blobDigest)
+		return differ, false, nil
+
+	case hasEstargzTOC:
 		estargzTOCDigest, err := digest.Parse(estargzTOCDigestString)
 		if err != nil {
-			return nil, fmt.Errorf("parsing estargz TOC digest %q: %w", estargzTOCDigestString, err)
+			return nil, false, err
 		}
-		return makeEstargzChunkedDiffer(store, blobSize, estargzTOCDigest, iss, pullOptions)
-	}
+		differ, err := makeEstargzChunkedDiffer(store, blobSize, estargzTOCDigest, iss, pullOptions)
+		if err != nil {
+			logrus.Debugf("Could not create estargz differ for blob %q: %v", blobDigest, err)
+			// If the error is a bad request to the server, then signal to the caller that it can try a different method.
+			var badRequestErr ErrBadRequest
+			return nil, errors.As(err, &badRequestErr), err
+		}
+		logrus.Debugf("Created eStargz differ for blob %q", blobDigest)
+		return differ, false, nil
 
-	return makeConvertFromRawDiffer(store, blobDigest, blobSize, iss, pullOptions)
+	default: // no TOC
+		convertImages := parseBooleanPullOption(pullOptions, "convert_images", false)
+		if !convertImages {
+			return nil, true, errors.New("no TOC found and convert_images is not configured")
+		}
+		return nil, true, errors.New("no TOC found")
+	}
 }
 
 func makeConvertFromRawDiffer(store storage.Store, blobDigest digest.Digest, blobSize int64, iss ImageSourceSeekable, pullOptions map[string]string) (*chunkedDiffer, error) {
-	if !parseBooleanPullOption(pullOptions, "convert_images", false) {
-		return nil, errors.New("convert_images not configured")
-	}
-
 	layersCache, err := getLayersCache(store)
 	if err != nil {
 		return nil, err
@@ -189,6 +245,7 @@ func makeConvertFromRawDiffer(store storage.Store, blobDigest digest.Digest, blo
 		fsVerityDigests:      make(map[string]string),
 		blobDigest:           blobDigest,
 		blobSize:             blobSize,
+		uncompressedTarSize:  -1, // Will be computed later
 		convertToZstdChunked: true,
 		copyBuffer:           makeCopyBuffer(),
 		layersCache:          layersCache,
@@ -202,24 +259,33 @@ func makeZstdChunkedDiffer(store storage.Store, blobSize int64, tocDigest digest
 	if err != nil {
 		return nil, fmt.Errorf("read zstd:chunked manifest: %w", err)
 	}
+	var uncompressedTarSize int64 = -1
+	if tarSplit != nil {
+		uncompressedTarSize, err = tarSizeFromTarSplit(tarSplit)
+		if err != nil {
+			return nil, fmt.Errorf("computing size from tar-split: %w", err)
+		}
+	}
+
 	layersCache, err := getLayersCache(store)
 	if err != nil {
 		return nil, err
 	}
 
 	return &chunkedDiffer{
-		fsVerityDigests: make(map[string]string),
-		blobSize:        blobSize,
-		tocDigest:       tocDigest,
-		copyBuffer:      makeCopyBuffer(),
-		fileType:        fileTypeZstdChunked,
-		layersCache:     layersCache,
-		manifest:        manifest,
-		toc:             toc,
-		pullOptions:     pullOptions,
-		stream:          iss,
-		tarSplit:        tarSplit,
-		tocOffset:       tocOffset,
+		fsVerityDigests:     make(map[string]string),
+		blobSize:            blobSize,
+		uncompressedTarSize: uncompressedTarSize,
+		tocDigest:           tocDigest,
+		copyBuffer:          makeCopyBuffer(),
+		fileType:            fileTypeZstdChunked,
+		layersCache:         layersCache,
+		manifest:            manifest,
+		toc:                 toc,
+		pullOptions:         pullOptions,
+		stream:              iss,
+		tarSplit:            tarSplit,
+		tocOffset:           tocOffset,
 	}, nil
 }
 
@@ -234,16 +300,17 @@ func makeEstargzChunkedDiffer(store storage.Store, blobSize int64, tocDigest dig
 	}
 
 	return &chunkedDiffer{
-		fsVerityDigests: make(map[string]string),
-		blobSize:        blobSize,
-		tocDigest:       tocDigest,
-		copyBuffer:      makeCopyBuffer(),
-		fileType:        fileTypeEstargz,
-		layersCache:     layersCache,
-		manifest:        manifest,
-		pullOptions:     pullOptions,
-		stream:          iss,
-		tocOffset:       tocOffset,
+		fsVerityDigests:     make(map[string]string),
+		blobSize:            blobSize,
+		uncompressedTarSize: -1, // We would have to read and decompress the whole layer
+		tocDigest:           tocDigest,
+		copyBuffer:          makeCopyBuffer(),
+		fileType:            fileTypeEstargz,
+		layersCache:         layersCache,
+		manifest:            manifest,
+		pullOptions:         pullOptions,
+		stream:              iss,
+		tocOffset:           tocOffset,
 	}, nil
 }
 
@@ -947,11 +1014,9 @@ func (c *chunkedDiffer) retrieveMissingFiles(stream ImageSourceSeekable, dirfd i
 		}
 
 		if _, ok := err.(ErrBadRequest); ok {
-			// If the server cannot handle at least 64 chunks in a single request, just give up.
-			if len(chunksToRequest) < 64 {
+			if len(chunksToRequest) == 1 {
 				return err
 			}
-
 			// Merge more chunks to request
 			missingParts = mergeMissingChunks(missingParts, len(chunksToRequest)/2)
 			calculateChunksToRequest()
@@ -1102,6 +1167,7 @@ func (c *chunkedDiffer) copyAllBlobToFile(destination *os.File) (digest.Digest, 
 	if payload == nil {
 		return "", errors.New("invalid stream returned")
 	}
+	defer payload.Close()
 
 	originalRawDigester := digest.Canonical.Digester()
 
@@ -1128,7 +1194,6 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 
 	var compressedDigest digest.Digest
 	var uncompressedDigest digest.Digest
-	var convertedBlobSize int64
 
 	if c.convertToZstdChunked {
 		fd, err := unix.Open(dest, unix.O_TMPFILE|unix.O_RDWR|unix.O_CLOEXEC, 0o600)
@@ -1160,7 +1225,7 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 		if err != nil {
 			return graphdriver.DriverWithDifferOutput{}, err
 		}
-		convertedBlobSize = tarSize
+		c.uncompressedTarSize = tarSize
 		// fileSource is a O_TMPFILE file descriptor, so we
 		// need to keep it open until the entire file is processed.
 		defer fileSource.Close()
@@ -1230,6 +1295,7 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 		TOCDigest:          c.tocDigest,
 		UncompressedDigest: uncompressedDigest,
 		CompressedDigest:   compressedDigest,
+		Size:               c.uncompressedTarSize,
 	}
 
 	// When the hard links deduplication is used, file attributes are ignored because setting them
@@ -1243,19 +1309,12 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 
 	var missingParts []missingPart
 
-	mergedEntries, totalSizeFromTOC, err := c.mergeTocEntries(c.fileType, toc.Entries)
+	mergedEntries, err := c.mergeTocEntries(c.fileType, toc.Entries)
 	if err != nil {
 		return output, err
 	}
 
 	output.UIDs, output.GIDs = collectIDs(mergedEntries)
-	if convertedBlobSize > 0 {
-		// if the image was converted, store the original tar size, so that
-		// it can be recreated correctly.
-		output.Size = convertedBlobSize
-	} else {
-		output.Size = totalSizeFromTOC
-	}
 
 	if err := maybeDoIDRemap(mergedEntries, options); err != nil {
 		return output, err
@@ -1331,7 +1390,7 @@ func (c *chunkedDiffer) ApplyDiff(dest string, options *archive.TarOptions, diff
 		wg.Wait()
 	}()
 
-	for i := 0; i < copyGoRoutines; i++ {
+	for range copyGoRoutines {
 		wg.Add(1)
 		jobs := copyFileJobs
 
@@ -1572,9 +1631,7 @@ func mustSkipFile(fileType compressedFileType, e internal.FileMetadata) bool {
 	return false
 }
 
-func (c *chunkedDiffer) mergeTocEntries(fileType compressedFileType, entries []internal.FileMetadata) ([]fileMetadata, int64, error) {
-	var totalFilesSize int64
-
+func (c *chunkedDiffer) mergeTocEntries(fileType compressedFileType, entries []internal.FileMetadata) ([]fileMetadata, error) {
 	countNextChunks := func(start int) int {
 		count := 0
 		for _, e := range entries[start:] {
@@ -1604,10 +1661,8 @@ func (c *chunkedDiffer) mergeTocEntries(fileType compressedFileType, entries []i
 			continue
 		}
 
-		totalFilesSize += e.Size
-
 		if e.Type == TypeChunk {
-			return nil, -1, fmt.Errorf("chunk type without a regular file")
+			return nil, fmt.Errorf("chunk type without a regular file")
 		}
 
 		if e.Type == TypeReg {
@@ -1643,7 +1698,7 @@ func (c *chunkedDiffer) mergeTocEntries(fileType compressedFileType, entries []i
 			lastChunkOffset = mergedEntries[i].chunks[j].Offset
 		}
 	}
-	return mergedEntries, totalFilesSize, nil
+	return mergedEntries, nil
 }
 
 // validateChunkChecksum checks if the file at $root/$path[offset:chunk.ChunkSize] has the

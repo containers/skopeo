@@ -65,11 +65,10 @@ type layer struct {
 }
 
 type layersCache struct {
-	layers  []*layer
-	refs    int
-	store   storage.Store
-	mutex   sync.RWMutex
-	created time.Time
+	layers []*layer
+	refs   int
+	store  storage.Store
+	mutex  sync.RWMutex
 }
 
 var (
@@ -83,6 +82,7 @@ func (c *layer) release() {
 		if err := unix.Munmap(c.mmapBuffer); err != nil {
 			logrus.Warnf("Error Munmap: layer %q: %v", c.id, err)
 		}
+		c.mmapBuffer = nil
 	}
 }
 
@@ -107,14 +107,13 @@ func (c *layersCache) release() {
 func getLayersCacheRef(store storage.Store) *layersCache {
 	cacheMutex.Lock()
 	defer cacheMutex.Unlock()
-	if cache != nil && cache.store == store && time.Since(cache.created).Minutes() < 10 {
+	if cache != nil && cache.store == store {
 		cache.refs++
 		return cache
 	}
-	cache := &layersCache{
-		store:   store,
-		refs:    1,
-		created: time.Now(),
+	cache = &layersCache{
+		store: store,
+		refs:  1,
 	}
 	return cache
 }
@@ -183,6 +182,9 @@ func makeBinaryDigest(stringDigest string) ([]byte, error) {
 	return buf, nil
 }
 
+// loadLayerCache attempts to load the cache file for the specified layer.
+// If the cache file is not present or it it using a different cache file version, then
+// the function returns (nil, nil).
 func (c *layersCache) loadLayerCache(layerID string) (_ *layer, errRet error) {
 	buffer, mmapBuffer, err := c.loadLayerBigData(layerID, cacheKey)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -202,6 +204,9 @@ func (c *layersCache) loadLayerCache(layerID string) (_ *layer, errRet error) {
 	cacheFile, err := readCacheFileFromMemory(buffer)
 	if err != nil {
 		return nil, err
+	}
+	if cacheFile == nil {
+		return nil, nil
 	}
 	return c.createLayer(layerID, cacheFile, mmapBuffer)
 }
@@ -269,7 +274,7 @@ func (c *layersCache) load() error {
 	var newLayers []*layer
 	for _, r := range allLayers {
 		// The layer is present in the store and it is already loaded.  Attempt to
-		// re-use it if mmap'ed.
+		// reuse it if mmap'ed.
 		if l, found := loadedLayers[r.ID]; found {
 			// If the layer is not marked for re-load, move it to newLayers.
 			if !l.reloadWithMmap {
@@ -289,14 +294,16 @@ func (c *layersCache) load() error {
 		}
 
 		if r.ReadOnly {
-			// if the layer is coming from a read-only store, do not attempt
+			// If the layer is coming from a read-only store, do not attempt
 			// to write to it.
+			// Therefore, we won’t find any matches in read-only-store layers,
+			// unless the read-only store layer comes prepopulated with cacheKey data.
 			continue
 		}
 
 		// the cache file is either not present or broken.  Try to generate it from the TOC.
 		l, err = c.createCacheFileFromTOC(r.ID)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage.ErrLayerUnknown) {
 			logrus.Warningf("Error creating cache file for layer %q: %v", r.ID, err)
 		}
 		if l != nil {
@@ -617,6 +624,8 @@ func writeCache(manifest []byte, format graphdriver.DifferOutputFormat, id strin
 	}, nil
 }
 
+// readCacheFileFromMemory reads a cache file from a buffer.
+// It can return (nil, nil) if the cache file uses a different file version that the one currently supported.
 func readCacheFileFromMemory(bigDataBuffer []byte) (*cacheFile, error) {
 	bigData := bytes.NewReader(bigDataBuffer)
 
@@ -779,13 +788,13 @@ func (c *layersCache) findDigestInternal(digest string) (string, string, int64, 
 		return "", "", -1, nil
 	}
 
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
 	binaryDigest, err := makeBinaryDigest(digest)
 	if err != nil {
 		return "", "", 0, err
 	}
-
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
 
 	for _, layer := range c.layers {
 		if !layer.cacheFile.bloomFilter.maybeContains(binaryDigest) {
