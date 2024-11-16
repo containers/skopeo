@@ -99,16 +99,16 @@ ifeq ($(DISABLE_CGO), 1)
 	override BUILDTAGS = exclude_graphdriver_btrfs containers_image_openpgp
 endif
 
-BIN=bin/skopeo
+SKOPEO_BIN=bin/skopeo
 ifeq ($(OS),Windows_NT)
-BIN := $(BIN).exe
+SKOPEO_BIN := $(BIN).exe
 endif
 
 #   make all DEBUG=1
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: $(BIN) docs
+all: $(SKOPEO_BIN) docs
 
 codespell:
 	codespell -S Makefile,build,buildah,buildah.spec,imgtype,copy,AUTHORS,bin,vendor,.git,go.sum,CHANGELOG.md,changelog.txt,seccomp.json,.cirrus.yml,"*.xz,*.gz,*.tar,*.tgz,*ico,*.png,*.1,*.5,*.orig,*.rej" -L fpr,uint,iff,od,ERRO -w
@@ -134,8 +134,8 @@ binary: cmd/skopeo
 	$(CONTAINER_RUN) make bin/skopeo $(if $(DEBUG),DEBUG=$(DEBUG)) BUILDTAGS='$(BUILDTAGS)'
 
 # Build w/o using containers
-.PHONY: $(BIN)
-$(BIN):
+.PHONY: $(SKOPEO_BIN)
+$(SKOPEO_BIN):
 	$(GO) build ${GO_DYN_FLAGS} ${SKOPEO_LDFLAGS} -gcflags "$(GOGCFLAGS)" -tags "$(BUILDTAGS)" -o $@ ./cmd/skopeo
 bin/skopeo.%:
 	GOOS=$(word 2,$(subst ., ,$@)) GOARCH=$(word 3,$(subst ., ,$@)) $(GO) build ${SKOPEO_LDFLAGS} -tags "containers_image_openpgp $(BUILDTAGS)" -o $@ ./cmd/skopeo
