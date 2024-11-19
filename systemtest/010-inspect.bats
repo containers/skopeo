@@ -132,7 +132,7 @@ END_EXPECT
 @test "inspect: image unknown" {
     # non existing image
     run_skopeo 2 inspect containers-storage:non-existing-tag
-    expect_output --substring "identifier is not an image" \
+    expect_output --substring "does not resolve to an image ID" \
 		  "skopeo inspect containers-storage:010101010101"
 }
 
