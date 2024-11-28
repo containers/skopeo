@@ -16,8 +16,6 @@ packages:
   skopeo-centos:
     pkg_tool: centpkg
     specfile_path: rpm/skopeo.spec
-  skopeo-rhel:
-    specfile_path: rpm/skopeo.spec
   skopeo-eln:
     specfile_path: rpm/skopeo.spec
 
@@ -59,16 +57,6 @@ jobs:
       - centos-stream-10-x86_64
       - centos-stream-10-aarch64
     enable_net: true
-
-  # Disabled until there is go 1.22 in epel-9
-  # - job: copr_build
-  #   trigger: pull_request
-  #   packages: [skopeo-rhel]
-  #   notifications: *copr_build_failure_notification
-  #   targets:
-  #     - epel-9-x86_64
-  #     - epel-9-aarch64
-  #   enable_net: true
 
   # Run on commit to main branch
   - job: copr_build
