@@ -145,6 +145,10 @@ cp -pav systemtest/* %{buildroot}/%{_datadir}/%{name}/test/system/
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
 
+# Include this to silence rpmlint.
+# Especially annoying if you use syntastic vim plugin.
+%check
+
 %files
 %license LICENSE
 %doc README.md
