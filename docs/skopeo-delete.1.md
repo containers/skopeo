@@ -15,6 +15,7 @@ The effect of this is registry-specific; many registries don’t support this op
 
 **WARNING**: If _image-name_ contains a tag (but not a digest), in the current version of Skopeo this resolves the tag into a digest, and then deletes the manifest by digest, as described above (possibly deleting all tags pointing to that manifest, not just the provided tag). This behavior may change in the future.
 
+**WARNING**: If _image-name_ is a list manifest (ex: multi-platform images), only the `list.manifest.json` is deleted which may lead to storage issue.  Only the registry server is able to find dandling manifests as one may be referenced by many `list.manifest.json`. Some registries like artifactory don't have any garbage collector built in.
 
 When using the github.com/distribution/distribution registry server:
 To release the allocated disk space, you must login to the container registry server and execute the container registry garbage collector. E.g.,
