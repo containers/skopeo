@@ -1,0 +1,10 @@
+require:
+    - bats
+    - skopeo-tests
+
+environment:
+    SKOPEO_BINARY: /usr/bin/skopeo
+
+summary: System test
+test: bash ./test.sh
+duration: 60m
