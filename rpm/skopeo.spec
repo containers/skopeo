@@ -22,6 +22,7 @@
 # Copr builds set a separate epoch for all environments
 %if %{defined fedora}
 %define conditional_epoch 1
+%define fakeroot 1
 %else
 %define conditional_epoch 2
 %endif
@@ -72,12 +73,14 @@ Requires: containers-common >= 4:1-21
 Command line utility to inspect images and repositories directly on Docker
 registries without the need to pull them
 
+# NOTE: The tests subpackage is only intended for testing and will not be supported
+# for end-users and/or customers.
 %package tests
 Summary: Tests for %{name}
 
 Requires: %{name} = %{epoch}:%{version}-%{release}
-%if %{defined fedora}
 Requires: bats
+%if %{defined fakeroot}
 Requires: fakeroot
 %endif
 Requires: gnupg

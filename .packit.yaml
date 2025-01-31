@@ -9,6 +9,27 @@
 downstream_package_name: skopeo
 upstream_tag_template: v{version}
 
+# These files get synced from upstream to downstream (Fedora / CentOS Stream) on every
+# propose-downstream job. This is done so tests maintained upstream can be run
+# downstream in Zuul CI and Bodhi.
+# Ref: https://packit.dev/docs/configuration#files_to_sync
+files_to_sync:
+  - src: rpm/gating.yaml
+    dest: gating.yaml
+    delete: true
+  - src: plans/
+    dest: plans/
+    delete: true
+    mkpath: true
+  - src: systemtest/tmt/
+    dest: test/tmt/
+    delete: true
+    mkpath: true
+  - src: .fmf/
+    dest: .fmf/
+    delete: true
+  - .packit.yaml
+
 packages:
   skopeo-fedora:
     pkg_tool: fedpkg
@@ -29,7 +50,7 @@ jobs:
     notifications: &copr_build_failure_notification
       failure_comment:
         message: "Ephemeral COPR build failed. @containers/packit-build please check."
-    targets:
+    targets: &fedora_copr_targets
       - fedora-all-x86_64
       - fedora-all-aarch64
     enable_net: true
@@ -51,7 +72,7 @@ jobs:
     trigger: pull_request
     packages: [skopeo-centos]
     notifications: *copr_build_failure_notification
-    targets:
+    targets: &centos_copr_targets
       - centos-stream-9-x86_64
       - centos-stream-9-aarch64
       - centos-stream-10-x86_64
@@ -69,6 +90,59 @@ jobs:
     owner: rhcontainerbot
     project: podman-next
     enable_net: true
+
+  # Tests on Fedora for main branch
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-fedora]
+    notifications: &test_failure_notification
+      failure_comment:
+        message: "Tests failed. @containers/packit-build please check."
+    targets: *fedora_copr_targets
+    require: &dev_branch
+      label:
+        absent:
+          - release
+    tf_extra_params:
+      environments:
+        - artifacts:
+          - type: repository-file
+            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/fedora-$releasever/rhcontainerbot-podman-next-fedora-$releasever.repo
+    identifier: "dev-fedora"
+
+  # Tests on Fedora for release branches
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-fedora]
+    targets: *fedora_copr_targets
+    require: &release_branch
+      label:
+        present:
+          - release
+    identifier: "release-fedora"
+
+  # Tests on CentOS Stream for main branch
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-centos]
+    notifications: *test_failure_notification
+    targets: *centos_copr_targets
+    require: *dev_branch
+    tf_extra_params:
+      environments:
+        - artifacts:
+          - type: repository-file
+            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/centos-stream-$releasever/rhcontainerbot-podman-next-centos-stream-$releasever.repo
+    identifier: "dev-centos"
+
+  # Tests on CentOS Stream for release branches
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-centos]
+    notifications: *test_failure_notification
+    targets: *centos_copr_targets
+    require: *release_branch
+    identifier: "release-centos"
 
   # Sync to Fedora
   - job: propose_downstream
