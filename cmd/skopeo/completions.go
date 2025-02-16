@@ -18,5 +18,5 @@ func autocompleteSupportedTransports(cmd *cobra.Command, args []string, toComple
 			suggestions = append(suggestions, tp+":")
 		}
 	}
-	return suggestions, cobra.ShellCompDirectiveNoFileComp
+	return suggestions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
 }
