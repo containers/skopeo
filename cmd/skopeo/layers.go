@@ -151,10 +151,12 @@ func (opts *layersOptions) run(args []string, stdout io.Writer) (retErr error) {
 		}, opts.retryOpts); err != nil {
 			return err
 		}
-		if _, err := dest.PutBlob(ctx, r, types.BlobInfo{Digest: bd.digest, Size: blobSize}, cache, bd.isConfig); err != nil {
-			if closeErr := r.Close(); closeErr != nil {
-				return fmt.Errorf("%w (close error: %v)", err, closeErr)
+		defer func() {
+			if err := r.Close(); err != nil {
+				retErr = noteCloseFailure(retErr, fmt.Sprintf("closing blob %q", bd.digest.String()), err)
 			}
+		}()
+		if _, err := dest.PutBlob(ctx, r, types.BlobInfo{Digest: bd.digest, Size: blobSize}, cache, bd.isConfig); err != nil {
 			return err
 		}
 	}
