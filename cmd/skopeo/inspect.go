@@ -106,8 +106,9 @@ func (opts *inspectOptions) run(args []string, stdout io.Writer) (retErr error) 
 		}
 	}()
 
+	unparsedInstance := image.UnparsedInstance(src, nil)
 	if err := retry.IfNecessary(ctx, func() error {
-		rawManifest, _, err = src.GetManifest(ctx, nil)
+		rawManifest, _, err = unparsedInstance.Manifest(ctx)
 		return err
 	}, opts.retryOpts); err != nil {
 		return fmt.Errorf("Error retrieving manifest for image: %w", err)
@@ -122,7 +123,7 @@ func (opts *inspectOptions) run(args []string, stdout io.Writer) (retErr error) 
 		return nil
 	}
 
-	img, err := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(src, nil))
+	img, err := image.FromUnparsedImage(ctx, sys, unparsedInstance)
 	if err != nil {
 		return fmt.Errorf("Error parsing manifest for image: %w", err)
 	}
