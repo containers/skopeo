@@ -51,8 +51,11 @@ jobs:
       failure_comment:
         message: "Ephemeral COPR build failed. @containers/packit-build please check."
     targets: &fedora_copr_targets
-      - fedora-all-x86_64
-      - fedora-all-aarch64
+      # This should generally be fedora-all-*, but we exclude Fedora 40 because it does not have Go 1.23.
+      - fedora-latest-stable-x86_64
+      - fedora-latest-stable-aarch64
+      - fedora-development-x86_64
+      - fedora-development-aarch64
     enable_net: true
 
   - job: copr_build

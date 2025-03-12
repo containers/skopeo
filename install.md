@@ -139,7 +139,7 @@ located at [https://github.com/containers/image_build/tree/main/skopeo](https://
 
 Otherwise, read on for building and installing it from source:
 
-To build the `skopeo` binary you need at least Go 1.22.
+To build the `skopeo` binary you need at least Go 1.23.
 
 There are two ways to build skopeo: in a container, or locally without a
 container. Choose the one which better matches your needs and environment.
