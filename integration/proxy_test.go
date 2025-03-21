@@ -229,7 +229,8 @@ type byteFetch struct {
 	err     error
 }
 
-func runTestGetManifestAndConfig(p *proxy, img string) error {
+// This exercises all the metadata fetching APIs.
+func runTestMetadataAPIs(p *proxy, img string) error {
 	v, err := p.callNoFd("OpenImage", []any{img})
 	if err != nil {
 		return err
@@ -291,6 +292,19 @@ func runTestGetManifestAndConfig(p *proxy, img string) error {
 		return fmt.Errorf("No CMD or ENTRYPOINT set")
 	}
 
+	_, layerInfoBytes, err := p.callReadAllBytes("GetLayerInfoPiped", []any{imgid})
+	if err != nil {
+		return err
+	}
+	var layerInfoBytesData []interface{}
+	err = json.Unmarshal(layerInfoBytes, &layerInfoBytesData)
+	if err != nil {
+		return err
+	}
+	if len(layerInfoBytesData) == 0 {
+		return fmt.Errorf("expected layer info data")
+	}
+
 	// Also test this legacy interface
 	_, ctrconfigBytes, err := p.callReadAllBytes("GetConfig", []any{imgid})
 	if err != nil {
@@ -337,13 +351,13 @@ func (s *proxySuite) TestProxy() {
 	p, err := newProxy()
 	require.NoError(t, err)
 
-	err = runTestGetManifestAndConfig(p, knownNotManifestListedImageX8664)
+	err = runTestMetadataAPIs(p, knownNotManifestListedImageX8664)
 	if err != nil {
 		err = fmt.Errorf("Testing image %s: %v", knownNotManifestListedImageX8664, err)
 	}
 	assert.NoError(t, err)
 
-	err = runTestGetManifestAndConfig(p, knownListImage)
+	err = runTestMetadataAPIs(p, knownListImage)
 	if err != nil {
 		err = fmt.Errorf("Testing image %s: %v", knownListImage, err)
 	}

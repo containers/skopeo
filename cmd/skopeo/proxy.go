@@ -92,7 +92,8 @@ import (
 // 0.2.4: Added OpenImageOptional
 // 0.2.5: Added LayerInfoJSON
 // 0.2.6: Policy Verification before pulling OCI
-const protocolVersion = "0.2.6"
+// 0.2.7: Added GetLayerInfoPiped
+const protocolVersion = "0.2.7"
 
 // maxMsgSize is the current limit on a packet size.
 // Note that all non-metadata (i.e. payload data) is sent over a pipe.
@@ -618,9 +619,10 @@ func (h *proxyHandler) GetBlob(args []any) (replyBuf, error) {
 
 // GetLayerInfo returns data about the layers of an image, useful for reading the layer contents.
 //
-// This needs to be called since the data returned by GetManifest() does not allow to correctly
-// calling GetBlob() for the containers-storage: transport (which doesn’t store the original compressed
-// representations referenced in the manifest).
+// This is the same as GetLayerInfoPiped, but returns its contents inline. This is subject to
+// failure for large images (because we use SOCK_SEQPACKET which has a maximum buffer size)
+// and is hence only retained for backwards compatibility. Callers are expected to use
+// the semver to know whether they can call the new API.
 func (h *proxyHandler) GetLayerInfo(args []any) (replyBuf, error) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
@@ -664,6 +666,59 @@ func (h *proxyHandler) GetLayerInfo(args []any) (replyBuf, error) {
 
 	ret.value = layers
 	return ret, nil
+}
+
+// GetLayerInfoPiped returns data about the layers of an image, useful for reading the layer contents.
+//
+// This needs to be called since the data returned by GetManifest() does not allow to correctly
+// calling GetBlob() for the containers-storage: transport (which doesn’t store the original compressed
+// representations referenced in the manifest).
+func (h *proxyHandler) GetLayerInfoPiped(args []any) (replyBuf, error) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+
+	var ret replyBuf
+
+	if h.sysctx == nil {
+		return ret, fmt.Errorf("client error: must invoke Initialize")
+	}
+
+	if len(args) != 1 {
+		return ret, fmt.Errorf("found %d args, expecting (imgid)", len(args))
+	}
+
+	imgref, err := h.parseImageFromID(args[0])
+	if err != nil {
+		return ret, err
+	}
+
+	ctx := context.TODO()
+
+	err = h.cacheTargetManifest(imgref)
+	if err != nil {
+		return ret, err
+	}
+	img := imgref.cachedimg
+
+	layerInfos, err := img.LayerInfosForCopy(ctx)
+	if err != nil {
+		return ret, err
+	}
+
+	if layerInfos == nil {
+		layerInfos = img.LayerInfos()
+	}
+
+	layers := make([]convertedLayerInfo, 0, len(layerInfos))
+	for _, layer := range layerInfos {
+		layers = append(layers, convertedLayerInfo{layer.Digest, layer.Size, layer.MediaType})
+	}
+
+	serialized, err := json.Marshal(&layers)
+	if err != nil {
+		return ret, err
+	}
+	return h.returnBytes(nil, serialized)
 }
 
 // FinishPipe waits for the worker goroutine to finish, and closes the write side of the pipe.
@@ -805,6 +860,8 @@ func (h *proxyHandler) processRequest(readBytes []byte) (rb replyBuf, terminate 
 		rb, err = h.GetBlob(req.Args)
 	case "GetLayerInfo":
 		rb, err = h.GetLayerInfo(req.Args)
+	case "GetLayerInfoPiped":
+		rb, err = h.GetLayerInfoPiped(req.Args)
 	case "FinishPipe":
 		rb, err = h.FinishPipe(req.Args)
 	case "Shutdown":
