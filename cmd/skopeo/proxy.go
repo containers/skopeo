@@ -876,6 +876,12 @@ func (h *proxyHandler) processRequest(readBytes []byte) (rb replyBuf, terminate 
 
 // Implementation of podman experimental-image-proxy
 func (opts *proxyOptions) run(args []string, stdout io.Writer) error {
+	// We may get a request to pull from a containers-storage: URL, so do
+	// this up front.
+	if err := maybeReexec(); err != nil {
+		return err
+	}
+
 	handler := &proxyHandler{
 		opts:        opts,
 		images:      make(map[uint64]*openImage),
