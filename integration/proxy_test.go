@@ -353,19 +353,19 @@ func (s *proxySuite) TestProxy() {
 
 	err = runTestMetadataAPIs(p, knownNotManifestListedImageX8664)
 	if err != nil {
-		err = fmt.Errorf("Testing image %s: %v", knownNotManifestListedImageX8664, err)
+		err = fmt.Errorf("Testing image %s: %w", knownNotManifestListedImageX8664, err)
 	}
 	assert.NoError(t, err)
 
 	err = runTestMetadataAPIs(p, knownListImage)
 	if err != nil {
-		err = fmt.Errorf("Testing image %s: %v", knownListImage, err)
+		err = fmt.Errorf("Testing image %s: %w", knownListImage, err)
 	}
 	assert.NoError(t, err)
 
 	err = runTestOpenImageOptionalNotFound(p, knownNotExtantImage)
 	if err != nil {
-		err = fmt.Errorf("Testing optional image %s: %v", knownNotExtantImage, err)
+		err = fmt.Errorf("Testing optional image %s: %w", knownNotExtantImage, err)
 	}
 	assert.NoError(t, err)
 }

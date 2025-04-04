@@ -134,7 +134,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	policyContext, err := opts.global.getPolicyContext()
 	if err != nil {
-		return fmt.Errorf("Error loading trust policy: %v", err)
+		return fmt.Errorf("Error loading trust policy: %w", err)
 	}
 	defer func() {
 		if err := policyContext.Destroy(); err != nil {
@@ -144,11 +144,11 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	srcRef, err := alltransports.ParseImageName(imageNames[0])
 	if err != nil {
-		return fmt.Errorf("Invalid source name %s: %v", imageNames[0], err)
+		return fmt.Errorf("Invalid source name %s: %w", imageNames[0], err)
 	}
 	destRef, err := alltransports.ParseImageName(imageNames[1])
 	if err != nil {
-		return fmt.Errorf("Invalid destination name %s: %v", imageNames[1], err)
+		return fmt.Errorf("Invalid destination name %s: %w", imageNames[1], err)
 	}
 
 	sourceCtx, err := opts.srcImage.newSystemContext()
@@ -171,7 +171,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	for _, image := range opts.additionalTags {
 		ref, err := reference.ParseNormalizedNamed(image)
 		if err != nil {
-			return fmt.Errorf("error parsing additional-tag '%s': %v", image, err)
+			return fmt.Errorf("error parsing additional-tag '%s': %w", image, err)
 		}
 		namedTagged, isNamedTagged := ref.(reference.NamedTagged)
 		if !isNamedTagged {
@@ -220,7 +220,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 		encryptionKeys := opts.encryptionKeys
 		ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
 		if err != nil {
-			return fmt.Errorf("Invalid encryption keys: %v", err)
+			return fmt.Errorf("Invalid encryption keys: %w", err)
 		}
 		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
 		encConfig = cc.EncryptConfig
@@ -231,7 +231,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 		decryptionKeys := opts.decryptionKeys
 		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)
 		if err != nil {
-			return fmt.Errorf("Invalid decryption keys: %v", err)
+			return fmt.Errorf("Invalid decryption keys: %w", err)
 		}
 		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{dcc})
 		decConfig = cc.DecryptConfig
@@ -278,7 +278,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if opts.signIdentity != "" {
 		signIdentity, err = reference.ParseNamed(opts.signIdentity)
 		if err != nil {
-			return fmt.Errorf("Could not parse --sign-identity: %v", err)
+			return fmt.Errorf("Could not parse --sign-identity: %w", err)
 		}
 	}
 

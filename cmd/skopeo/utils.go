@@ -50,7 +50,7 @@ func noteCloseFailure(err error, description string, closeErr error) error {
 		return fmt.Errorf("%s: %w", description, closeErr)
 	}
 	// In this case we prioritize the primary error for use with %w; closeErr is usually less relevant, or might be a consequence of the primary error.
-	return fmt.Errorf("%w (%s: %v)", err, description, closeErr)
+	return fmt.Errorf("%w (%s: %w)", err, description, closeErr)
 }
 
 // commandAction intermediates between the RunE interface and the real handler,

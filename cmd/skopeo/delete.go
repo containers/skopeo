@@ -59,7 +59,7 @@ func (opts *deleteOptions) run(args []string, stdout io.Writer) error {
 
 	ref, err := alltransports.ParseImageName(imageName)
 	if err != nil {
-		return fmt.Errorf("Invalid source name %s: %v", imageName, err)
+		return fmt.Errorf("Invalid source name %s: %w", imageName, err)
 	}
 
 	sys, err := opts.image.newSystemContext()
