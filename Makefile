@@ -237,7 +237,8 @@ test-all-local: validate-local validate-docs test-unit-local
 validate-local:
 	hack/validate-git-marks.sh
 	hack/validate-gofmt.sh
-	GOBIN=$(GOBIN) hack/validate-lint.sh
+	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"
+	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}" --tests=false
 	BUILDTAGS="${BUILDTAGS}" hack/validate-vet.sh
 
 # This invokes bin/skopeo, hence cannot be run as part of validate-local
