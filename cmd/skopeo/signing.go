@@ -175,7 +175,7 @@ func (opts *untrustedSignatureDumpOptions) run(args []string, stdout io.Writer) 
 
 	untrustedInfo, err := signature.GetUntrustedSignatureInformationWithoutVerifying(untrustedSignature)
 	if err != nil {
-		return fmt.Errorf("Error decoding untrusted signature: %v", err)
+		return fmt.Errorf("Error decoding untrusted signature: %w", err)
 	}
 	untrustedOut, err := json.MarshalIndent(untrustedInfo, "", "    ")
 	if err != nil {

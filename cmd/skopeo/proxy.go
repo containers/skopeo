@@ -835,7 +835,7 @@ func (h *proxyHandler) processRequest(readBytes []byte) (rb replyBuf, terminate 
 
 	// Parse the request JSON
 	if err = json.Unmarshal(readBytes, &req); err != nil {
-		err = fmt.Errorf("invalid request: %v", err)
+		err = fmt.Errorf("invalid request: %w", err)
 		return
 	}
 	logrus.Debugf("Executing method %s", req.Method)
@@ -899,7 +899,7 @@ func (opts *proxyOptions) run(args []string, stdout io.Writer) error {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
-			return fmt.Errorf("reading socket: %v", err)
+			return fmt.Errorf("reading socket: %w", err)
 		}
 		readbuf := buf[0:n]
 

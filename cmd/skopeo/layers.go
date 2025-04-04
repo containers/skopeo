@@ -79,7 +79,7 @@ func (opts *layersOptions) run(args []string, stdout io.Writer) (retErr error) {
 		return err
 	}, opts.retryOpts); err != nil {
 		if closeErr := rawSource.Close(); closeErr != nil {
-			return fmt.Errorf("%w (closing image source: %v)", err, closeErr)
+			return fmt.Errorf("%w (closing image source: %w)", err, closeErr)
 		}
 
 		return err

@@ -33,11 +33,11 @@ func (opts *manifestDigestOptions) run(args []string, stdout io.Writer) error {
 
 	man, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return fmt.Errorf("Error reading manifest from %s: %v", manifestPath, err)
+		return fmt.Errorf("Error reading manifest from %s: %w", manifestPath, err)
 	}
 	digest, err := manifest.Digest(man)
 	if err != nil {
-		return fmt.Errorf("Error computing digest: %v", err)
+		return fmt.Errorf("Error computing digest: %w", err)
 	}
 	fmt.Fprintf(stdout, "%s\n", digest)
 	return nil
