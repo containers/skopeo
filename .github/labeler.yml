@@ -1,3 +1,0 @@
-# https://github.com/actions/labeler
-release:
-  - base-branch: [^release-\d+\.\d+]
