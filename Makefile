@@ -237,7 +237,11 @@ test-all-local: validate-local validate-docs test-unit-local
 validate-local:
 	hack/validate-git-marks.sh
 	hack/validate-gofmt.sh
-	GOBIN=$(GOBIN) hack/validate-lint.sh
+	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"
+	# An extra run with --tests=false allows detecting code unused outside of tests;
+	# ideally the linter should be able to find this automatically.
+	# Since everything is already cached, this additional run doesn't take much time.
+	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}" --tests=false
 	BUILDTAGS="${BUILDTAGS}" hack/validate-vet.sh
 
 # This invokes bin/skopeo, hence cannot be run as part of validate-local
