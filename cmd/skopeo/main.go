@@ -19,10 +19,15 @@ import (
 // and will be populated by the Makefile
 var gitCommit = ""
 
+// Supported logrus log levels
+var logLevels = []string{"trace", "debug", "info", "warn", "warning", "error", "fatal", "panic"}
+var defaultLogLevel = "warn"
+
 var defaultUserAgent = "skopeo/" + version.Version
 
 type globalOptions struct {
 	debug              bool                    // Enable debug output
+	logLevel           string                  // Set log level at or above debug (trace, etc)
 	tlsVerify          commonFlag.OptionalBool // Require HTTPS and verify certificates (for docker: and docker-daemon:)
 	policyPath         string                  // Path to a signature verification policy file
 	insecurePolicy     bool                    // Use an "allow everything" signature verification policy
@@ -79,6 +84,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	var dummyVersion bool
 	rootCommand.Flags().BoolVarP(&dummyVersion, "version", "v", false, "Version for Skopeo")
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
+	rootCommand.PersistentFlags().StringVar(&opts.logLevel, "log-level", defaultLogLevel, fmt.Sprintf("Log messages above specified level (%s)", strings.Join(logLevels, ", ")))
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
@@ -93,6 +99,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().StringVar(&opts.tmpDir, "tmpdir", "", "directory used to store temporary files")
 	flag := commonFlag.OptionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	flag.Hidden = true
+	rootCommand.MarkFlagsMutuallyExclusive("log-level", "debug")
 	rootCommand.AddCommand(
 		copyCmd(&opts),
 		deleteCmd(&opts),
@@ -114,9 +121,34 @@ func createApp() (*cobra.Command, *globalOptions) {
 
 // before is run by the cli package for any command, before running the command-specific handler.
 func (opts *globalOptions) before(cmd *cobra.Command, args []string) error {
+	// Set logging level based on debug or logLevel flags
+	logLevel := opts.logLevel
 	if opts.debug {
-		logrus.SetLevel(logrus.DebugLevel)
+		logLevel = "debug"
 	}
+
+	var found bool
+	for _, l := range logLevels {
+		if l == strings.ToLower(logLevel) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		logrus.Fatal("Log Level %s is not supported, choose from: %s\n", logLevel, strings.Join(logLevels, ", "))
+	}
+
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+
+	logrus.SetLevel(level)
+	if logrus.IsLevelEnabled(logrus.InfoLevel) {
+		logrus.Infof("Filtering at log level %s", logrus.GetLevel())
+	}
+
 	if opts.tlsVerify.Present() {
 		logrus.Warn("'--tls-verify' is deprecated, please set this on the specific subcommand")
 	}
