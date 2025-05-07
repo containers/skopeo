@@ -3,6 +3,9 @@
 </p>
 
 ----
+![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/containers/skopeo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/containers/skopeo)](https://goreportcard.com/report/github.com/containers/skopeo)
 
 `skopeo` is a command line utility that performs various operations on container images and image repositories.
 
