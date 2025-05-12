@@ -198,14 +198,6 @@ func (m *OCI1) Serialize() ([]byte, error) {
 
 // Inspect returns various information for (skopeo inspect) parsed from the manifest and configuration.
 func (m *OCI1) Inspect(configGetter func(types.BlobInfo) ([]byte, error)) (*types.ImageInspectInfo, error) {
-	if m.Config.MediaType != imgspecv1.MediaTypeImageConfig {
-		// We could return at least the layers, but that’s already available in a better format via types.Image.LayerInfos.
-		// Most software calling this without human intervention is going to expect the values to be realistic and relevant,
-		// and is probably better served by failing; we can always re-visit that later if we fail now, but
-		// if we started returning some data for OCI artifacts now, we couldn’t start failing in this function later.
-		return nil, manifest.NewNonImageArtifactError(&m.Manifest)
-	}
-
 	config, err := configGetter(m.ConfigInfo())
 	if err != nil {
 		return nil, err
