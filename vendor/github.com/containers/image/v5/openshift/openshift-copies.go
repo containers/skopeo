@@ -571,8 +571,7 @@ func (rules *clientConfigLoadingRules) Load() (*clientcmdConfig, error) {
 	// merge all of the struct values in the reverse order so that priority is given correctly
 	// errors are not added to the list the second time
 	nonMapConfig := clientcmdNewConfig()
-	for i := len(kubeconfigs) - 1; i >= 0; i-- {
-		kubeconfig := kubeconfigs[i]
+	for _, kubeconfig := range slices.Backward(kubeconfigs) {
 		if err := mergo.MergeWithOverwrite(nonMapConfig, kubeconfig); err != nil {
 			return nil, err
 		}
@@ -921,7 +920,7 @@ func tlsCacheGet(config *restConfig) (http.RoundTripper, error) {
 // TLSConfigFor returns a tls.Config that will provide the transport level security defined
 // by the provided Config. Will return nil if no transport level security is requested.
 func tlsConfigFor(c *restConfig) (*tls.Config, error) {
-	if !(c.HasCA() || c.HasCertAuth() || c.Insecure) {
+	if !c.HasCA() && !c.HasCertAuth() && !c.Insecure {
 		return nil, nil
 	}
 	if c.HasCA() && c.Insecure {

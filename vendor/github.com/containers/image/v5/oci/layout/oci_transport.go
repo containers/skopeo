@@ -12,6 +12,7 @@ import (
 	"github.com/containers/image/v5/directory/explicitfilepath"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/internal/image"
+	"github.com/containers/image/v5/internal/manifest"
 	"github.com/containers/image/v5/oci/internal"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
@@ -110,13 +111,13 @@ func newReference(dir, image string, sourceIndex int) (types.ImageReference, err
 
 // NewIndexReference returns an OCI reference for a path and a zero-based source manifest index.
 func NewIndexReference(dir string, sourceIndex int) (types.ImageReference, error) {
+	if sourceIndex < 0 {
+		return nil, fmt.Errorf("invalid call to NewIndexReference with negative index %d", sourceIndex)
+	}
 	return newReference(dir, "", sourceIndex)
 }
 
-// NewReference returns an OCI reference for a directory and a image.
-//
-// We do not expose an API supplying the resolvedDir; we could, but recomputing it
-// is generally cheap enough that we prefer being confident about the properties of resolvedDir.
+// NewReference returns an OCI reference for a directory and an optional image name annotation (if not "").
 func NewReference(dir, image string) (types.ImageReference, error) {
 	return newReference(dir, image, -1)
 }
@@ -234,7 +235,7 @@ func (ref ociReference) getManifestDescriptor() (imgspecv1.Descriptor, int, erro
 		var unsupportedMIMETypes []string
 		for i, md := range index.Manifests {
 			if refName, ok := md.Annotations[imgspecv1.AnnotationRefName]; ok && refName == ref.image {
-				if md.MediaType == imgspecv1.MediaTypeImageManifest || md.MediaType == imgspecv1.MediaTypeImageIndex {
+				if md.MediaType == imgspecv1.MediaTypeImageManifest || md.MediaType == imgspecv1.MediaTypeImageIndex || md.MediaType == manifest.DockerV2Schema2MediaType || md.MediaType == manifest.DockerV2ListMediaType {
 					return md, i, nil
 				}
 				unsupportedMIMETypes = append(unsupportedMIMETypes, md.MediaType)
