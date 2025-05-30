@@ -13,6 +13,7 @@ import (
 	"github.com/containers/common/pkg/retry"
 	"github.com/containers/image/v5/directory"
 	"github.com/containers/image/v5/manifest"
+	ociarchive "github.com/containers/image/v5/oci/archive"
 	ocilayout "github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/storage"
@@ -419,9 +420,12 @@ func promptForPassphrase(privateKeyFile string, stdin, stdout *os.File) (string,
 // authentication error, an I/O error etc.)
 // TODO drive this into containers/image properly
 func isNotFoundImageError(err error) bool {
+	var layoutImageNotFoundError ocilayout.ImageNotFoundError
+	var archiveImageNotFoundError ociarchive.ImageNotFoundError
 	return isDockerManifestUnknownError(err) ||
 		errors.Is(err, storage.ErrNoSuchImage) ||
-		errors.Is(err, ocilayout.ImageNotFoundError{})
+		errors.As(err, &layoutImageNotFoundError) ||
+		errors.As(err, &archiveImageNotFoundError)
 }
 
 // isDockerManifestUnknownError is a copy of code from containers/image,
