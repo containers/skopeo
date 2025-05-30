@@ -63,7 +63,6 @@ BuildRequires: go-rpm-macros
 %endif
 BuildRequires: gpgme-devel
 BuildRequires: libassuan-devel
-BuildRequires: ostree-devel
 BuildRequires: glib2-devel
 BuildRequires: make
 BuildRequires: shadow-utils-subid-devel
