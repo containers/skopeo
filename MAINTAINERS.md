@@ -19,6 +19,7 @@ describes the project's governance and the Project Roles used below.
 | Dan Walsh         | [rhatdan](https://github.com/rhatdan)                    | Maintainer                       | [Red Hat](https://github.com/RedHatOfficial) |
 | Ashley Cui        | [ashley-cui](https://github.com/ashley-cui)              | Reviewer                         | [Red Hat](https://github.com/RedHatOfficial) |
 | Valentin Rothberg | [vrothberg](https://github.com/vrothberg)                | Reviewer                         | [Red Hat](https://github.com/RedHatOfficial) |
+| Colin Walters     | [cgwalters](https://github.com/cgwalters)                | Reviewer                         | [Red Hat](https://github.com/RedHatOfficial) |
 
 ## Alumni
 
