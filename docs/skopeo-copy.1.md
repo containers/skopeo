@@ -34,19 +34,20 @@ the images in the list, and the list itself.
 
 **--authfile** _path_
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
-If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
+Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
 
-Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
-environment variable. `export REGISTRY_AUTH_FILE=path`
+Use `skopeo login` to manage the credentials.
+
+The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--src-authfile** _path_
 
-Path of the authentication file for the source registry. Uses path given by `--authfile`, if not provided.
+Path of the primary registry credentials file for the source registry. Uses path given by `--authfile`, if not provided.
 
 **--dest-authfile** _path_
 
-Path of the authentication file for the destination registry. Uses path given by `--authfile`, if not provided.
+Path of the primary registry credentials file for the destination registry. Uses path given by `--authfile`, if not provided.
 
 **--dest-shared-blob-dir** _directory_
 

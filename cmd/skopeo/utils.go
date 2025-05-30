@@ -109,7 +109,7 @@ type sharedImageOptions struct {
 func sharedImageFlags() (pflag.FlagSet, *sharedImageOptions) {
 	opts := sharedImageOptions{}
 	fs := pflag.FlagSet{}
-	fs.StringVar(&opts.authFilePath, "authfile", os.Getenv("REGISTRY_AUTH_FILE"), "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
+	fs.StringVar(&opts.authFilePath, "authfile", os.Getenv("REGISTRY_AUTH_FILE"), "path of the registry credentials file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
 	return fs, &opts
 }
 
@@ -152,7 +152,7 @@ func dockerImageFlags(global *globalOptions, shared *sharedImageOptions, depreca
 	fs := pflag.FlagSet{}
 	if flagPrefix != "" {
 		// the non-prefixed flag is handled by a shared flag.
-		fs.Var(commonFlag.NewOptionalStringValue(&flags.authFilePath), flagPrefix+"authfile", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
+		fs.Var(commonFlag.NewOptionalStringValue(&flags.authFilePath), flagPrefix+"authfile", "path of the registry credentials file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
 	}
 	fs.Var(commonFlag.NewOptionalStringValue(&flags.credsOption), flagPrefix+"creds", "Use `USERNAME[:PASSWORD]` for accessing the registry")
 	fs.Var(commonFlag.NewOptionalStringValue(&flags.userName), flagPrefix+"username", "Username for accessing the registry")

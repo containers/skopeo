@@ -10,8 +10,8 @@ skopeo\-login - Login to a container registry.
 **skopeo login** logs into a specified registry server with the correct username
 and password. **skopeo login** reads in the username and password from STDIN.
 The username and password can also be set using the **username** and **password** flags.
-The path of the authentication file can be specified by the user by setting the **authfile**
-flag. The default path used is **${XDG\_RUNTIME\_DIR}/containers/auth.json**.
+The path of the credentials file can be specified by the user by setting the **authfile**
+flag.
 
 ## OPTIONS
 
@@ -31,10 +31,10 @@ Username for registry
 
 **--authfile**=*path*
 
-Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json
+Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+See **containers-auth.json**(5) for more details about the default on other platforms.
 
-Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
-environment variable. `export REGISTRY_AUTH_FILE=path`
+The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--compat-auth-file**=*path*
 

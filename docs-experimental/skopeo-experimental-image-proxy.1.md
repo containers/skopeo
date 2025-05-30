@@ -100,8 +100,12 @@ The command also supports common skopeo options for interacting with image regis
 
 **--authfile**=*path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
-If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
+Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+
+Use `skopeo login` to manage the credentials.
+
+The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--cert-dir**=*path*
 
