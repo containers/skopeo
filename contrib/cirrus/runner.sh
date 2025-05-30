@@ -64,7 +64,7 @@ _run_setup() {
     # things directly on the host VM.  Fortunately they're all
     # located in the container under /usr/local/bin
     msg "Accessing contents of $SKOPEO_CIDEV_CONTAINER_FQIN"
-    podman pull --quiet $SKOPEO_CIDEV_CONTAINER_FQIN
+    podman pull --retry 3 --quiet $SKOPEO_CIDEV_CONTAINER_FQIN
     mnt=$(podman mount $(podman create $SKOPEO_CIDEV_CONTAINER_FQIN))
 
     # The container and VM images are built in tandem in the same repo.
