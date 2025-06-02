@@ -19,6 +19,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	encconfig "github.com/containers/ocicrypt/config"
 	enchelpers "github.com/containers/ocicrypt/helpers"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +40,7 @@ type copyOptions struct {
 	format                   commonFlag.OptionalString // Force conversion of the image to a specified format
 	quiet                    bool                      // Suppress output information when copying images
 	all                      bool                      // Copy all of the images if the source is a list
+	dryRun                   bool                      // Don't actually copy anything, just output what it would have done
 	multiArch                commonFlag.OptionalString // How to handle multi architecture images
 	preserveDigests          bool                      // Preserve digests during copy
 	encryptLayer             []int                     // The list of layers to encrypt
@@ -83,6 +85,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.StringSliceVar(&opts.additionalTags, "additional-tag", []string{}, "additional tags (supports docker-archive)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Suppress output information when copying images")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
+	flags.BoolVar(&opts.dryRun, "dry-run", false, "Run without actually copying images")
 	flags.Var(commonFlag.NewOptionalStringValue(&opts.multiArch), "multi-arch", `How to handle multi-architecture images (system, all, or index-only)`)
 	flags.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
 	flags.BoolVar(&opts.removeSignatures, "remove-signatures", false, "Do not copy signatures from SOURCE-IMAGE")
@@ -127,6 +130,10 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	}
 	opts.deprecatedTLSVerify.warnIfUsed([]string{"--src-tls-verify", "--dest-tls-verify"})
 	imageNames := args
+
+	if opts.dryRun {
+		logrus.Warn("Running in dry-run mode")
+	}
 
 	if err := reexecIfNecessaryForImages(imageNames...); err != nil {
 		return err
@@ -283,6 +290,11 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	}
 
 	opts.destImage.warnAboutIneffectiveOptions(destRef.Transport())
+
+	if opts.dryRun {
+		logrus.Info(fmt.Sprintf("Would have copied from=%s to=%s", imageNames[0], imageNames[1]))
+		return nil
+	}
 
 	return retry.IfNecessary(ctx, func() error {
 		manifestBytes, err := copy.Image(ctx, policyContext, destRef, srcRef, &copy.Options{
