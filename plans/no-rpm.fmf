@@ -1,0 +1,23 @@
+prepare:
+    - name: dependencies
+      how: install
+      package: [ golang, go-md2man, gpgme-devel, podman-docker ]
+
+discover:
+    keep-git-metadata: true
+    how: shell
+    tests:
+        - name: /validate
+          test: >
+            make tools &&
+            make BUILDTAGS="exclude_graphdriver_btrfs" validate-local &&
+            make validate-docs &&
+            make vendor &&
+            hack/tree_status.sh
+        - name: /integration
+          test: make BUILDTAGS="exclude_graphdriver_btrfs" test-integration
+        - name: /unit
+          test: make BUILDTAGS="exclude_graphdriver_btrfs" test-unit-local
+
+execute:
+    how: tmt
