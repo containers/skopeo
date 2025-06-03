@@ -1,0 +1,25 @@
+prepare:
+    - name: dependencies
+      how: install
+      package: [ golang, go-md2man, gpgme-devel, podman-docker ]
+#    - name: enable-linger
+#      how: shell
+#      script: loginctl enable-linger $(whoami)
+
+discover:
+    keep-git-metadata: true
+    how: shell
+    tests:
+        - name: /validate
+          test: >
+            make &&
+            make tools &&
+            make BUILDTAGS="exclude_graphdriver_btrfs" validate-local &&
+            make validate-docs
+        - name: /integration
+          test: make test-integration
+        - name: /unit
+          test: make test-unit-local
+
+execute:
+    how: tmt
