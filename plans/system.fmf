@@ -1,0 +1,13 @@
+discover:
+    how: fmf
+    filter: 'tag:system'
+execute:
+    how: tmt
+prepare:
+    - how: shell
+      script: |
+        BATS_VERSION=1.12.0
+        curl -L https://github.com/bats-core/bats-core/archive/refs/tags/v"$BATS_VERSION".tar.gz | tar -xz
+        cd bats-core-"$BATS_VERSION"
+        ./install.sh /usr
+      order: 10  

@@ -2,98 +2,64 @@
 # See the documentation for more information:
 # https://packit.dev/docs/configuration/
 
-# NOTE: The Packit copr_build tasks help to check if every commit builds on
-# supported Fedora and CentOS Stream arches.
-# They do not block the current Cirrus-based workflow.
-
 downstream_package_name: skopeo
 upstream_tag_template: v{version}
 
-packages:
-  skopeo-fedora:
-    pkg_tool: fedpkg
-    specfile_path: rpm/skopeo.spec
-  skopeo-centos:
-    pkg_tool: centpkg
-    specfile_path: rpm/skopeo.spec
-  skopeo-eln:
-    specfile_path: rpm/skopeo.spec
+specfile_path: skopeo.spec
 
-srpm_build_deps:
-  - make
+# Disable automatic merging for Copr builds (and subsequent Testing Farm)
+merge_pr_in_ci: false
 
 jobs:
   - job: copr_build
     trigger: pull_request
-    packages: [skopeo-fedora]
-    notifications: &copr_build_failure_notification
+    notifications: &packit_failure_notification
       failure_comment:
-        message: "Ephemeral COPR build failed. @containers/packit-build please check."
-    targets:
-      - fedora-all-x86_64
-      - fedora-all-aarch64
+        message: "Packit jobs failed. @containers/packit-build please check."
     enable_net: true
+    targets:
+      - epel-10-x86_64
+      - epel-10-aarch64
+    actions:
+      post-upstream-clone: "curl --fail -O https://gitlab.com/redhat/centos-stream/rpms/skopeo/-/raw/c10s/skopeo.spec"
 
   - job: copr_build
     trigger: pull_request
-    packages: [skopeo-eln]
-    notifications: *copr_build_failure_notification
-    targets:
-      fedora-eln-x86_64:
-        additional_repos:
-          - "https://kojipkgs.fedoraproject.org/repos/eln-build/latest/x86_64/"
-      fedora-eln-aarch64:
-        additional_repos:
-          - "https://kojipkgs.fedoraproject.org/repos/eln-build/latest/aarch64/"
+    notifications: *packit_failure_notification
     enable_net: true
+    targets:
+      - epel-9-x86_64
+      - epel-9-aarch64
+    actions:
+      post-upstream-clone: "curl --fail -O https://gitlab.com/redhat/centos-stream/rpms/skopeo/-/raw/c9s/skopeo.spec"
 
-  - job: copr_build
+  - job: tests
     trigger: pull_request
-    packages: [skopeo-centos]
-    notifications: *copr_build_failure_notification
+    use_internal_tf: true
+    notifications: *packit_failure_notification
     targets:
-      - centos-stream-9-x86_64
-      - centos-stream-9-aarch64
-      - centos-stream-10-x86_64
-      - centos-stream-10-aarch64
-    enable_net: true
+      epel-10-x86_64:
+        distros: [RHEL-10-Nightly,RHEL-10.0-Nightly]
+      epel-10-aarch64:
+        distros: [RHEL-10-Nightly,RHEL-10.0-Nightly]
+      epel-9-x86_64:
+        distros: [RHEL-9-Nightly,RHEL-9.6.0-Nightly]
+      epel-9-aarch64:
+        distros: [RHEL-9-Nightly,RHEL-9.6.0-Nightly]
+    tmt_plan: "/plans/system"
+    identifier: "rpm"
 
-  # Run on commit to main branch
-  - job: copr_build
-    trigger: commit
-    packages: [skopeo-fedora]
-    notifications:
-      failure_comment:
-        message: "podman-next COPR build failed. @containers/packit-build please check."
-    branch: main
-    owner: rhcontainerbot
-    project: podman-next
-    enable_net: true
-
-  # Sync to Fedora
-  - job: propose_downstream
-    trigger: release
-    packages: [skopeo-fedora]
-    update_release: false
-    dist_git_branches: &fedora_targets
-      - fedora-all
-
-  # Sync to CentOS Stream
-  - job: propose_downstream
-    trigger: release
-    packages: [skopeo-centos]
-    update_release: false
-    dist_git_branches:
-      - c10s
-
-  # Fedora Koji build
-  - job: koji_build
-    trigger: commit
-    packages: [skopeo-fedora]
-    sidetag_group: podman-releases
-    # Dependents are not rpm dependencies, but the package whose bodhi update
-    # should include this package.
-    # Ref: https://packit.dev/docs/fedora-releases-guide/releasing-multiple-packages
-    dependents:
-      - podman
-    dist_git_branches: *fedora_targets
+  - job: tests
+    trigger: pull_request
+    use_internal_tf: true
+    notifications: *packit_failure_notification
+    skip_build: true
+    targets:
+      # RHEL-N-Nightly can often have newer toolchain packages, breaking
+      # vendoring. So, only test on N.Y here
+      epel-10-x86_64:
+        distros: [RHEL-10.0-Nightly]
+      epel-9-x86_64:
+        distros: [RHEL-9.6.0-Nightly]
+    tmt_plan: "/plans/no-rpm"
+    identifier: "no-rpm"
