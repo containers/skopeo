@@ -70,7 +70,9 @@ export SKOPEO_CONTAINER_TESTS ?= $(if $(CI),1,0)
 # This is a compromise, we either use a container for this or require
 # the local user to have a compatible python3 development environment.
 # Define it as a "resolve on use" variable to avoid calling out when possible
-SKOPEO_CIDEV_CONTAINER_FQIN ?= $(shell hack/get_fqin.sh)
+#SKOPEO_CIDEV_CONTAINER_FQIN ?= $(shell hack/get_fqin.sh)
+# FIXME: hack/get_fqin.sh depends on cirrus.yml so we hardcode SKOPEO_CIDEV_CONTAINER_FQIN here
+SKOPEO_CIDEV_CONTAINER_FQIN ?= "quay.io/libpod/skopeo_cidev:c20250131t121915z-f41f40d13"
 CONTAINER_CMD ?= ${CONTAINER_RUNTIME} run --rm -i -e TESTFLAGS="$(TESTFLAGS)" -e CI=$(CI) -e SKOPEO_CONTAINER_TESTS=1
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
