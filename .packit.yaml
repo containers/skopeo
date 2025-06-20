@@ -54,6 +54,9 @@ jobs:
       - fedora-all-x86_64
       - fedora-all-aarch64
     enable_net: true
+    # Re-enable these scans if OpenScanHub starts scanning go packages
+    # https://packit.dev/posts/openscanhub-prototype
+    osh_diff_scan_after_copr_build: false
 
   # Ignore until golang is updated in distro buildroot to go 1.23.3+
   - job: copr_build
