@@ -5,6 +5,11 @@ require:
 environment:
     SKOPEO_BINARY: /usr/bin/skopeo
 
+adjust:
+    - when: initiator != "packit"
+      environment+:
+        RELEASE_TESTING: true
+
 summary: System test
 test: bash ./test.sh
 duration: 60m
