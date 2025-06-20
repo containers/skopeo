@@ -79,7 +79,6 @@ registries without the need to pull them
 Summary: Tests for %{name}
 
 Requires: %{name} = %{epoch}:%{version}-%{release}
-Requires: bats
 %if %{defined fakeroot}
 Requires: fakeroot
 %endif
@@ -91,6 +90,8 @@ Requires: crun
 Requires: httpd-tools
 Requires: openssl
 Requires: squashfs-tools
+# bats is not present on RHEL and ELN so it shouldn't be a strong dep
+Recommends: bats
 
 %description tests
 %{summary}
