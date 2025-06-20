@@ -497,6 +497,8 @@ func (s *copySuite) TestCopySimple() {
 	assertSkopeoSucceeds(t, "", "copy", "docker://registry.k8s.io/pause:latest", "oci:"+ociDest+":"+ociImgName)
 	_, err := os.Stat(ociDest)
 	require.NoError(t, err)
+	// copy exits with status 2 if the image is not found within the container, in some transports.
+	assertSkopeoFailsWithStatus(t, 2, "copy", "oci:"+ociDest+":thisdoesnotexist", "dir:"+t.TempDir())
 
 	// docker v2s2 -> OCI image layout without image name
 	ociDest = "pause-latest-noimage"
