@@ -132,8 +132,10 @@ jobs:
       - fedora-all
 
   # Sync to CentOS Stream
+  # FIXME: Switch trigger whenever we're ready to update CentOS Stream via
+  # Packit
   - job: propose_downstream
-    trigger: release
+    trigger: ignore
     packages: [skopeo-centos]
     update_release: false
     dist_git_branches:
