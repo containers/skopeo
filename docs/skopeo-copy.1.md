@@ -32,6 +32,10 @@ If _source-image_ refers to a list of images, instead of copying just the image 
 architecture (subject to the use of the global --override-os, --override-arch and --override-variant options), attempt to copy all of
 the images in the list, and the list itself.
 
+**--dry-run**
+
+Run the sync without actually copying data to the destination.
+
 **--authfile** _path_
 
 Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
