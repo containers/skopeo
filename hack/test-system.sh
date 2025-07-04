@@ -37,8 +37,12 @@ EOF
     export CONTAINERS_STORAGE_CONF=/etc/containers/storage.conf
 fi
 
-# Build skopeo, install into /usr/bin
-make PREFIX=/usr install
+if [[ -v SKOPEO_BINARY ]]; then
+    echo "Testing with $SKOPEO_BINARY ..."
+else
+    echo "Testing with $(git rev-parse --show-toplevel)/bin/skopeo ..."
+fi
 
 # Run tests
-SKOPEO_BINARY=/usr/bin/skopeo bats --tap systemtest
+# The skopeo binary used will be at ../bin/skopeo unless set via SKOPEO_BINARY
+bats --tap systemtest
