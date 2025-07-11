@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -99,6 +100,16 @@ func (s *copySuite) TearDownSuite() {
 	if s.cluster != nil {
 		s.cluster.tearDown(t)
 	}
+}
+
+// policyFixture applies the general edits, as well as extraSubstitutions, to the policy.json fixture,
+// and returns a path to a policy, which will be automatically removed when the test completes.
+func (s *copySuite) policyFixture(extraSubstitutions map[string]string) string {
+	t := s.T()
+	edits := map[string]string{"@keydir@": s.gpgHome}
+	maps.Copy(edits, extraSubstitutions)
+	policyPath := fileFromFixture(t, "fixtures/policy.json", edits)
+	return policyPath
 }
 
 func (s *copySuite) TestCopyWithManifestList() {
@@ -744,8 +755,7 @@ func (s *copySuite) TestCopySignatures() {
 	dir := t.TempDir()
 	dirDest := "dir:" + dir
 
-	policy := fileFromFixture(t, "fixtures/policy.json", map[string]string{"@keydir@": s.gpgHome})
-	defer os.Remove(policy)
+	policy := s.policyFixture(nil)
 
 	// type: reject
 	assertSkopeoFails(t, fmt.Sprintf(".*Source image rejected: Running image %s:latest is rejected by policy.*", testFQIN),
@@ -808,8 +818,7 @@ func (s *copySuite) TestCopyDirSignatures() {
 
 	// Note the "/@dirpath@": The value starts with a slash so that it is not rejected in other tests which do not replace it,
 	// but we must ensure that the result is a canonical path, not something starting with a "//".
-	policy := fileFromFixture(t, "fixtures/policy.json", map[string]string{"@keydir@": s.gpgHome, "/@dirpath@": topDir + "/restricted"})
-	defer os.Remove(policy)
+	policy := s.policyFixture(map[string]string{"/@dirpath@": topDir + "/restricted"})
 
 	// Get some images.
 	assertSkopeoSucceeds(t, "", "copy", "--retry-times", "3", testFQIN+":armfh", topDirDest+"/dir1")
@@ -916,8 +925,7 @@ func (s *copySuite) TestCopyDockerLookaside() {
 	}))
 	defer splitLookasideReadServer.Close()
 
-	policy := fileFromFixture(t, "fixtures/policy.json", map[string]string{"@keydir@": s.gpgHome})
-	defer os.Remove(policy)
+	policy := s.policyFixture(nil)
 	registriesDir := filepath.Join(tmpDir, "registries.d")
 	err = os.Mkdir(registriesDir, 0755)
 	require.NoError(t, err)
@@ -977,8 +985,7 @@ func (s *copySuite) TestCopyAtomicExtension() {
 	}
 	registriesDir := filepath.Join(topDir, "registries.d")
 	dirDest := "dir:" + topDir
-	policy := fileFromFixture(t, "fixtures/policy.json", map[string]string{"@keydir@": s.gpgHome})
-	defer os.Remove(policy)
+	policy := s.policyFixture(nil)
 
 	// Get an image to work with to an atomic: destination.  Also verifies that we can use Docker repositories without X-Registry-Supports-Signatures
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "--registries.d", registriesDir, "copy", "--retry-times", "3",
@@ -1035,8 +1042,7 @@ func (s *copySuite) TestCopyVerifyingMirroredSignatures() {
 	registriesDir := filepath.Join(topDir, "registries.d") // An empty directory to disable lookaside use
 	dirDest := "dir:" + filepath.Join(topDir, "unused-dest")
 
-	policy := fileFromFixture(t, "fixtures/policy.json", map[string]string{"@keydir@": s.gpgHome})
-	defer os.Remove(policy)
+	policy := s.policyFixture(nil)
 
 	// We use X-R-S-S for this testing to avoid having to deal with the lookasides.
 	// A downside is that OpenShift records signatures per image, so the error messages below

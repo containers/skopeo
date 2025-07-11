@@ -53,10 +53,9 @@ ifeq ($(GOOS), linux)
   endif
 endif
 
-# If $TESTFLAGS is set, it is passed as extra arguments to 'go test'.
+# If $TESTFLAGS is set, it is passed as extra arguments to 'go test' on integration tests.
 # You can select certain tests to run, with `-run <regex>` for example:
 #
-#     make test-unit TESTFLAGS='-run ^TestManifestDigest$'
 #     make test-integration TESTFLAGS='-run copySuite.TestCopy.*'
 export TESTFLAGS ?= -timeout=15m
 
@@ -205,7 +204,7 @@ test-integration:
 # Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
 test-integration-local: bin/skopeo
 	hack/warn-destructive-tests.sh
-	hack/test-integration.sh
+	hack/test-integration.sh $(SKOPEO_LDFLAGS) $(TESTFLAGS)
 
 # complicated set of options needed to run podman-in-podman
 test-system:
@@ -222,7 +221,7 @@ test-system:
 # Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
 test-system-local: bin/skopeo
 	hack/warn-destructive-tests.sh
-	hack/test-system.sh
+	hack/test-system.sh SKOPEO_LDFLAGS="$(SKOPEO_LDFLAGS)" BUILDTAGS="$(BUILDTAGS)"
 
 test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences

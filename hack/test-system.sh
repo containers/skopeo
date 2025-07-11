@@ -38,7 +38,7 @@ EOF
 fi
 
 # Build skopeo, install into /usr/bin
-make PREFIX=/usr install
+make PREFIX=/usr install "$@"
 
 # Run tests
 SKOPEO_BINARY=/usr/bin/skopeo bats --tap systemtest
