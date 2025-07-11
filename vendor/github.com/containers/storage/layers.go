@@ -1634,7 +1634,7 @@ func (r *layerStore) Mount(id string, options drivers.MountOpts) (string, error)
 		options.MountLabel = layer.MountLabel
 	}
 
-	if (options.UidMaps != nil || options.GidMaps != nil) && !r.driver.SupportsShifting() {
+	if (options.UidMaps != nil || options.GidMaps != nil) && !r.driver.SupportsShifting(options.UidMaps, options.GidMaps) {
 		if !reflect.DeepEqual(options.UidMaps, layer.UIDMap) || !reflect.DeepEqual(options.GidMaps, layer.GIDMap) {
 			return "", fmt.Errorf("cannot mount layer %v: shifting not enabled", layer.ID)
 		}
@@ -2550,10 +2550,14 @@ func (r *layerStore) applyDiffFromStagingDirectory(id string, diffOutput *driver
 		if err != nil {
 			compressor = pgzip.NewWriter(&tsdata)
 		}
+		if _, err := diffOutput.TarSplit.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+
 		if err := compressor.SetConcurrency(1024*1024, 1); err != nil { // 1024*1024 is the hard-coded default; we're not changing that
 			logrus.Infof("setting compression concurrency threads to 1: %v; ignoring", err)
 		}
-		if _, err := compressor.Write(diffOutput.TarSplit); err != nil {
+		if _, err := diffOutput.TarSplit.WriteTo(compressor); err != nil {
 			compressor.Close()
 			return err
 		}

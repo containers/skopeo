@@ -20,18 +20,18 @@ func (pq priorityQueue) Swap(i, j int) {
 }
 
 func (pq *priorityQueue) Push(x interface{}) {
-	n := len(*pq)
-	bar := x.(*Bar)
-	bar.index = n
-	*pq = append(*pq, bar)
+	s := *pq
+	b := x.(*Bar)
+	b.index = len(s)
+	*pq = append(s, b)
 }
 
 func (pq *priorityQueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	bar := old[n-1]
-	old[n-1] = nil // avoid memory leak
-	bar.index = -1 // for safety
-	*pq = old[:n-1]
-	return bar
+	var b *Bar
+	s := *pq
+	i := len(s) - 1
+	b, s[i] = s[i], nil // nil to avoid memory leak
+	b.index = -1        // for safety
+	*pq = s[:i]
+	return b
 }

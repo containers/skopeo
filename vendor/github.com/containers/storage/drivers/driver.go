@@ -193,8 +193,9 @@ type LayerIDMapUpdater interface {
 	UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMappings, mountLabel string) error
 
 	// SupportsShifting tells whether the driver support shifting of the UIDs/GIDs in a
-	// image and it is not required to Chown the files when running in an user namespace.
-	SupportsShifting() bool
+	// image to the provided mapping and it is not required to Chown the files when running in
+	// an user namespace.
+	SupportsShifting(uidmap, gidmap []idtools.IDMap) bool
 }
 
 // Driver is the interface for layered/snapshot file system drivers.
@@ -216,8 +217,10 @@ type DriverWithDifferOutput struct {
 	CompressedDigest   digest.Digest
 	Metadata           string
 	BigData            map[string][]byte
-	TarSplit           []byte // nil if not available
-	TOCDigest          digest.Digest
+	// TarSplit is owned by the [DriverWithDifferOutput], and must be closed by calling one of
+	// [Store.ApplyStagedLayer]/[Store.CleanupStagedLayer].  It is nil if not available.
+	TarSplit  *os.File
+	TOCDigest digest.Digest
 	// RootDirMode is the mode of the root directory of the layer, if specified.
 	RootDirMode *os.FileMode
 	// Artifacts is a collection of additional artifacts
@@ -267,6 +270,7 @@ type DifferOptions struct {
 // This API is experimental and can be changed without bumping the major version number.
 type Differ interface {
 	ApplyDiff(dest string, options *archive.TarOptions, differOpts *DifferOptions) (DriverWithDifferOutput, error)
+	Close() error
 }
 
 // DriverWithDiffer is the interface for direct diff access.

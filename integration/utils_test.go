@@ -174,8 +174,8 @@ func modifyEnviron(env []string, name, value string) []string {
 	return append(res, prefix+value)
 }
 
-// fileFromFixture applies edits to inputPath and returns a path to the temporary file.
-// Callers should defer os.Remove(the_returned_path)
+// fileFromFixture applies edits to inputPath and returns a path to the temporary file with the edits,
+// which will be automatically removed when the test completes.
 func fileFromFixture(t *testing.T, inputPath string, edits map[string]string) string {
 	contents, err := os.ReadFile(inputPath)
 	require.NoError(t, err)
@@ -188,6 +188,7 @@ func fileFromFixture(t *testing.T, inputPath string, edits map[string]string) st
 	file, err := os.CreateTemp("", "policy.json")
 	require.NoError(t, err)
 	path := file.Name()
+	t.Cleanup(func() { os.Remove(path) })
 
 	_, err = file.Write(contents)
 	require.NoError(t, err)
