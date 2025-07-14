@@ -24,6 +24,7 @@ import (
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/hcsshim"
 	graphdriver "github.com/containers/storage/drivers"
+	"github.com/containers/storage/internal/tempdir"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/directory"
 	"github.com/containers/storage/pkg/fileutils"
@@ -986,8 +987,8 @@ func (d *Driver) UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMapp
 	return fmt.Errorf("windows doesn't support changing ID mappings")
 }
 
-// SupportsShifting tells whether the driver support shifting of the UIDs/GIDs in an userNS
-func (d *Driver) SupportsShifting() bool {
+// SupportsShifting tells whether the driver support shifting of the UIDs/GIDs to the provided mapping in an userNS
+func (d *Driver) SupportsShifting(uidmap, gidmap []idtools.IDMap) bool {
 	return false
 }
 
@@ -1013,4 +1014,15 @@ func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
 		}
 	}
 	return &options, nil
+}
+
+// DeferredRemove is not implemented.
+// It calls Remove directly.
+func (d *Driver) DeferredRemove(id string) (tempdir.CleanupTempDirFunc, error) {
+	return nil, d.Remove(id)
+}
+
+// GetTempDirRootDirs is not implemented.
+func (d *Driver) GetTempDirRootDirs() []string {
+	return []string{}
 }

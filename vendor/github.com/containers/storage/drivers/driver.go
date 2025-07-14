@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/containers/storage/internal/dedup"
+	"github.com/containers/storage/internal/tempdir"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/directory"
 	"github.com/containers/storage/pkg/fileutils"
@@ -123,7 +124,17 @@ type ProtoDriver interface {
 	// and parent, with contents identical to the specified template layer.
 	CreateFromTemplate(id, template string, templateIDMappings *idtools.IDMappings, parent string, parentIDMappings *idtools.IDMappings, opts *CreateOpts, readWrite bool) error
 	// Remove attempts to remove the filesystem layer with this id.
+	// This is soft-deprecated and should not get any new callers; use DeferredRemove.
 	Remove(id string) error
+	// DeferredRemove is used to remove the filesystem layer with this id.
+	// This removal happen immediately (the layer is no longer usable),
+	// but physically deleting the files may be deferred.
+	// Caller MUST call returned Cleanup function EVEN IF the function returns an error.
+	DeferredRemove(id string) (tempdir.CleanupTempDirFunc, error)
+	// GetTempDirRootDirs returns the root directories for temporary directories.
+	// Multiple directories may be returned when drivers support different filesystems
+	// for layers (e.g., overlay with imageStore vs home directory).
+	GetTempDirRootDirs() []string
 	// Get returns the mountpoint for the layered filesystem referred
 	// to by this id. You can optionally specify a mountLabel or "".
 	// Optionally it gets the mappings used to create the layer.
@@ -193,8 +204,9 @@ type LayerIDMapUpdater interface {
 	UpdateLayerIDMap(id string, toContainer, toHost *idtools.IDMappings, mountLabel string) error
 
 	// SupportsShifting tells whether the driver support shifting of the UIDs/GIDs in a
-	// image and it is not required to Chown the files when running in an user namespace.
-	SupportsShifting() bool
+	// image to the provided mapping and it is not required to Chown the files when running in
+	// an user namespace.
+	SupportsShifting(uidmap, gidmap []idtools.IDMap) bool
 }
 
 // Driver is the interface for layered/snapshot file system drivers.
@@ -216,8 +228,10 @@ type DriverWithDifferOutput struct {
 	CompressedDigest   digest.Digest
 	Metadata           string
 	BigData            map[string][]byte
-	TarSplit           []byte // nil if not available
-	TOCDigest          digest.Digest
+	// TarSplit is owned by the [DriverWithDifferOutput], and must be closed by calling one of
+	// [Store.ApplyStagedLayer]/[Store.CleanupStagedLayer].  It is nil if not available.
+	TarSplit  *os.File
+	TOCDigest digest.Digest
 	// RootDirMode is the mode of the root directory of the layer, if specified.
 	RootDirMode *os.FileMode
 	// Artifacts is a collection of additional artifacts
@@ -267,6 +281,7 @@ type DifferOptions struct {
 // This API is experimental and can be changed without bumping the major version number.
 type Differ interface {
 	ApplyDiff(dest string, options *archive.TarOptions, differOpts *DifferOptions) (DriverWithDifferOutput, error)
+	Close() error
 }
 
 // DriverWithDiffer is the interface for direct diff access.
