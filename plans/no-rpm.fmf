@@ -1,0 +1,25 @@
+discover:
+    how: fmf
+execute:
+    how: tmt
+
+/integration:
+    discover+:
+        test: /tmt/integration
+
+/validate:
+    discover+:
+        test: /tmt/validate
+
+/unit:
+    discover+:
+        test: /tmt/unit
+
+/opengpg:
+    prepare+:
+        - when: distro == centos-stream or distro == rhel
+          how: shell
+          script: bash hack/tmt/bats-setup.sh
+          order: 10
+    discover+:
+        test: /tmt/opengpg
