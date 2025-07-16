@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/containers/image/v5/copy"
@@ -15,6 +17,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// newExpectedSystemContext creates a SystemContext with expected defaults for tests,
+// accounting for platform-specific behavior like macOS Docker socket location
+func newExpectedSystemContext() *types.SystemContext {
+	ctx := &types.SystemContext{
+		DockerRegistryUserAgent: defaultUserAgent,
+	}
+	// On macOS, DockerDaemonHost gets set to the platform-specific default
+	if runtime.GOOS == "darwin" {
+		if home := os.Getenv("HOME"); home != "" {
+			ctx.DockerDaemonHost = "unix://" + filepath.Join(home, ".docker/run/docker.sock")
+		}
+	}
+	return ctx
+}
 
 func TestNoteCloseFailure(t *testing.T) {
 	const description = "description"
@@ -73,9 +90,7 @@ func TestImageOptionsNewSystemContext(t *testing.T) {
 	opts := fakeImageOptions(t, "dest-", true, []string{}, []string{})
 	res, err := opts.newSystemContext()
 	require.NoError(t, err)
-	assert.Equal(t, &types.SystemContext{
-		DockerRegistryUserAgent: defaultUserAgent,
-	}, res)
+	assert.Equal(t, newExpectedSystemContext(), res)
 
 	// Set everything to non-default values.
 	opts = fakeImageOptions(t, "dest-", true, []string{
@@ -148,9 +163,7 @@ func TestImageDestOptionsNewSystemContext(t *testing.T) {
 	opts := fakeImageDestOptions(t, "dest-", true, []string{}, []string{})
 	res, err := opts.newSystemContext()
 	require.NoError(t, err)
-	assert.Equal(t, &types.SystemContext{
-		DockerRegistryUserAgent: defaultUserAgent,
-	}, res)
+	assert.Equal(t, newExpectedSystemContext(), res)
 
 	authFile := "/tmp/auth.json"
 	// Make sure when REGISTRY_AUTH_FILE is set the auth file is used
@@ -162,10 +175,9 @@ func TestImageDestOptionsNewSystemContext(t *testing.T) {
 	})
 	res, err = opts.newSystemContext()
 	require.NoError(t, err)
-	assert.Equal(t, &types.SystemContext{
-		AuthFilePath:            authFile,
-		DockerRegistryUserAgent: defaultUserAgent,
-	}, res)
+	expected := newExpectedSystemContext()
+	expected.AuthFilePath = authFile
+	assert.Equal(t, expected, res)
 
 	// Set everything to non-default values.
 	opts = fakeImageDestOptions(t, "dest-", true, []string{
@@ -255,10 +267,9 @@ func TestImageOptionsUsernamePassword(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
-			assert.Equal(t, &types.SystemContext{
-				DockerRegistryUserAgent: defaultUserAgent,
-				DockerAuthConfig:        command.expectedAuthConfig,
-			}, res)
+			expected := newExpectedSystemContext()
+			expected.DockerAuthConfig = command.expectedAuthConfig
+			assert.Equal(t, expected, res)
 		}
 	}
 }
@@ -508,9 +519,16 @@ func TestImageOptionsAuthfileOverride(t *testing.T) {
 		res, err := opts.newSystemContext()
 		require.NoError(t, err)
 
-		assert.Equal(t, &types.SystemContext{
+		expected := &types.SystemContext{
 			AuthFilePath:            testCase.expectedAuthfilePath,
 			DockerRegistryUserAgent: defaultUserAgent,
-		}, res)
+		}
+		// On macOS, DockerDaemonHost gets set to the platform-specific default
+		if runtime.GOOS == "darwin" {
+			if home := os.Getenv("HOME"); home != "" {
+				expected.DockerDaemonHost = "unix://" + filepath.Join(home, ".docker/run/docker.sock")
+			}
+		}
+		assert.Equal(t, expected, res)
 	}
 }

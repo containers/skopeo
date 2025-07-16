@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -32,7 +34,20 @@ import (
 	"golang.org/x/term"
 )
 
-// errorShouldDisplayUsage is a subtype of error used by command handlers to indicate that the command’s help should be included.
+// getDefaultDockerSocket returns the platform-specific default Docker socket path
+func getDefaultDockerSocket() string {
+	if runtime.GOOS == "darwin" {
+		// On macOS, use the user-specific Docker socket location
+		if home := os.Getenv("HOME"); home != "" {
+			return "unix://" + filepath.Join(home, ".docker/run/docker.sock")
+		}
+	}
+	// For all other platforms or if HOME is not set, return empty string
+	// to use the default from the Docker client library
+	return ""
+}
+
+// errorShouldDisplayUsage is a subtype of error used by command handlers to indicate that the command's help should be included.
 type errorShouldDisplayUsage struct {
 	error
 }
@@ -204,6 +219,12 @@ func (opts *imageOptions) newSystemContext() (*types.SystemContext, error) {
 	ctx.OCISharedBlobDirPath = opts.sharedBlobDir
 	ctx.AuthFilePath = opts.shared.authFilePath
 	ctx.DockerDaemonHost = opts.dockerDaemonHost
+	// Set platform-specific default for Docker daemon host if not explicitly set
+	if ctx.DockerDaemonHost == "" {
+		if defaultSocket := getDefaultDockerSocket(); defaultSocket != "" {
+			ctx.DockerDaemonHost = defaultSocket
+		}
+	}
 	ctx.DockerDaemonCertPath = opts.dockerCertPath
 	if opts.authFilePath.Present() {
 		ctx.AuthFilePath = opts.authFilePath.Value()
