@@ -13,9 +13,16 @@ import (
 )
 
 const (
-	binaryV2        = "registry-v2"
 	binaryV2Schema1 = "registry-v2-schema1"
 )
+
+// getBinaryV2 returns the available registry binary name, preferring "registry-v2" over "registry"
+func getBinaryV2() string {
+	if _, err := exec.LookPath("registry-v2"); err == nil {
+		return "registry-v2"
+	}
+	return "registry"
+}
 
 type testRegistryV2 struct {
 	cmd      *exec.Cmd
@@ -92,7 +99,7 @@ compatibility:
 	if schema1 {
 		cmd = exec.Command(binaryV2Schema1, confPath)
 	} else {
-		cmd = exec.Command(binaryV2, "serve", confPath)
+		cmd = exec.Command(getBinaryV2(), "serve", confPath)
 	}
 
 	consumeAndLogOutputs(t, fmt.Sprintf("registry-%s", url), cmd)
