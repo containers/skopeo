@@ -220,8 +220,7 @@ test-system:
 	exit $$rc
 
 # Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
-test-system-local: bin/skopeo
-	hack/warn-destructive-tests.sh
+test-system-local: $(if $(SKOPEO_BINARY),,bin/skopeo)
 	hack/test-system.sh
 
 test-unit:
