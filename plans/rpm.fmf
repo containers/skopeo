@@ -1,0 +1,22 @@
+discover:
+    how: fmf
+execute:
+    how: tmt
+prepare:
+    - when: initiator == packit
+      how: shell
+      script: bash hack/tmt/dnf-repo-setup.sh
+      order: 5
+
+/ostree-rs-ext:
+    discover+:
+        test: /tmt/ostree-rs-ext
+
+/system:
+    prepare+:
+        - when: distro == centos-stream or distro == rhel
+          how: shell
+          script: bash hack/tmt/bats-setup.sh
+          order: 10
+    discover+:
+        test: /tmt/system
