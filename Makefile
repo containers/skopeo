@@ -234,7 +234,7 @@ validate:
 test-all-local: validate-local validate-docs test-unit-local
 
 .PHONY: validate-local
-validate-local:
+validate-local: tools
 	hack/validate-git-marks.sh
 	hack/validate-gofmt.sh
 	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"
