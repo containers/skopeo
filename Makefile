@@ -201,10 +201,8 @@ test-integration:
 	$(CONTAINER_CMD) --security-opt label=disable --cap-add=cap_mknod -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) $(SKOPEO_CIDEV_CONTAINER_FQIN) \
 		$(MAKE) test-integration-local
 
-
-# Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
-test-integration-local: bin/skopeo
-	hack/warn-destructive-tests.sh
+# Expects binary in $PATH, so better to depend on install-binary target
+test-integration-local: install-binary
 	hack/test-integration.sh
 
 # complicated set of options needed to run podman-in-podman
@@ -220,8 +218,7 @@ test-system:
 	exit $$rc
 
 # Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
-test-system-local: bin/skopeo
-	hack/warn-destructive-tests.sh
+test-system-local: $(if $(SKOPEO_BINARY),,bin/skopeo)
 	hack/test-system.sh
 
 test-unit:
@@ -235,7 +232,7 @@ validate:
 test-all-local: validate-local validate-docs test-unit-local
 
 .PHONY: validate-local
-validate-local:
+validate-local: tools
 	hack/validate-git-marks.sh
 	hack/validate-gofmt.sh
 	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"
