@@ -166,7 +166,7 @@ func parseRepositoryReference(input string) (reference.Named, error) {
 // destinationReference creates an image reference using the provided transport.
 // It returns a image reference to be used as destination of an image copy and
 // any error encountered.
-func destinationReference(destination string, transport string) (types.ImageReference, error) {
+func destinationReference(destination string, transport string, dryRun bool) (types.ImageReference, error) {
 	var imageTransport types.ImageTransport
 
 	switch transport {
@@ -181,9 +181,11 @@ func destinationReference(destination string, transport string) (types.ImageRefe
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("Destination directory could not be used: %w", err)
 		}
-		// the directory holding the image must be created here
-		if err = os.MkdirAll(destination, 0755); err != nil {
-			return nil, fmt.Errorf("Error creating directory for image %s: %w", destination, err)
+		if !dryRun {
+			// the directory holding the image must be created here
+			if err = os.MkdirAll(destination, 0755); err != nil {
+				return nil, fmt.Errorf("Error creating directory for image %s: %w", destination, err)
+			}
 		}
 		imageTransport = directory.Transport
 	default:
@@ -697,7 +699,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 				destSuffix = path.Base(destSuffix)
 			}
 
-			destRef, err := destinationReference(path.Join(destination, destSuffix)+opts.appendSuffix, opts.destination)
+			destRef, err := destinationReference(path.Join(destination, destSuffix)+opts.appendSuffix, opts.destination, opts.dryRun)
 			if err != nil {
 				return err
 			}
