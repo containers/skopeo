@@ -21,7 +21,7 @@ env:
     SCRIPT_BASE: "./contrib/cirrus"
 
     # Google-cloud VM Images
-    IMAGE_SUFFIX: "c20250422t130822z-f42f41d13"
+    IMAGE_SUFFIX: "c20250718t135910z-f42f41d13"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
 
     # Container FQIN's
