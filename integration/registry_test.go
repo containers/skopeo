@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	binaryV2        = "registry-v2"
+	binaryV2        = "registry"
 	binaryV2Schema1 = "registry-v2-schema1"
 )
 
