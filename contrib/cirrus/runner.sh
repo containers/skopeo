@@ -6,6 +6,8 @@
 
 set -e
 
+PODMAN_SEQUOIA_COMMIT=7dda4eaf22db19c487a6fbc01fa35838c888e0ab # FIXME: drop
+
 # BEGIN Global export of all variables
 set -a
 
@@ -96,8 +98,20 @@ _run_vendor() {
 }
 
 _run_build() {
-    make bin/skopeo BUILDTAGS="$BUILDTAGS"
-    make install PREFIX=/usr/local
+    if [[ "$BUILDTAGS" =~ containers_image_sequoia ]]; then
+        # FIXME: All of this should be removed after libpodman_sequoia is packaged; instead, install the RPM at image build time.
+        dnf install -y rustc cargo clang-devel capnproto
+        msg "Checking out libpodman_sequoia"
+        git clone https://github.com/ueno/podman-sequoia
+        (cd podman-sequoia && git checkout $PODMAN_SEQUOIA_COMMIT)
+        msg "Building libpodman_sequoia"
+        (cd podman-sequoia; cargo build --release)
+        msg "Built $(pwd)/podman-sequoia/target/release:"
+        ls -la $(pwd)/podman-sequoia/target/release
+    fi
+
+    make bin/skopeo BUILDTAGS="$BUILDTAGS" SEQUOIA_SONAME_DIR=$(pwd)/podman-sequoia/target/release
+    make install PREFIX=/usr/local BUILDTAGS="$BUILDTAGS" SEQUOIA_SONAME_DIR=$(pwd)/podman-sequoia/target/release
 }
 
 _run_cross() {
@@ -109,7 +123,7 @@ _run_doccheck() {
 }
 
 _run_unit() {
-    make test-unit-local BUILDTAGS="$BUILDTAGS"
+    make test-unit-local BUILDTAGS="$BUILDTAGS" SEQUOIA_SONAME_DIR=$(pwd)/podman-sequoia/target/release
 }
 
 _podman_reset() {
@@ -119,13 +133,13 @@ _podman_reset() {
 
 _run_integration() {
     _podman_reset
-    make test-integration-local BUILDTAGS="$BUILDTAGS"
+    make test-integration-local BUILDTAGS="$BUILDTAGS" SEQUOIA_SONAME_DIR=$(pwd)/podman-sequoia/target/release
 }
 
 _run_system() {
     _podman_reset
     ##### Note: Test MODIFIES THE HOST SETUP #####
-    make test-system-local BUILDTAGS="$BUILDTAGS"
+    make test-system-local BUILDTAGS="$BUILDTAGS" SEQUOIA_SONAME_DIR=$(pwd)/podman-sequoia/target/release
 }
 
 req_env_vars SKOPEO_PATH
