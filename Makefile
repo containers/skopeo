@@ -219,9 +219,10 @@ test-system:
 	exit $$rc
 
 # Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
-test-system-local: bin/skopeo
+test-system-local: $(if $(SKOPEO_BINARY),,bin/skopeo)
 	hack/warn-destructive-tests.sh
-	hack/test-system.sh SKOPEO_LDFLAGS="$(SKOPEO_LDFLAGS)" BUILDTAGS="$(BUILDTAGS)"
+	@echo "Testing with $(or $(SKOPEO_BINARY),$(eval SKOPEO_BINARY := "bin/skopeo")$(SKOPEO_BINARY)) ..."
+	bats --tap systemtest
 
 test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences
