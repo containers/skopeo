@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/containers/image/v5/directory"
 	"github.com/containers/image/v5/docker"
 	dockerArchive "github.com/containers/image/v5/docker/archive"
@@ -10,8 +14,64 @@ import (
 	"github.com/containers/image/v5/tarball"
 	"github.com/containers/image/v5/transports"
 	"github.com/spf13/cobra"
-	"strings"
 )
+
+func completionCmd() *cobra.Command {
+	c := &cobra.Command{
+		Use:   "completion [bash|zsh|fish|powershell]",
+		Short: "Generate completion script",
+		Long: `To load completions:
+Bash:
+$ source <(skopeo completion bash)
+
+# To load completions for each session, execute once:
+Linux:
+	$ skopeo completion bash > /etc/bash_completion.d/skopeo
+MacOS:
+	$ skopeo completion bash > /usr/local/etc/bash_completion.d/skopeo
+
+Zsh:
+$ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+Fish:
+$ skopeo completion fish | source
+
+PowerShell:
+$ skopeo completion powershell | Out-String | Invoke-Expression
+`,
+		Args:      cobra.ExactArgs(1),
+		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
+		Run: func(cmd *cobra.Command, args []string) {
+			shell := args[0]
+			switch shell {
+			case "bash":
+				if err := cmd.Root().GenBashCompletion(os.Stdout); err != nil {
+					fmt.Println("fail to generate bash completion script", err)
+					os.Exit(1)
+				}
+			case "zsh":
+				if err := cmd.Root().GenZshCompletion(os.Stdout); err != nil {
+					fmt.Println("fail to generate zsh completion script: ", err)
+					os.Exit(1)
+				}
+			case "fish":
+				if err := cmd.Root().GenFishCompletion(os.Stdout, true); err != nil {
+					fmt.Println("fail to generate fish completion script: ", err)
+					os.Exit(1)
+				}
+			case "powershell":
+				if err := cmd.Root().GenPowerShellCompletion(os.Stdout); err != nil {
+					fmt.Println("fail to generate powershell completion script: ", err)
+					os.Exit(1)
+				}
+			default:
+				fmt.Println("Invalid shell specified, specify bash, zsh, fish, or powershell")
+				os.Exit(1)
+			}
+		},
+	}
+	return c
+}
 
 func autocompleteImageNames(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	transport, details, haveTransport := strings.Cut(toComplete, ":")
