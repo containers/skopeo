@@ -8,7 +8,7 @@ go 1.23.3
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containers/common v0.64.0
-	github.com/containers/image/v5 v5.36.0
+	github.com/containers/image/v5 v5.36.1-0.20250725175818-dcf72c931103
 	github.com/containers/ocicrypt v1.2.1
 	github.com/containers/storage v1.59.0
 	github.com/docker/distribution v2.8.3+incompatible
@@ -67,7 +67,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20240620165639-de9c06129bec // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/mattn/go-sqlite3 v1.14.28 // indirect
+	github.com/mattn/go-sqlite3 v1.14.29 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/mistifyio/go-zfs/v3 v3.0.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -114,3 +114,5 @@ require (
 	google.golang.org/grpc v1.72.2 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace github.com/containers/image/v5 => github.com/mtrmac/image/v5 v5.0.0-20250725193958-a5bc6cc012bd

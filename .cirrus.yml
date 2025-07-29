@@ -198,6 +198,9 @@ test_skopeo_task:
         - name: "Skopeo Test w/ opengpg"
           env:
               BUILDTAGS: *withopengpg
+        - name: "Skopeo test w/ Sequoia"
+          env:
+              BUILDTAGS: 'containers_image_sequoia'
     setup_script: >-
         "${GOSRC}/${SCRIPT_BASE}/runner.sh" setup
     vendor_script: >-
