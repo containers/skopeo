@@ -79,7 +79,7 @@ github.com/containers/common/pkg/password
 github.com/containers/common/pkg/report
 github.com/containers/common/pkg/report/camelcase
 github.com/containers/common/pkg/retry
-# github.com/containers/image/v5 v5.36.0
+# github.com/containers/image/v5 v5.36.1-0.20250724133842-4b4473bb78d5 => github.com/TomSweeneyRedHat/image/v5 v5.0.0-20250801220556-40d10270ef5e
 ## explicit; go 1.23.3
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -711,3 +711,4 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# github.com/containers/image/v5 => github.com/TomSweeneyRedHat/image/v5 v5.0.0-20250801220556-40d10270ef5e

@@ -8,7 +8,7 @@ go 1.23.3
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containers/common v0.64.0
-	github.com/containers/image/v5 v5.36.0
+	github.com/containers/image/v5 v5.36.1-0.20250724133842-4b4473bb78d5
 	github.com/containers/ocicrypt v1.2.1
 	github.com/containers/storage v1.59.0
 	github.com/docker/distribution v2.8.3+incompatible
@@ -114,3 +114,5 @@ require (
 	google.golang.org/grpc v1.72.2 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace github.com/containers/image/v5 => github.com/TomSweeneyRedHat/image/v5 v5.0.0-20250801220556-40d10270ef5e
