@@ -160,6 +160,7 @@ ostree-rs-ext_task:
         - dnf builddep -y skopeo
         - make
         - make install
+        - echo '{"default":[{"type":"insecureAcceptAnything"}],"transports":{"docker-daemon":{"":[{"type":"insecureAcceptAnything"}]}}}' > /etc/containers/policy.json
     proxy_ostree_ext_build_script:
         - git clone --depth 1 $EXT_REPO $EXT_REPO_HOME
         - cd $EXT_REPO_HOME
