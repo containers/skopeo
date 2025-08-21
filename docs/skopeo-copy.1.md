@@ -191,6 +191,10 @@ and will be treated as `zstd` with a warning in that case.
 
 Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
 
+**--dest-force-compress-format**
+
+Ensures that the compression algorithm set in --dest-compress-format is used exclusively.
+
 **--src-registry-token** _token_
 
 Bearer token for accessing the source registry.

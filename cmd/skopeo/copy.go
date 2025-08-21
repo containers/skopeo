@@ -239,6 +239,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	copyOpts.OciEncryptLayers = encLayers
 	copyOpts.OciEncryptConfig = encConfig
 	copyOpts.MaxParallelDownloads = opts.imageParallelCopies
+	copyOpts.ForceCompressionFormat = opts.destImage.forceCompressionFormat
 
 	return retry.IfNecessary(ctx, func() error {
 		manifestBytes, err := copy.Image(ctx, policyContext, destRef, srcRef, copyOpts)
