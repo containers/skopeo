@@ -38,7 +38,7 @@ Most commands refer to container images, using a _transport_`:`_details_ format.
   see **containers-auth.json**(5) for more details about the credential search mechanism.
 
   **docker-archive:**_path_[**:**_docker-reference_]
-  An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
+  An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest. The _path_ can refer to a stream, e.g. `docker-archive:/dev/stdin`.
 
   **docker-daemon:**_docker-reference_
   An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can be docker-daemon:algo:digest (an image ID).
@@ -47,7 +47,7 @@ Most commands refer to container images, using a _transport_`:`_details_ format.
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
 
   **oci-archive:**_path_**:**_tag_
-  An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
+  An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_. The _path_ can refer to a stream, e.g. `oci-archive:/dev/stdout`.
 
 See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
 
