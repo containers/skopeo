@@ -20,22 +20,23 @@ import (
 )
 
 type copyOptions struct {
-	global              *globalOptions
-	deprecatedTLSVerify *deprecatedTLSVerifyOption
-	srcImage            *imageOptions
-	destImage           *imageDestOptions
-	retryOpts           *retry.Options
-	copy                *sharedCopyOptions
-	additionalTags      []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these
-	signIdentity        string                    // Identity of the signed image, must be a fully specified docker reference
-	digestFile          string                    // Write digest to this file
-	quiet               bool                      // Suppress output information when copying images
-	all                 bool                      // Copy all of the images if the source is a list
-	multiArch           commonFlag.OptionalString // How to handle multi architecture images
-	encryptLayer        []int                     // The list of layers to encrypt
-	encryptionKeys      []string                  // Keys needed to encrypt the image
-	decryptionKeys      []string                  // Keys needed to decrypt the image
-	imageParallelCopies uint                      // Maximum number of parallel requests when copying images
+	global                 *globalOptions
+	deprecatedTLSVerify    *deprecatedTLSVerifyOption
+	srcImage               *imageOptions
+	destImage              *imageDestOptions
+	retryOpts              *retry.Options
+	copy                   *sharedCopyOptions
+	additionalTags         []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these
+	signIdentity           string                    // Identity of the signed image, must be a fully specified docker reference
+	digestFile             string                    // Write digest to this file
+	quiet                  bool                      // Suppress output information when copying images
+	all                    bool                      // Copy all of the images if the source is a list
+	multiArch              commonFlag.OptionalString // How to handle multi architecture images
+	encryptLayer           []int                     // The list of layers to encrypt
+	encryptionKeys         []string                  // Keys needed to encrypt the image
+	decryptionKeys         []string                  // Keys needed to decrypt the image
+	imageParallelCopies    uint                      // Maximum number of parallel requests when copying images
+	forceCompressionFormat bool                      // Ensures that the compression algorithm set in compressionFormat is used exclusively
 }
 
 func copyCmd(global *globalOptions) *cobra.Command {
@@ -84,6 +85,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.IntSliceVar(&opts.encryptLayer, "encrypt-layer", []int{}, "*Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)")
 	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", []string{}, "*Experimental* key needed to decrypt the image")
 	flags.UintVar(&opts.imageParallelCopies, "image-parallel-copies", 0, "Maximum number of image layers to be copied (pulled/pushed) simultaneously. Not setting this field will fall back to containers/image defaults.")
+	flags.BoolVar(&opts.forceCompressionFormat, "force-compress-format", false, "Ensures that the compression algorithm set in --dest-compress-format is used exclusively")
 	return cmd
 }
 
@@ -239,6 +241,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	copyOpts.OciEncryptLayers = encLayers
 	copyOpts.OciEncryptConfig = encConfig
 	copyOpts.MaxParallelDownloads = opts.imageParallelCopies
+	copyOpts.ForceCompressionFormat = opts.forceCompressionFormat
 
 	return retry.IfNecessary(ctx, func() error {
 		manifestBytes, err := copy.Image(ctx, policyContext, destRef, srcRef, copyOpts)
