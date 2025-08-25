@@ -99,7 +99,7 @@ _run_vendor() {
 
 _run_build() {
     make bin/skopeo BUILDTAGS="$BUILDTAGS"
-    make install PREFIX=/usr/local
+    make install PREFIX=/usr/local BUILDTAGS="$BUILDTAGS"
 }
 
 _run_cross() {

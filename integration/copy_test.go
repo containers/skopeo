@@ -18,6 +18,7 @@ import (
 
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/signature"
+	"github.com/containers/image/v5/signature/simplesequoia"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -106,7 +107,9 @@ func (s *copySuite) TearDownSuite() {
 // and returns a path to a policy, which will be automatically removed when the test completes.
 func (s *copySuite) policyFixture(extraSubstitutions map[string]string) string {
 	t := s.T()
-	edits := map[string]string{"@keydir@": s.gpgHome}
+	fixtureDir, err := filepath.Abs("fixtures")
+	require.NoError(t, err)
+	edits := map[string]string{"@keydir@": s.gpgHome, "@fixturedir@": fixtureDir}
 	maps.Copy(edits, extraSubstitutions)
 	policyPath := fileFromFixture(t, "fixtures/policy.json", edits)
 	return policyPath
@@ -745,7 +748,7 @@ func (s *copySuite) TestCopyOCIRoundTrip() {
 // --sign-by and --policy copy, primarily using atomic:
 func (s *copySuite) TestCopySignatures() {
 	t := s.T()
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures
@@ -801,7 +804,7 @@ func (s *copySuite) TestCopySignatures() {
 // --policy copy for dir: sources
 func (s *copySuite) TestCopyDirSignatures() {
 	t := s.T()
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures
@@ -844,6 +847,39 @@ func (s *copySuite) TestCopyDirSignatures() {
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "copy", "atomic:localhost:5000/myns/personal:dirstaging2", topDirDest+"/restricted/badidentity")
 	assertSkopeoFails(t, `.*Source image rejected: .*Signature for identity \\"localhost:5000/myns/personal:dirstaging2\\" is not accepted.*`,
 		"--policy", policy, "copy", topDirDest+"/restricted/badidentity", topDirDest+"/dest")
+}
+
+func (s *copySuite) TestCopySequoiaSignatures() {
+	t := s.T()
+	signer, err := simplesequoia.NewSigner(simplesequoia.WithSequoiaHome(testSequoiaHome), simplesequoia.WithKeyFingerprint(testSequoiaKeyFingerprint))
+	if err != nil {
+		t.Skipf("Sequoia not supported: %v", err)
+	}
+	signer.Close()
+
+	const ourRegistry = "docker://" + v2DockerRegistryURL + "/"
+
+	dirDest := "dir:" + t.TempDir()
+
+	policy := s.policyFixture(nil)
+	registriesDir := t.TempDir()
+	registriesFile := fileFromFixture(t, "fixtures/registries.yaml",
+		map[string]string{"@lookaside@": t.TempDir(), "@split-staging@": "/var/empty", "@split-read@": "file://var/empty"})
+	err = os.Symlink(registriesFile, filepath.Join(registriesDir, "registries.yaml"))
+	require.NoError(t, err)
+
+	// Sign the images
+	absSequoiaHome, err := filepath.Abs(testSequoiaHome)
+	require.NoError(t, err)
+	t.Setenv("SEQUOIA_HOME", absSequoiaHome)
+	assertSkopeoSucceeds(t, "", "copy", "--retry-times", "3", "--dest-tls-verify=false", "--sign-by-sq-fingerprint", testSequoiaKeyFingerprint,
+		testFQIN+":1.26", ourRegistry+"sequoia-no-passphrase")
+	assertSkopeoSucceeds(t, "", "copy", "--retry-times", "3", "--dest-tls-verify=false", "--sign-by-sq-fingerprint", testSequoiaKeyFingerprintWithPassphrase,
+		"--sign-passphrase-file", filepath.Join(absSequoiaHome, "with-passphrase.passphrase"),
+		testFQIN+":1.26.1", ourRegistry+"sequoia-with-passphrase")
+	// Verify that we can pull them
+	assertSkopeoSucceeds(t, "", "--policy", policy, "copy", "--src-tls-verify=false", ourRegistry+"sequoia-no-passphrase", dirDest)
+	assertSkopeoSucceeds(t, "", "--policy", policy, "copy", "--src-tls-verify=false", ourRegistry+"sequoia-with-passphrase", dirDest)
 }
 
 // Compression during copy
@@ -902,7 +938,7 @@ func findRegularFiles(t *testing.T, root string) []string {
 // --sign-by and policy use for docker: with lookaside
 func (s *copySuite) TestCopyDockerLookaside() {
 	t := s.T()
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures
@@ -971,7 +1007,7 @@ func (s *copySuite) TestCopyDockerLookaside() {
 // atomic: and docker: X-Registry-Supports-Signatures works and interoperates
 func (s *copySuite) TestCopyAtomicExtension() {
 	t := s.T()
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that the reading/writing works using signatures from fixtures
@@ -1031,7 +1067,7 @@ func (s *copySuite) TestCopyVerifyingMirroredSignatures() {
 	t := s.T()
 	const regPrefix = "docker://localhost:5006/myns/mirroring-"
 
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures

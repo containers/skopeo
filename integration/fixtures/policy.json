@@ -13,6 +13,20 @@
                     "keyPath": "@keydir@/personal-pubkey.gpg"
                 }
             ],
+            "localhost:5555/sequoia-no-passphrase": [
+                {
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "@fixturedir@/no-passphrase.pub"
+                }
+            ],
+            "localhost:5555/sequoia-with-passphrase": [
+                {
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "@fixturedir@/with-passphrase.pub"
+                }
+            ],
             "localhost:5000/myns/extension": [
                 {
                     "type": "signedBy",
