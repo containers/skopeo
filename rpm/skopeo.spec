@@ -73,31 +73,6 @@ Requires: containers-common >= 4:1-21
 Command line utility to inspect images and repositories directly on Docker
 registries without the need to pull them
 
-# NOTE: The tests subpackage is only intended for testing and will not be supported
-# for end-users and/or customers.
-%package tests
-Summary: Tests for %{name}
-
-Requires: %{name} = %{epoch}:%{version}-%{release}
-%if %{defined fakeroot}
-Requires: fakeroot
-%endif
-Requires: gnupg
-Requires: jq
-Requires: golang
-Requires: podman
-Requires: crun
-Requires: httpd-tools
-Requires: openssl
-Requires: squashfs-tools
-# bats is not present on RHEL and ELN so it shouldn't be a strong dep
-Recommends: bats
-
-%description tests
-%{summary}
-
-This package contains system tests for %{name}
-
 %prep
 %autosetup -Sgit %{name}-%{version}
 # The %%install stage should not rebuild anything but only install what's
@@ -142,10 +117,6 @@ make \
     PREFIX=%{_prefix} \
     install-binary install-docs install-completions
 
-# system tests
-install -d -p %{buildroot}/%{_datadir}/%{name}/test/system
-cp -pav systemtest/* %{buildroot}/%{_datadir}/%{name}/test/system/
-
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
 
@@ -165,10 +136,6 @@ cp -pav systemtest/* %{buildroot}/%{_datadir}/%{name}/test/system/
 %{_datadir}/fish/vendor_completions.d/%{name}.fish
 %dir %{_datadir}/zsh/site-functions
 %{_datadir}/zsh/site-functions/_%{name}
-
-%files tests
-%license LICENSE vendor/modules.txt
-%{_datadir}/%{name}/test
 
 %changelog
 %autochangelog
