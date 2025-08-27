@@ -9,27 +9,6 @@
 downstream_package_name: skopeo
 upstream_tag_template: v{version}
 
-# These files get synced from upstream to downstream (Fedora / CentOS Stream) on every
-# propose-downstream job. This is done so tests maintained upstream can be run
-# downstream in Zuul CI and Bodhi.
-# Ref: https://packit.dev/docs/configuration#files_to_sync
-files_to_sync:
-  - src: rpm/gating.yaml
-    dest: gating.yaml
-    delete: true
-  - src: plans/
-    dest: plans/
-    delete: true
-    mkpath: true
-  - src: systemtest/tmt/
-    dest: test/tmt/
-    delete: true
-    mkpath: true
-  - src: .fmf/
-    dest: .fmf/
-    delete: true
-  - .packit.yaml
-
 packages:
   skopeo-fedora:
     pkg_tool: fedpkg
@@ -39,6 +18,10 @@ packages:
     specfile_path: rpm/skopeo.spec
   skopeo-eln:
     specfile_path: rpm/skopeo.spec
+
+actions:
+  prepare-files: >-
+    bash -c "sed -i 's/^\(\s*\)ref: .*/\1ref: \"${PACKIT_PROJECT_TAG}\"/' ${PACKIT_DOWNSTREAM_REPO}/plans/main.fmf"
 
 srpm_build_deps:
   - make
