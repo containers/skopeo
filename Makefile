@@ -201,10 +201,11 @@ test-integration:
 		$(MAKE) test-integration-local
 
 
-# Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
+# Primarily intended for CI.
 test-integration-local: bin/skopeo
 	hack/warn-destructive-tests.sh
-	hack/test-integration.sh $(SKOPEO_LDFLAGS) $(TESTFLAGS)
+	$(MAKE) PREFIX=/usr install
+	cd ./integration && $(GO) test $(SKOPEO_LDFLAGS) $(TESTFLAGS) $(if $(BUILDTAGS),-tags "$(BUILDTAGS)")
 
 # complicated set of options needed to run podman-in-podman
 test-system:
@@ -218,10 +219,11 @@ test-system:
 	$(CONTAINER_RUNTIME) unshare rm -rf $$DTEMP; # This probably doesn't work with Docker, oh well, better than nothing... \
 	exit $$rc
 
-# Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
-test-system-local: bin/skopeo
+# Primarily intended for CI.
+test-system-local: $(if $(SKOPEO_BINARY),,bin/skopeo)
 	hack/warn-destructive-tests.sh
-	hack/test-system.sh SKOPEO_LDFLAGS="$(SKOPEO_LDFLAGS)" BUILDTAGS="$(BUILDTAGS)"
+	@echo "Testing with $(or $(SKOPEO_BINARY),$(eval SKOPEO_BINARY := "bin/skopeo")$(SKOPEO_BINARY)) ..."
+	bats --tap systemtest
 
 test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences
@@ -234,7 +236,7 @@ validate:
 test-all-local: validate-local validate-docs test-unit-local
 
 .PHONY: validate-local
-validate-local:
+validate-local: tools
 	hack/validate-git-marks.sh
 	hack/validate-gofmt.sh
 	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"

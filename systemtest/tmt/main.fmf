@@ -1,6 +1,3 @@
-require:
-    - skopeo-tests
-
 environment:
     SKOPEO_BINARY: /usr/bin/skopeo
 
@@ -10,5 +7,24 @@ adjust:
         RELEASE_TESTING: true
 
 summary: System test
-test: bash ./test.sh
+test: |
+    rpm -q containers-common skopeo
+    # If these tests are to be run anywhere else, TMT can fetch
+    # them using the URL and git ref, so git commands should work.
+    make -C $(git rev-parse --show-toplevel) test-system-local
+require:
+    - crun
+    - git-core
+    - golang
+    - httpd-tools
+    - jq
+    - make
+    - openssl
+    - podman
+    - skopeo
+    - squashfs-tools
+recommend:
+    # These are available on Fedora, but not on CS/RHEL.
+    - bats
+    - fakeroot
 duration: 60m
