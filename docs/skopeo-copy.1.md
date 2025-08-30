@@ -67,6 +67,10 @@ This option does not change what will be copied; consider using `--all` at the s
 
 *Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)
 
+**--force-compress-format**
+
+Ensures that the compression algorithm set in --dest-compress-format is used exclusively.
+
 **--format**, **-f** _manifest-type_
 
 MANIFEST TYPE (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)

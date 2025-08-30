@@ -266,6 +266,7 @@ type imageDestOptions struct {
 	compressionFormat           string                 // Format to use for the compression
 	compressionLevel            commonFlag.OptionalInt // Level to use for the compression
 	precomputeDigests           bool                   // Precompute digests to dedup layers when saving to the docker: transport
+	forceCompressionFormat      bool                   // Ensures that the compression algorithm set in compressionFormat is used exclusively
 	imageDestFlagPrefix         string
 }
 
@@ -281,6 +282,7 @@ func imageDestFlags(global *globalOptions, shared *sharedImageOptions, deprecate
 	fs.StringVar(&opts.compressionFormat, flagPrefix+"compress-format", "", "`FORMAT` to use for the compression")
 	fs.Var(commonFlag.NewOptionalIntValue(&opts.compressionLevel), flagPrefix+"compress-level", "`LEVEL` to use for the compression")
 	fs.BoolVar(&opts.precomputeDigests, flagPrefix+"precompute-digests", false, "Precompute digests to prevent uploading layers already on the registry using the 'docker' transport.")
+	fs.BoolVar(&opts.forceCompressionFormat, flagPrefix+"force-compress-format", false, "Force exclusive use of the compression algorithm set in --dest-compress-format")
 	return fs, &opts
 }
 
