@@ -46,7 +46,7 @@ jobs:
     trigger: pull_request
     packages: [skopeo-eln]
     notifications: *copr_build_failure_notification
-    targets:
+    targets: &eln_copr_targets
       fedora-eln-x86_64:
         additional_repos:
           - "https://kojipkgs.fedoraproject.org/repos/eln-build/latest/x86_64/"
@@ -92,6 +92,18 @@ jobs:
         - artifacts:
           - type: repository-file
             id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/fedora-$releasever/rhcontainerbot-podman-next-fedora-$releasever.repo
+
+  # Tests on ELN for main branch
+  - job: tests
+    trigger: pull_request
+    packages: [skopeo-eln]
+    notifications: *test_failure_notification
+    targets: *eln_copr_targets
+    tf_extra_params:
+      environments:
+        - artifacts:
+          - type: repository-file
+            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/fedora-eln/rhcontainerbot-podman-next-fedora-eln.repo
 
   # Tests on CentOS Stream for main branch
   # Ignore until golang is updated in distro buildroot to go 1.23.3+
