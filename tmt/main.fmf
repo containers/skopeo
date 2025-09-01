@@ -1,0 +1,88 @@
+require:
+    # Some of these are only required for non-rpm tests but it's much simpler
+    # to list them as common deps. Shouldn't be too much of a burden for rpm
+    # jobs.
+    - btrfs-progs-devel
+    - docker-distribution
+    - go-md2man
+    - golang
+    - gpgme-devel
+    - git-core
+    - make
+    - skopeo-tests
+
+/integration:
+    summary: Integration test
+    test: |
+        rpm -q containers-common
+        make -C $(git rev-parse --show-toplevel) test-integration-local
+    duration: 20m
+
+/ostree-rs-ext:
+    /build:
+        summary: ostree-rs-ext build
+        test: bash $(git rev-parse --show-toplevel)/hack/test-ostree.sh build
+
+    /test:
+        summary: ostree-rs-ext test
+        test: |
+            rpm -q ostree
+            bash $(git rev-parse --show-toplevel)/hack/test-ostree.sh test
+        require+:
+            - ostree
+
+/opengpg:
+    # w/ opengpg will only be tested upstream, so we don't care about setting
+    # $RELEASE_TESTING.
+
+    enabled: false
+    adjust:
+        enabled: true
+        when: initiator == packit
+
+    /validate+unit:
+        summary: System test with opengpg
+        test: |
+            make -C $(git rev-parse --show-toplevel) BUILDTAGS+=" containers_image_openpgp" bin/skopeo
+            make -C $(git rev-parse --show-toplevel) test-all-local
+
+    /integration:
+        summary: Integration test with opengpg
+        test: |
+            make -C $(git rev-parse --show-toplevel) BUILDTAGS+=" containers_image_openpgp" bin/skopeo
+            make -C $(git rev-parse --show-toplevel) test-integration-local
+        duration: 30m
+
+    /system:
+        summary: System tests with opengpg
+        test: |
+            make -C $(git rev-parse --show-toplevel) BUILDTAGS+=" containers_image_openpgp" bin/skopeo
+            make -C $(git rev-parse --show-toplevel) test-system-local
+        duration: 30m
+        require+:
+            - bats
+
+/system:
+    summary: System test
+    test: |
+        rpm -q containers-common skopeo
+        make -C $(git rev-parse --show-toplevel) test-system-local
+    environment:
+        SKOPEO_BINARY: /usr/bin/skopeo
+    adjust:
+        - when: initiator != "packit"
+          environment+:
+            RELEASE_TESTING: true
+    duration: 60m
+
+/unit:
+    summary: Unit test
+    test: |
+        make -C $(git rev-parse --show-toplevel)
+        make -C $(git rev-parse --show-toplevel) test-unit-local
+
+/validate:
+    summary: Validate test
+    test: |
+        make -C $(git rev-parse --show-toplevel)
+        make -C $(git rev-parse --show-toplevel) validate-docs validate-local
