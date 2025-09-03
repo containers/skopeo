@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"slices"
 	"testing"
 
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -378,6 +379,7 @@ func TestSharedCopyOptionsCopyOptions(t *testing.T) {
 	// Set most flags to non-default values
 	// This should also test --sign-by-sigstore and --sign-by-sigstore-private-key; we would have
 	// to create test keys for that.
+	// This does not test --sign-by-sq-fingerprint, because that needs to be conditional based on buildWithSequoia.
 	opts = fakeSharedCopyOptions(t, []string{
 		"--remove-signatures",
 		"--sign-by", "gpgFingerprint",
@@ -395,12 +397,13 @@ func TestSharedCopyOptionsCopyOptions(t *testing.T) {
 		ForceManifestMIMEType: imgspecv1.MediaTypeImageManifest,
 	}, res)
 
-	// --sign-passphrase-file + --sign-by work
+	// --sign-passphrase-file:
 	passphraseFile, err := os.CreateTemp("", "passphrase") // Eventually we could refer to a passphrase fixture instead
 	require.NoError(t, err)
 	defer os.Remove(passphraseFile.Name())
 	_, err = passphraseFile.WriteString("test-passphrase")
 	require.NoError(t, err)
+	// --sign-passphrase-file + --sign-by work
 	opts = fakeSharedCopyOptions(t, []string{
 		"--sign-by", "gpgFingerprint",
 		"--sign-passphrase-file", passphraseFile.Name(),
@@ -414,14 +417,42 @@ func TestSharedCopyOptionsCopyOptions(t *testing.T) {
 		SignSigstorePrivateKeyPassphrase: []byte("test-passphrase"),
 		ReportWriter:                     &someStdout,
 	}, res)
-	// --sign-passphrase-file + --sign-by-sigstore-private-key should be tested here.
+	// If Sequoia is supported, --sign-passphrase-file + --sign-by-sq-fingerprint work
+	if buildWithSequoia {
+		opts = fakeSharedCopyOptions(t, []string{
+			"--sign-by-sq-fingerprint", "sqFingerprint",
+			"--sign-passphrase-file", passphraseFile.Name(),
+		})
+		res, cleanup, err = opts.copyOptions(&someStdout)
+		require.NoError(t, err)
+		defer cleanup()
+		assert.NotNil(t, res.Signers) // Contains a Sequoia signer
+		res.Signers = nil             // To allow the comparison below
+		assert.Equal(t, &copy.Options{
+			SignPassphrase:                   "test-passphrase",
+			SignSigstorePrivateKeyPassphrase: []byte("test-passphrase"),
+			ReportWriter:                     &someStdout,
+		}, res)
+	}
 
 	// Invalid --format
 	opts = fakeSharedCopyOptions(t, []string{"--format", "invalid"})
 	_, _, err = opts.copyOptions(&someStdout)
 	assert.Error(t, err)
 
-	// More --sign-passphrase-file, --sign-by-sigstore-private-key, --sign-by-sigstore failure cases should be tested here.
+	// More --sign-by-sigstore-private-key, --sign-by-sigstore failure cases should be tested here.
+	// --sign-passphrase-file + more than one key option
+	for _, opts := range [][]string{
+		{"--sign-by", "gpgFingerprint", "--sign-by-sq-fingerprint", "sqFingerprint"},
+		{"--sign-by", "gpgFingerprint", "--sign-by-sigstore-private-key", "sigstorePrivateKey"},
+		{"--sign-by-sq-fingerprint", "sqFingerprint", "--sign-by-sigstore-private-key", "sigstorePrivateKey"},
+	} {
+		opts := fakeSharedCopyOptions(t, slices.Concat(opts, []string{
+			"--sign-passphrase-file", passphraseFile.Name(),
+		}))
+		_, _, err = opts.copyOptions(&someStdout)
+		assert.Error(t, err)
+	}
 
 	// --sign-passphrase-file not found
 	opts = fakeSharedCopyOptions(t, []string{

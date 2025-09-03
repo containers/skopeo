@@ -26,6 +26,7 @@ import (
 	"go.podman.io/image/v5/pkg/cli/sigstore"
 	"go.podman.io/image/v5/pkg/compression"
 	"go.podman.io/image/v5/signature/signer"
+	"go.podman.io/image/v5/signature/simplesequoia"
 	"go.podman.io/image/v5/storage"
 	"go.podman.io/image/v5/transports/alltransports"
 	"go.podman.io/image/v5/types"
@@ -329,6 +330,7 @@ func (opts *imageDestOptions) warnAboutIneffectiveOptions(destTransport types.Im
 type sharedCopyOptions struct {
 	removeSignatures         bool                      // Do not copy signatures from the source image
 	signByFingerprint        string                    // Sign the image using a GPG key with the specified fingerprint
+	signBySequoiaFingerprint string                    // Sign the image using a Sequoia-PGP key with the specified fingerprint
 	signBySigstoreParamFile  string                    // Sign the image using a sigstore signature per configuration in a param file
 	signBySigstorePrivateKey string                    // Sign the image using a sigstore private key
 	signPassphraseFile       string                    // Path pointing to a passphrase file when signing
@@ -342,6 +344,7 @@ func sharedCopyFlags() (pflag.FlagSet, *sharedCopyOptions) {
 	fs := pflag.FlagSet{}
 	fs.BoolVar(&opts.removeSignatures, "remove-signatures", false, "Do not copy signatures from source")
 	fs.StringVar(&opts.signByFingerprint, "sign-by", "", "Sign the image using a GPG key with the specified `FINGERPRINT`")
+	fs.StringVar(&opts.signBySequoiaFingerprint, "sign-by-sq-fingerprint", "", "Sign the image using a Sequoia-PGP key with the specified `FINGERPRINT`")
 	fs.StringVar(&opts.signBySigstoreParamFile, "sign-by-sigstore", "", "Sign the image using a sigstore parameter file at `PATH`")
 	fs.StringVar(&opts.signBySigstorePrivateKey, "sign-by-sigstore-private-key", "", "Sign the image using a sigstore private key at `PATH`")
 	fs.StringVar(&opts.signPassphraseFile, "sign-passphrase-file", "", "Read a passphrase for signing an image from `PATH`")
@@ -365,8 +368,20 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 	// c/image/copy.Image does allow creating both simple signing and sigstore signatures simultaneously,
 	// with independent passphrases, but that would make the CLI probably too confusing.
 	// For now, use the passphrase with either, but only one of them.
-	if opts.signPassphraseFile != "" && opts.signByFingerprint != "" && opts.signBySigstorePrivateKey != "" {
-		return nil, nil, fmt.Errorf("Only one of --sign-by and sign-by-sigstore-private-key can be used with sign-passphrase-file")
+	if opts.signPassphraseFile != "" {
+		count := 0
+		if opts.signByFingerprint != "" {
+			count++
+		}
+		if opts.signBySequoiaFingerprint != "" {
+			count++
+		}
+		if opts.signBySigstorePrivateKey != "" {
+			count++
+		}
+		if count > 1 {
+			return nil, nil, fmt.Errorf("Only one of --sign-by, --sign-by-sq-fingerprint and --sign-by-sigstore-private-key can be used with --sign-passphrase-file")
+		}
 	}
 	var passphrase string
 	if opts.signPassphraseFile != "" {
@@ -382,6 +397,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		}
 		passphrase = p
 	} // opts.signByFingerprint triggers a GPG-agent passphrase prompt, possibly using a more secure channel, so we usually shouldn’t prompt ourselves if no passphrase was explicitly provided.
+	// With opts.signBySequoiaFingerprint, we don’t prompt for a passphrase (for now??): We don’t know whether the key requires a passphrase.
 	var passphraseBytes []byte
 	if passphrase != "" {
 		passphraseBytes = []byte(passphrase)
@@ -409,6 +425,19 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error using --sign-by-sigstore: %w", err)
+		}
+		signers = append(signers, signer)
+	}
+	if opts.signBySequoiaFingerprint != "" {
+		sqOpts := []simplesequoia.Option{
+			simplesequoia.WithKeyFingerprint(opts.signBySequoiaFingerprint),
+		}
+		if passphrase != "" {
+			sqOpts = append(sqOpts, simplesequoia.WithPassphrase(passphrase))
+		}
+		signer, err := simplesequoia.NewSigner(sqOpts...)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Error using --sign-by-sq-fingerprint: %w", err)
 		}
 		signers = append(signers, signer)
 	}

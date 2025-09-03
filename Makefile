@@ -24,6 +24,8 @@ GOBIN := $(shell $(GO) env GOBIN)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
+SEQUOIA_SONAME_DIR =
+
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
 # (i.e. DO NOT ADD A 'v' prefix!)
@@ -84,7 +86,7 @@ CONTAINER_RUN ?= $(CONTAINER_CMD) --security-opt label=disable -v $(CURDIR):$(CO
 GIT_COMMIT := $(shell GIT_CEILING_DIRECTORIES=$$(cd ..; pwd) git rev-parse HEAD 2> /dev/null || true)
 
 EXTRA_LDFLAGS ?=
-SKOPEO_LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} $(EXTRA_LDFLAGS)'
+SKOPEO_LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X go.podman.io/image/v5/signature/internal/sequoia.sequoiaLibraryDir=$(SEQUOIA_SONAME_DIR) $(EXTRA_LDFLAGS)'
 
 MANPAGES_MD = $(wildcard docs/*.md)
 MANPAGES ?= $(MANPAGES_MD:%.md=%)
@@ -253,7 +255,7 @@ validate-docs: bin/skopeo
 	hack/xref-helpmsgs-manpages
 
 test-unit-local:
-	$(GO) test -tags "$(BUILDTAGS)" $$($(GO) list -tags "$(BUILDTAGS)" -e ./... | grep -v '^github\.com/containers/skopeo/\(integration\|vendor/.*\)$$')
+	$(GO) test $(SKOPEO_LDFLAGS) -tags "$(BUILDTAGS)" $$($(GO) list -tags "$(BUILDTAGS)" -e ./... | grep -v '^github\.com/containers/skopeo/\(integration\|vendor/.*\)$$')
 
 vendor:
 	$(GO) mod tidy

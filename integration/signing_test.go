@@ -57,7 +57,7 @@ func (s *signingSuite) SetupSuite() {
 
 func (s *signingSuite) TestSignVerifySmoke() {
 	t := s.T()
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures

@@ -29,7 +29,8 @@ func assertTestFailed(t *testing.T, stdout string, err error, substring string) 
 }
 
 func TestStandaloneSign(t *testing.T) {
-	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
+	t.Setenv("GNUPGHOME", "fixtures")
+	mech, err := signature.NewGPGSigningMechanism()
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil {
@@ -38,7 +39,6 @@ func TestStandaloneSign(t *testing.T) {
 
 	manifestPath := "fixtures/image.manifest.json"
 	dockerReference := "testing/manifest"
-	t.Setenv("GNUPGHOME", "fixtures")
 
 	// Invalid command-line arguments
 	for _, args := range [][]string{
@@ -87,9 +87,6 @@ func TestStandaloneSign(t *testing.T) {
 	require.NoError(t, err)
 	manifest, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
-	mech, err = signature.NewGPGSigningMechanism()
-	require.NoError(t, err)
-	defer mech.Close()
 	verified, err := signature.VerifyDockerManifestSignature(sig, manifest, dockerReference, mech, fixturesTestKeyFingerprint)
 	require.NoError(t, err)
 	assert.Equal(t, dockerReference, verified.DockerReference)
