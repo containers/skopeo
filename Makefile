@@ -200,7 +200,6 @@ test-integration:
 	$(CONTAINER_CMD) --security-opt label=disable --cap-add=cap_mknod -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) $(SKOPEO_CIDEV_CONTAINER_FQIN) \
 		$(MAKE) test-integration-local
 
-
 # Primarily intended for CI.
 test-integration-local: bin/skopeo
 	hack/warn-destructive-tests.sh
