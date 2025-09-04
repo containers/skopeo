@@ -9,21 +9,15 @@
 
 %global gomodulesmode GO111MODULE=on
 
-# No btrfs on RHEL
+# Distro and environment conditionals
 %if %{defined fedora}
+# Fedora conditionals
 %define build_with_btrfs 1
-%endif
-
-%if %{defined rhel}
-%define fips 1
-%endif
-
-# Only used in official koji builds
-# Copr builds set a separate epoch for all environments
-%if %{defined fedora}
 %define conditional_epoch 1
 %else
+# RHEL conditionals
 %define conditional_epoch 2
+%define fips 1
 %endif
 
 # set higher Epoch only for podman-next builds
