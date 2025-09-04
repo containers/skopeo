@@ -19,7 +19,9 @@ packages:
   skopeo-eln:
     specfile_path: rpm/skopeo.spec
 
+# https://packit.dev/docs/configuration/actions
 actions:
+  get-current-version: bash -c 'grep "^const Version" version/version.go | cut -f2 -d\" | tr \- \~'
   prepare-files: >-
     bash -c "sed -i 's/^\(\s*\)ref: .*/\1ref: \"${PACKIT_PROJECT_TAG}\"/' ${PACKIT_DOWNSTREAM_REPO}/plans/main.fmf"
 

@@ -9,25 +9,27 @@
 
 %global gomodulesmode GO111MODULE=on
 
-# No btrfs on RHEL
+# Distro and environment conditionals
 %if %{defined fedora}
+# Fedora conditionals
 %define build_with_btrfs 1
+%define conditional_epoch 1
+%if %{?fedora} >= 43
+%define sequoia 1
 %endif
-
-%if %{defined rhel}
+%else
+# RHEL conditionals
+%define conditional_epoch 2
 %define fips 1
 %endif
 
-# Only used in official koji builds
-# Copr builds set a separate epoch for all environments
-%if %{defined fedora}
-%define conditional_epoch 1
-%else
-%define conditional_epoch 2
+# set higher Epoch only for podman-next builds
+%if %{defined copr_username} && "%{copr_username}" == "rhcontainerbot" && "%{copr_projectname}" == "podman-next"
+%define next_build 1
 %endif
 
 Name: skopeo
-%if %{defined copr_username}
+%if %{defined next_build}
 Epoch: 102
 %else
 Epoch: %{conditional_epoch}
@@ -67,6 +69,9 @@ BuildRequires: make
 BuildRequires: shadow-utils-subid-devel
 BuildRequires: sqlite-devel
 Requires: containers-common >= 4:1-21
+%if %{defined sequoia}
+Requires: podman-sequoia
+%endif
 
 %description
 Command line utility to inspect images and repositories directly on Docker
@@ -123,6 +128,10 @@ export BUILDTAGS="$BASEBUILDTAGS exclude_graphdriver_btrfs"
 
 %if %{defined fips}
 export BUILDTAGS="$BUILDTAGS libtrust_openssl"
+%endif
+
+%if %{defined sequoia}
+export BUILDTAGS="$BUILDTAGS containers_image_sequoia"
 %endif
 
 # unset LDFLAGS earlier set from set_build_flags
