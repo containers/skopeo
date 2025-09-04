@@ -26,8 +26,13 @@
 %define conditional_epoch 2
 %endif
 
+# set higher Epoch only for podman-next builds
+%if %{defined copr_username} && "%{copr_username}" == "rhcontainerbot" && "%{copr_projectname}" == "podman-next"
+%define next_build 1
+%endif
+
 Name: skopeo
-%if %{defined copr_username}
+%if %{defined next_build}
 Epoch: 102
 %else
 Epoch: %{conditional_epoch}
