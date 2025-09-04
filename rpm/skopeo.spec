@@ -14,6 +14,9 @@
 # Fedora conditionals
 %define build_with_btrfs 1
 %define conditional_epoch 1
+%if %{?fedora} >= 43
+%define sequoia 1
+%endif
 %else
 # RHEL conditionals
 %define conditional_epoch 2
@@ -66,6 +69,9 @@ BuildRequires: make
 BuildRequires: shadow-utils-subid-devel
 BuildRequires: sqlite-devel
 Requires: containers-common >= 4:1-21
+%if %{defined sequoia}
+Requires: podman-sequoia
+%endif
 
 %description
 Command line utility to inspect images and repositories directly on Docker
@@ -122,6 +128,10 @@ export BUILDTAGS="$BASEBUILDTAGS exclude_graphdriver_btrfs"
 
 %if %{defined fips}
 export BUILDTAGS="$BUILDTAGS libtrust_openssl"
+%endif
+
+%if %{defined sequoia}
+export BUILDTAGS="$BUILDTAGS containers_image_sequoia"
 %endif
 
 # unset LDFLAGS earlier set from set_build_flags
