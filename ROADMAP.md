@@ -1,6 +1,6 @@
 # Skopeo Roadmap
 
-Skopeo intends to mostly continue to be a very thin CLI wrapper over the [https://github.com/containers/image](containers/image) library, with most features being added there, not to this repo. A typical new Skopeo feature would only add a CLI for a recent containers/image feature.
+Skopeo intends to mostly continue to be a very thin CLI wrapper over the [https://github.com/containers/container-libs/tree/main/image](container-libs/image) library, with most features being added there, not to this repo. A typical new Skopeo feature would only add a CLI for a recent containers/image feature.
 
 ## Future feature focus (most of the work must be done in the containers/image library)
 
