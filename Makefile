@@ -202,10 +202,10 @@ test-integration:
 
 
 # Primarily intended for CI.
-test-integration-local: bin/skopeo
+test-integration-local: $(if $(SKOPEO_BINARY),,bin/skopeo)
 	hack/warn-destructive-tests.sh
-	$(MAKE) PREFIX=/usr install
-	cd ./integration && $(GO) test $(SKOPEO_LDFLAGS) $(TESTFLAGS) $(if $(BUILDTAGS),-tags "$(BUILDTAGS)")
+	@echo "Testing with $(or $(SKOPEO_BINARY),$(eval SKOPEO_BINARY := "./bin/skopeo")$(SKOPEO_BINARY)) ..."
+	cd ./integration && SKOPEO_BINARY="$(abspath $(or $(SKOPEO_BINARY),./bin/skopeo))" $(GO) test $(SKOPEO_LDFLAGS) $(TESTFLAGS) $(if $(BUILDTAGS),-tags "$(BUILDTAGS)")
 
 # complicated set of options needed to run podman-in-podman
 test-system:
