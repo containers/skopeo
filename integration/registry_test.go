@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,6 +37,8 @@ func setupRegistryV2At(t *testing.T, url string, auth, schema1 bool) *testRegist
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+	logrus.Errorf("=== REGISTRY: Responding at URL %s", url)
+	t.Logf("=== REGISTRY: Responding at URL %s", url)
 
 	if err != nil {
 		t.Fatal("Timeout waiting for test registry to become available")
@@ -94,6 +97,8 @@ compatibility:
 	} else {
 		cmd = exec.Command(binaryV2, "serve", confPath)
 	}
+	logrus.Errorf("=== REGISTRY: Executing %s for URL %s", cmd.String(), url)
+	t.Logf("=== REGISTRY: Executing %s for URL %s", cmd.String(), url)
 
 	consumeAndLogOutputs(t, fmt.Sprintf("registry-%s", url), cmd)
 	if err := cmd.Start(); err != nil {
