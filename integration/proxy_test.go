@@ -282,7 +282,7 @@ func newProxy() (*proxy, error) {
 	}
 
 	// Note ExtraFiles starts at 3
-	proc := exec.Command("skopeo", "experimental-image-proxy", "--sockfd", "3")
+	proc := exec.Command(skopeoBinary, "experimental-image-proxy", "--sockfd", "3")
 	proc.Stderr = os.Stderr
 	cmdLifecycleToParentIfPossible(proc)
 	proc.ExtraFiles = append(proc.ExtraFiles, theirfd)

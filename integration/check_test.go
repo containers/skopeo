@@ -50,7 +50,7 @@ func (s *skopeoSuite) TearDownSuite() {
 
 func (s *skopeoSuite) TestVersion() {
 	t := s.T()
-	assertSkopeoSucceeds(t, fmt.Sprintf(".*%s version %s.*", skopeoBinary, version.Version),
+	assertSkopeoSucceeds(t, fmt.Sprintf(".*skopeo version %s.*", version.Version),
 		"--version")
 }
 
