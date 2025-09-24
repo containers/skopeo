@@ -22,17 +22,18 @@ var gitCommit = ""
 var defaultUserAgent = "skopeo/" + version.Version
 
 type globalOptions struct {
-	debug              bool                    // Enable debug output
-	tlsVerify          commonFlag.OptionalBool // Require HTTPS and verify certificates (for docker: and docker-daemon:)
-	policyPath         string                  // Path to a signature verification policy file
-	insecurePolicy     bool                    // Use an "allow everything" signature verification policy
-	registriesDirPath  string                  // Path to a "registries.d" registry configuration directory
-	overrideArch       string                  // Architecture to use for choosing images, instead of the runtime one
-	overrideOS         string                  // OS to use for choosing images, instead of the runtime one
-	overrideVariant    string                  // Architecture variant to use for choosing images, instead of the runtime one
-	commandTimeout     time.Duration           // Timeout for the command execution
-	registriesConfPath string                  // Path to the "registries.conf" file
-	tmpDir             string                  // Path to use for big temporary files
+	debug                bool                    // Enable debug output
+	tlsVerify            commonFlag.OptionalBool // Require HTTPS and verify certificates (for docker: and docker-daemon:)
+	policyPath           string                  // Path to a signature verification policy file
+	insecurePolicy       bool                    // Use an "allow everything" signature verification policy
+	rejectInsecurePolicy bool                    // Forbid any "allow everything" signature verification policy
+	registriesDirPath    string                  // Path to a "registries.d" registry configuration directory
+	overrideArch         string                  // Architecture to use for choosing images, instead of the runtime one
+	overrideOS           string                  // OS to use for choosing images, instead of the runtime one
+	overrideVariant      string                  // Architecture variant to use for choosing images, instead of the runtime one
+	commandTimeout       time.Duration           // Timeout for the command execution
+	registriesConfPath   string                  // Path to the "registries.conf" file
+	tmpDir               string                  // Path to use for big temporary files
 }
 
 // requireSubcommand returns an error if no sub command is provided
@@ -81,6 +82,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
+	rootCommand.PersistentFlags().BoolVar(&opts.rejectInsecurePolicy, "reject-insecure-policy", false, "run the tool disallowing insecure policies")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideArch, "override-arch", "", "use `ARCH` instead of the architecture of the machine for choosing images")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideOS, "override-os", "", "use `OS` instead of the running OS for choosing images")
@@ -151,7 +153,14 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 	if err != nil {
 		return nil, err
 	}
-	return signature.NewPolicyContext(policy)
+	pc, err := signature.NewPolicyContext(policy)
+	if err != nil {
+		return nil, err
+	}
+	if opts.rejectInsecurePolicy {
+		pc.SetRejectInsecure(true)
+	}
+	return pc, nil
 }
 
 // commandTimeoutContext returns a context.Context and a cancellation callback based on opts.
