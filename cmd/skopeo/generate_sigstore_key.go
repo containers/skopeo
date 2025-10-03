@@ -85,6 +85,6 @@ func (opts *generateSigstoreKeyOptions) run(args []string, stdout io.Writer) err
 	if err := os.WriteFile(pubKeyPath, keys.PublicKey, 0644); err != nil {
 		return fmt.Errorf("Error writing private key to %q: %w", pubKeyPath, err)
 	}
-	fmt.Fprintf(stdout, "Key written to %q and %q", privateKeyPath, pubKeyPath)
+	fmt.Fprintf(stdout, "Key written to %q and %q\n", privateKeyPath, pubKeyPath)
 	return nil
 }
