@@ -96,6 +96,10 @@ Use registry configuration files in _dir_ (e.g. for container signature storage)
 
 Directory used to store temporary files. Defaults to /var/tmp.
 
+**--user-agent-prefix** _prefix_
+
+Prefix to add to the user agent string. The resulting user agent will be in the format "_prefix_ skopeo/_version_".
+
 **--version**, **-v**
 
 Print the version number

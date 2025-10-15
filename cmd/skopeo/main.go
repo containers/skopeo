@@ -30,6 +30,7 @@ type globalOptions struct {
 	commandTimeout     time.Duration           // Timeout for the command execution
 	registriesConfPath string                  // Path to the "registries.conf" file
 	tmpDir             string                  // Path to use for big temporary files
+	userAgentPrefix    string                  // Prefix to add to the user agent string
 }
 
 // requireSubcommand returns an error if no sub command is provided
@@ -90,6 +91,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 		logrus.Fatal("unable to mark registries-conf flag as hidden")
 	}
 	rootCommand.PersistentFlags().StringVar(&opts.tmpDir, "tmpdir", "", "directory used to store temporary files")
+	rootCommand.PersistentFlags().StringVar(&opts.userAgentPrefix, "user-agent-prefix", "", "prefix to add to the user agent string")
 	flag := commonFlag.OptionalBoolFlag(rootCommand.Flags(), &opts.tlsVerify, "tls-verify", "Require HTTPS and verify certificates when accessing the registry")
 	flag.Hidden = true
 	rootCommand.AddCommand(
@@ -181,6 +183,10 @@ func (opts *globalOptions) commandTimeoutContext() (context.Context, context.Can
 // newSystemContext returns a *types.SystemContext corresponding to opts.
 // It is guaranteed to return a fresh instance, so it is safe to make additional updates to it.
 func (opts *globalOptions) newSystemContext() *types.SystemContext {
+	userAgent := defaultUserAgent
+	if opts.userAgentPrefix != "" {
+		userAgent = opts.userAgentPrefix + " " + defaultUserAgent
+	}
 	ctx := &types.SystemContext{
 		RegistriesDirPath:        opts.registriesDirPath,
 		ArchitectureChoice:       opts.overrideArch,
@@ -188,7 +194,7 @@ func (opts *globalOptions) newSystemContext() *types.SystemContext {
 		VariantChoice:            opts.overrideVariant,
 		SystemRegistriesConfPath: opts.registriesConfPath,
 		BigFilesTemporaryDir:     opts.tmpDir,
-		DockerRegistryUserAgent:  defaultUserAgent,
+		DockerRegistryUserAgent:  userAgent,
 	}
 	// DEPRECATED: We support this for backward compatibility, but override it if a per-image flag is provided.
 	if opts.tlsVerify.Present() {
