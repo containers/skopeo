@@ -246,6 +246,10 @@ func (h *proxyHandler) openImageImpl(args []any, allowNotFound bool) (retReplyBu
 		}
 	}()
 
+	if h.opts.global.rejectInsecurePolicy {
+		policyContext.SetRejectInsecure(true)
+	}
+
 	unparsedTopLevel := image.UnparsedInstance(imgsrc, nil)
 	allowed, err := policyContext.IsRunningImageAllowed(context.Background(), unparsedTopLevel)
 	if err != nil {
