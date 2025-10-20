@@ -383,23 +383,28 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 			return nil, nil, fmt.Errorf("Only one of --sign-by, --sign-by-sq-fingerprint and --sign-by-sigstore-private-key can be used with --sign-passphrase-file")
 		}
 	}
+	// Simple signing does not really allow empty but present passphrases — but for sigstore, cosign does support creating keys encrypted with an empty passphrase;
+	// so, at least for that case, we must track the distinction between an empty and a missing passphrase precisely.
 	var passphrase string
+	passphraseSet := false
 	if opts.signPassphraseFile != "" {
 		p, err := cli.ReadPassphraseFile(opts.signPassphraseFile)
 		if err != nil {
 			return nil, nil, err
 		}
 		passphrase = p
+		passphraseSet = true
 	} else if opts.signBySigstorePrivateKey != "" {
 		p, err := promptForPassphrase(opts.signBySigstorePrivateKey, os.Stdin, os.Stdout)
 		if err != nil {
 			return nil, nil, err
 		}
 		passphrase = p
+		passphraseSet = true
 	} // opts.signByFingerprint triggers a GPG-agent passphrase prompt, possibly using a more secure channel, so we usually shouldn’t prompt ourselves if no passphrase was explicitly provided.
 	// With opts.signBySequoiaFingerprint, we don’t prompt for a passphrase (for now??): We don’t know whether the key requires a passphrase.
 	var passphraseBytes []byte
-	if passphrase != "" {
+	if passphraseSet {
 		passphraseBytes = []byte(passphrase)
 	}
 
@@ -432,7 +437,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		sqOpts := []simplesequoia.Option{
 			simplesequoia.WithKeyFingerprint(opts.signBySequoiaFingerprint),
 		}
-		if passphrase != "" {
+		if passphraseSet {
 			sqOpts = append(sqOpts, simplesequoia.WithPassphrase(passphrase))
 		}
 		signer, err := simplesequoia.NewSigner(sqOpts...)
