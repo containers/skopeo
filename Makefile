@@ -202,6 +202,10 @@ test-integration:
 
 
 # Helper target to set up SKOPEO_BINARY variable for local test targets
+# SKOPEO_BINARY only takes effect on `test-integration-local` and
+# `test-system-local` targets. It's ignored on `test-integration` and
+# `test-system`. These targets will (build and) use skopeo binary at
+# ./bin/skopeo.
 .eval-skopeo-binary: $(if $(SKOPEO_BINARY),,bin/skopeo)
 	$(eval SKOPEO_BINARY := $(or $(SKOPEO_BINARY),./bin/skopeo))
 	@echo "Testing with $(SKOPEO_BINARY) ..."
@@ -226,7 +230,7 @@ test-system:
 # Primarily intended for CI.
 test-system-local: .eval-skopeo-binary
 	hack/warn-destructive-tests.sh
-	bats --tap systemtest
+	hack/test-system.sh
 
 test-unit:
 	# Just call (make test unit-local) here instead of worrying about environment differences
