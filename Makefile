@@ -265,8 +265,3 @@ vendor:
 
 vendor-in-container:
 	podman run --privileged --rm --env HOME=/root -v $(CURDIR):/src -w /src golang $(MAKE) vendor
-
-# CAUTION: This is not a replacement for RPMs provided by your distro.
-# Only intended to build and test the latest unreleased changes.
-rpm:
-	rpkg local
