@@ -32,9 +32,9 @@ jobs:
   - job: copr_build
     trigger: pull_request
     packages: [skopeo-fedora]
-    notifications: &copr_build_failure_notification
+    notifications: &packit_failure_notification
       failure_comment:
-        message: "Ephemeral COPR build failed. @containers/packit-build please check."
+        message: "Packit jobs failed. @containers/packit-build please check."
     targets: &fedora_copr_targets
       - fedora-all-x86_64
       - fedora-all-aarch64
@@ -46,8 +46,9 @@ jobs:
   - job: copr_build
     trigger: pull_request
     packages: [skopeo-eln]
-    notifications: *copr_build_failure_notification
+    notifications: *packit_failure_notification
     targets: &eln_copr_targets
+    targets:
       fedora-eln-x86_64:
         additional_repos:
           - "https://kojipkgs.fedoraproject.org/repos/eln-build/latest/x86_64/"
@@ -59,7 +60,7 @@ jobs:
   - job: copr_build
     trigger: pull_request
     packages: [skopeo-centos]
-    notifications: *copr_build_failure_notification
+    notifications: *packit_failure_notification
     targets: &centos_copr_targets
       - centos-stream-9-x86_64
       - centos-stream-9-aarch64
@@ -76,43 +77,31 @@ jobs:
     project: podman-next
     enable_net: true
 
-  # Tests on Fedora for main branch
+  # System tests on Fedora
   - job: tests
     trigger: pull_request
     packages: [skopeo-fedora]
-    notifications: &test_failure_notification
-      failure_comment:
-        message: "Tests failed. @containers/packit-build please check."
+    notifications: *packit_failure_notification
     targets: *fedora_copr_targets
-    tf_extra_params:
+    tf_extra_params: &extra_dnf_repos
       environments:
         - artifacts:
           - type: repository-file
             id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/fedora-$releasever/rhcontainerbot-podman-next-fedora-$releasever.repo
+    tmt_plan: "/plans/rpm/system"
+    identifier: "system"
 
-  # Tests on ELN for main branch
+  # Integration tests on Fedora
   - job: tests
     trigger: pull_request
-    packages: [skopeo-eln]
-    notifications: *test_failure_notification
-    targets: *eln_copr_targets
-    tf_extra_params:
-      environments:
-        - artifacts:
-          - type: repository-file
-            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/fedora-eln/rhcontainerbot-podman-next-fedora-eln.repo
-
-  # Tests on CentOS Stream for main branch
-  - job: tests
-    trigger: pull_request
-    packages: [skopeo-centos]
-    notifications: *test_failure_notification
-    targets: *centos_copr_targets
-    tf_extra_params:
-      environments:
-        - artifacts:
-          - type: repository-file
-            id: https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/repo/centos-stream-$releasever/rhcontainerbot-podman-next-centos-stream-$releasever.repo
+    skip_build: true
+    packages: [skopeo-fedora]
+    notifications: *packit_failure_notification
+    targets:
+      - fedora-rawhide
+    tf_extra_params: *extra_dnf_repos
+    tmt_plan: "/plans/no-rpm/integration"
+    identifier: "integration"
 
   # Sync to Fedora
   - job: propose_downstream

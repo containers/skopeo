@@ -200,7 +200,6 @@ test-integration:
 	$(CONTAINER_CMD) --security-opt label=disable --cap-add=cap_mknod -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) $(SKOPEO_CIDEV_CONTAINER_FQIN) \
 		$(MAKE) test-integration-local
 
-
 # Helper target to set up SKOPEO_BINARY variable for local test targets
 # SKOPEO_BINARY only takes effect on `test-integration-local` and
 # `test-system-local` targets. It's not propagated into the container used for `test-integration` and

@@ -1,0 +1,33 @@
+discover:
+    how: fmf
+
+execute:
+    how: tmt
+
+prepare:
+    - when: initiator == packit
+      how: shell
+      script: bash ./hack/tmt/dnf-repo-setup.sh
+      order: 20
+    - name: Disable installing everything from srpm
+      how: install
+      exclude:
+        - ".*"
+    - name: Install the main package
+      how: install
+      package:
+        # skopeo-tests installs skopeo and other deps
+        - skopeo-tests
+
+/ostree-rs-ext:
+    discover+:
+        test: /tmt/ostree-rs-ext
+
+/system:
+    prepare+:
+        - when: distro == centos-stream or distro == rhel
+          how: shell
+          script: bash hack/tmt/bats-setup.sh
+          order: 10
+    discover+:
+        test: /tmt/system
