@@ -267,6 +267,31 @@ func (s *syncSuite) TestDocker2DirUntagged() {
 	assert.Len(t, nManifests, len(tags))
 }
 
+func (s *syncSuite) TestDocker2DirDryRun() {
+	t := s.T()
+	tmpDir := t.TempDir()
+
+	// FIXME: It would be nice to use one of the local Docker registries instead of needing an Internet connection.
+	image := pullableRepo
+	imageRef, err := docker.ParseReference(fmt.Sprintf("//%s", image))
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+	assertSkopeoSucceeds(t, "", "sync", "--scoped", "--dry-run", "--src", "docker", "--dest", "dir", image, tmpDir)
+
+	sysCtx := types.SystemContext{}
+	tags, err := docker.GetRepositoryTags(context.Background(), &sysCtx, imageRef)
+	require.NoError(t, err)
+	assert.NotZero(t, len(tags))
+
+	d, err := os.Open(tmpDir)
+	require.NoError(t, err)
+	defer d.Close()
+	nDirEntries, err := d.ReadDir(1)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(nDirEntries))
+}
+
 func (s *syncSuite) TestYamlUntagged() {
 	t := s.T()
 	tmpDir := t.TempDir()
