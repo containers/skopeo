@@ -31,6 +31,7 @@ type globalOptions struct {
 	registriesConfPath string                  // Path to the "registries.conf" file
 	tmpDir             string                  // Path to use for big temporary files
 	userAgentPrefix    string                  // Prefix to add to the user agent string
+	requireSigned      bool                    // Require any pulled image to be signed
 }
 
 // requireSubcommand returns an error if no sub command is provided
@@ -81,6 +82,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
+	rootCommand.PersistentFlags().BoolVar(&opts.requireSigned, "require-signed", false, "require any pulled image to be signed")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesDirPath, "registries.d", "", "use registry configuration files in `DIR` (e.g. for container signature storage)")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideArch, "override-arch", "", "use `ARCH` instead of the architecture of the machine for choosing images")
 	rootCommand.PersistentFlags().StringVar(&opts.overrideOS, "override-os", "", "use `OS` instead of the running OS for choosing images")
@@ -166,7 +168,14 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 	if err != nil {
 		return nil, err
 	}
-	return signature.NewPolicyContext(policy)
+	pc, err := signature.NewPolicyContext(policy)
+	if err != nil {
+		return nil, err
+	}
+	if opts.requireSigned {
+		pc.RequireSignatureVerification(true)
+	}
+	return pc, nil
 }
 
 // commandTimeoutContext returns a context.Context and a cancellation callback based on opts.
