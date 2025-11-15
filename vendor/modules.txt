@@ -497,6 +497,7 @@ go.podman.io/storage/pkg/reexec
 go.podman.io/storage/pkg/regexp
 go.podman.io/storage/pkg/stringid
 go.podman.io/storage/pkg/stringutils
+go.podman.io/storage/pkg/supported-digests
 go.podman.io/storage/pkg/system
 go.podman.io/storage/pkg/tarlog
 go.podman.io/storage/pkg/truncindex
