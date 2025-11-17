@@ -176,8 +176,15 @@ func (ref dirReference) layerPath(digest digest.Digest) (string, error) {
 	if err := digest.Validate(); err != nil { // digest.Digest.Encoded() panics on failure, and could possibly result in a path with ../, so validate explicitly.
 		return "", err
 	}
-	// FIXME: Should we keep the digest identification?
-	return filepath.Join(ref.path, digest.Encoded()), nil
+
+	var filename string
+	if digest.Algorithm().String() == "sha256" {
+		filename = digest.Encoded()
+	} else {
+		filename = digest.Algorithm().String() + "-" + digest.Encoded()
+	}
+
+	return filepath.Join(ref.path, filename), nil
 }
 
 // signaturePath returns a path for a signature within a directory using our conventions.

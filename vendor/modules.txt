@@ -246,7 +246,7 @@ github.com/opencontainers/image-spec/schema
 # github.com/opencontainers/image-tools v1.0.0-rc3
 ## explicit
 github.com/opencontainers/image-tools/image
-# github.com/opencontainers/runtime-spec v1.2.1
+# github.com/opencontainers/runtime-spec v1.3.0
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/selinux v1.13.0
@@ -381,7 +381,7 @@ go.podman.io/common/pkg/password
 go.podman.io/common/pkg/report
 go.podman.io/common/pkg/report/camelcase
 go.podman.io/common/pkg/retry
-# go.podman.io/image/v5 v5.38.1-0.20251114174609-397182c71d26
+# go.podman.io/image/v5 v5.38.1-0.20251114174609-397182c71d26 => github.com/lsm5/container-libs/image/v5 v5.0.0-20251119211726-f8744f33c697
 ## explicit; go 1.24.0
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -676,3 +676,4 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# go.podman.io/image/v5 => github.com/lsm5/container-libs/image/v5 v5.0.0-20251119211726-f8744f33c697
