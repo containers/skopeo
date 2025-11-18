@@ -168,6 +168,10 @@ func (s storageTransport) ParseStoreReference(store storage.Store, ref string) (
 			// We have recognized an image ID; peel it off.
 			ref = ref[:split]
 		}
+	} else if rest, ok := strings.CutPrefix(ref, "sha256:"); ok {
+		// If it starts with sha256: then it's pretty clear that it's already an ID
+		id = rest
+		ref = ""
 	}
 
 	// If we only have one @-delimited portion, then _maybe_ it's a truncated image ID.  Only check on that if it's
