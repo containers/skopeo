@@ -151,7 +151,15 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
+	digester, stream := putblobdigest.DigestIfUnknown(stream, inputInfo)
+
+	var canonicalDigester digest.Digester
+	computeCanonical := inputInfo.Digest != "" && inputInfo.Digest.Algorithm() != digest.Canonical
+	if computeCanonical {
+		canonicalDigester = digest.Canonical.Digester()
+		stream = io.TeeReader(stream, canonicalDigester.Hash())
+	}
+
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
 	if err != nil {
@@ -185,6 +193,18 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 	if err := os.Rename(blobFile.Name(), blobPath); err != nil {
 		return private.UploadedBlob{}, err
 	}
+
+	if computeCanonical {
+		canonicalDigest := canonicalDigester.Digest()
+		canonicalPath, err := d.ref.layerPath(canonicalDigest)
+		if err != nil {
+			return private.UploadedBlob{}, err
+		}
+		if err := os.Link(blobPath, canonicalPath); err != nil && !os.IsExist(err) {
+			return private.UploadedBlob{}, fmt.Errorf("creating canonical digest link: %w", err)
+		}
+	}
+
 	succeeded = true
 	return private.UploadedBlob{Digest: blobDigest, Size: size}, nil
 }
