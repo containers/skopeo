@@ -17,26 +17,26 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile**=*path*
 
-Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the default on other platforms.
+:   Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+    See **containers-auth.json**(5) for more details about the default on other platforms.
 
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+    The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--compat-auth-file**=*path*
 
-Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
+:   Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
 
 **--all**, **-a**
 
-Remove the cached credentials for all registries in the auth file
+:   Remove the cached credentials for all registries in the auth file
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 **--tls-verify**=_bool_
 
-Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
+:   Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
 
 ## EXAMPLES
 

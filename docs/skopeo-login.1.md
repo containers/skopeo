@@ -19,47 +19,47 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--password**, **-p**=*password*
 
-Password for registry
+:   Password for registry
 
 **--password-stdin**
 
-Take the password from stdin
+:   Take the password from stdin
 
 **--username**, **-u**=*username*
 
-Username for registry
+:   Username for registry
 
 **--authfile**=*path*
 
-Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the default on other platforms.
+:   Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+    See **containers-auth.json**(5) for more details about the default on other platforms.
 
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+    The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--compat-auth-file**=*path*
 
-Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
+:   Instead of updating the default credentials file, update the one at *path*, and use a Docker-compatible format.
 
 **--get-login**
 
-Return the logged-in user for the registry. Return error if no login is found.
+:   Return the logged-in user for the registry. Return error if no login is found.
 
 **--cert-dir**=*path*
 
-Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+:   Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
+    Default certificates directory is _/etc/containers/certs.d_.
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 **--tls-verify**=_bool_
 
-Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
+:   Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
 
 **--verbose**, **-v**
 
-Write more detailed information to stdout
+:   Write more detailed information to stdout
 
 ## EXAMPLES
 

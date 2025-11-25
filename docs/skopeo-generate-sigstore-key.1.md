@@ -21,19 +21,19 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 **--output-prefix** _prefix_
 
-Mandatory.
-Path prefix for the output keys (_prefix_**.private** and _prefix_**.pub**).
+:   Mandatory.
+    Path prefix for the output keys (_prefix_**.private** and _prefix_**.pub**).
 
 **--passphrase-file** _path_
 
-The passphare to use to encrypt the private key.
-Only the first line will be read.
-A passphrase stored in a file is of questionable security if other users can read this file.
-Do not use this option if at all avoidable.
+:   The passphare to use to encrypt the private key.
+    Only the first line will be read.
+    A passphrase stored in a file is of questionable security if other users can read this file.
+    Do not use this option if at all avoidable.
 
 ## EXAMPLES
 

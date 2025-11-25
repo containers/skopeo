@@ -35,62 +35,62 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+:   Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+    See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
 
-Use `skopeo login` to manage the credentials.
+    Use `skopeo login` to manage the credentials.
 
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+    The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--creds** _username[:password]_
 
-Credentials for accessing the registry.
+:   Credentials for accessing the registry.
 
 **--cert-dir** _path_
 
-Use certificates at _path_ (*.crt, *.cert, *.key) to connect to the registry.
+:   Use certificates at _path_ (*.crt, *.cert, *.key) to connect to the registry.
 
 **--daemon-host** _host_
 
-Use docker daemon host at _host_ (`docker-daemon:` transport only)
+:   Use docker daemon host at _host_ (`docker-daemon:` transport only)
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 **--no-creds**
 
-Access the registry anonymously.
+:   Access the registry anonymously.
 
-Additionally, the registry must allow deletions by setting `REGISTRY_STORAGE_DELETE_ENABLED=true` for the registry daemon.
+    Additionally, the registry must allow deletions by setting `REGISTRY_STORAGE_DELETE_ENABLED=true` for the registry daemon.
 
 **--registry-token** _token_
 
-Bearer token for accessing the registry.
+:   Bearer token for accessing the registry.
 
 **--retry-times**
 
-The number of times to retry.
+:   The number of times to retry.
 
 **--retry-delay**
 
-Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
+:   Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
 
 **--shared-blob-dir** _directory_
 
-Directory to use to share blobs across OCI repositories.
+:   Directory to use to share blobs across OCI repositories.
 
 **--tls-verify**=_bool_
 
-Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
+:   Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
 
 **--username**
 
-The username to access the registry.
+:   The username to access the registry.
 
 **--password**
 
-The password to access the registry.
+:   The password to access the registry.
 
 ## EXAMPLES
 
