@@ -92,6 +92,10 @@ Path to a policy.json file to use for verifying signatures and deciding whether 
 
 Use registry configuration files in _dir_ (e.g. for container signature storage), overriding the default path.
 
+**--require-signed**
+
+Require that any pulled image must be signed regardless of what the default or provided trust policy file says.
+
 **--tmpdir** _dir_
 
 Directory used to store temporary files. Defaults to /var/tmp.
