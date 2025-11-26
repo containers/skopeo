@@ -26,30 +26,37 @@ its functionality.  It also does not require root, unless you are copying images
 ## IMAGE NAMES
 Most commands refer to container images, using a _transport_`:`_details_ format. The following formats are supported:
 
-  **containers-storage:**_docker-reference_
-  An image located in a local containers/storage image store.  Both the location and image store are specified in /etc/containers/storage.conf. (Backend for Podman, CRI-O, Buildah and friends)
+**containers-storage:**_docker-reference_
 
-  **dir:**_path_
-  An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
+:   An image located in a local containers/storage image store.  Both the location and image store are specified in /etc/containers/storage.conf. (Backend for Podman, CRI-O, Buildah and friends)
 
-  **docker://**_docker-reference_
-  An image in a registry implementing the "Docker Registry HTTP API V2".
-  Credentials are typically managed using `(skopeo login)`;
-  see **containers-auth.json**(5) for more details about the credential search mechanism.
+**dir:**_path_
 
-  **docker-archive:**_path_[**:**_docker-reference_]
-  An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
+:   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
-  **docker-daemon:**_docker-reference_
-  An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can be docker-daemon:algo:digest (an image ID).
+**docker://**_docker-reference_
 
-  **oci:**_path_**:**_tag_
-  An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
+:   An image in a registry implementing the "Docker Registry HTTP API V2".
+    Credentials are typically managed using `(skopeo login)`;
+    see **containers-auth.json**(5) for more details about the credential search mechanism.
 
-  **oci-archive:**_path_**:**_tag_
-  An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
+**docker-archive:**_path_[**:**_docker-reference_]
 
-See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
+:   An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
+
+**docker-daemon:**_docker-reference_
+
+:   An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can be docker-daemon:algo:digest (an image ID).
+
+**oci:**_path_**:**_tag_
+
+:   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
+
+**oci-archive:**_path_**:**_tag_
+
+:   An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
+
+    See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
 
 ## OPTIONS
 
@@ -58,51 +65,51 @@ Individual subcommands have their own options.
 
 **--command-timeout** _duration_
 
-Timeout for the command execution.
+:   Timeout for the command execution.
 
 **--debug**
 
-enable debug output
+:   enable debug output
 
 **--help**, **-h**
 
-Show help
+:   Show help
 
 **--insecure-policy**
 
-Adopt an insecure, permissive policy that allows anything. This obviates the need for a policy file.
+:   Adopt an insecure, permissive policy that allows anything. This obviates the need for a policy file.
 
 **--override-arch** _arch_
 
-Use _arch_ instead of the architecture of the machine for choosing images.
+:   Use _arch_ instead of the architecture of the machine for choosing images.
 
 **--override-os** _os_
 
-Use _OS_ instead of the running OS for choosing images.
+:   Use _OS_ instead of the running OS for choosing images.
 
 **--override-variant** _variant_
 
-Use _variant_ instead of the running architecture variant for choosing images.
+:   Use _variant_ instead of the running architecture variant for choosing images.
 
 **--policy** _path-to-policy_
 
-Path to a policy.json file to use for verifying signatures and deciding whether an image is trusted, overriding the default trust policy file.
+:   Path to a policy.json file to use for verifying signatures and deciding whether an image is trusted, overriding the default trust policy file.
 
 **--registries.d** _dir_
 
-Use registry configuration files in _dir_ (e.g. for container signature storage), overriding the default path.
+:   Use registry configuration files in _dir_ (e.g. for container signature storage), overriding the default path.
 
 **--tmpdir** _dir_
 
-Directory used to store temporary files. Defaults to /var/tmp.
+:   Directory used to store temporary files. Defaults to /var/tmp.
 
 **--user-agent-prefix** _prefix_
 
-Prefix to add to the user agent string. The resulting user agent will be in the format "_prefix_ skopeo/_version_".
+:   Prefix to add to the user agent string. The resulting user agent will be in the format "_prefix_ skopeo/_version_".
 
 **--version**, **-v**
 
-Print the version number
+:   Print the version number
 
 ## COMMANDS
 

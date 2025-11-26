@@ -14,7 +14,7 @@ Compute a manifest digest of _manifest-file_ and write it to standard output.
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 ## EXAMPLES
 

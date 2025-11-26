@@ -28,11 +28,11 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 **--public-key-file** _public key file_
 
-File containing the public keys to use when verifying signatures. If this is not specified, keys from the GPG homedir are used.
+:   File containing the public keys to use when verifying signatures. If this is not specified, keys from the GPG homedir are used.
 
 ## EXAMPLES
 

@@ -33,131 +33,164 @@ name can be stored at _destination_.
 See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--all**, **-a**
-If one of the images in __src__ refers to a list of images, instead of copying just the image which matches the current OS and
-architecture (subject to the use of the global --override-os, --override-arch and --override-variant options), attempt to copy all of
-the images in the list, and the list itself.
+
+:   If one of the images in __src__ refers to a list of images, instead of copying just the image which matches the current OS and
+    architecture (subject to the use of the global --override-os, --override-arch and --override-variant options), attempt to copy all of
+    the images in the list, and the list itself.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+:   Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+    See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
 
-Use `skopeo login` to manage the credentials.
+    Use `skopeo login` to manage the credentials.
 
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+    The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--src-authfile** _path_
 
-Path of the primary registry credentials file for the source registry. Uses path given by `--authfile`, if not provided.
+:   Path of the primary registry credentials file for the source registry. Uses path given by `--authfile`, if not provided.
 
 **--dest-authfile** _path_
 
-Path of the primary registry credentials file for the destination registry. Uses path given by `--authfile`, if not provided.
+:   Path of the primary registry credentials file for the destination registry. Uses path given by `--authfile`, if not provided.
 
 **--dry-run**
 
-Run the sync without actually copying data to the destination.
+:   Run the sync without actually copying data to the destination.
 
-**--src**, **-s** _transport_ Transport for the source repository.
+**--src**, **-s** _transport_
 
-**--dest**, **-d** _transport_ Destination transport.
+:   Transport for the source repository.
 
-**--format**, **-f** _manifest-type_ Manifest Type (oci, v2s1, or v2s2) to use when syncing image(s) to a destination (default is manifest type of source, with fallbacks).
+**--dest**, **-d** _transport_
+
+:   Destination transport.
+
+**--format**, **-f** _manifest-type_
+
+:   Manifest Type (oci, v2s1, or v2s2) to use when syncing image(s) to a destination (default is manifest type of source, with fallbacks).
 
 **--help**, **-h**
 
-Print usage statement.
+:   Print usage statement.
 
-**--scoped** Prefix images with the source image path, so that multiple images with the same name can be stored at _destination_.
+**--scoped**
 
-**--append-suffix** _tag-suffix_ String to append to destination tags.
+:   Prefix images with the source image path, so that multiple images with the same name can be stored at _destination_.
+
+**--append-suffix** _tag-suffix_
+
+:   String to append to destination tags.
 
 **--digestfile** _path_
 
-After copying the images from source, write the digest of the resulting images along with Image Reference.
+:   After copying the images from source, write the digest of the resulting images along with Image Reference.
 
-```
-sha256:bf91f90823248017a4f920fb541727fa8368dc6cf377a7debbd271cf6a31c8a7 docker://myhost.com/alpine:edge
-sha256:31603596830fc7e56753139f9c2c6bd3759e48a850659506ebfb885d1cf3aef5 docker://myhost.com/postgres:14.3
-
-```
+    ```
+    sha256:bf91f90823248017a4f920fb541727fa8368dc6cf377a7debbd271cf6a31c8a7 docker://myhost.com/alpine:edge
+    sha256:31603596830fc7e56753139f9c2c6bd3759e48a850659506ebfb885d1cf3aef5 docker://myhost.com/postgres:14.3
+    ```
 
 **--preserve-digests**
 
-Preserve the digests during copying. Fail if the digest cannot be preserved.
+:   Preserve the digests during copying. Fail if the digest cannot be preserved.
 
-This option does not change what will be copied; consider using `--all` at the same time.
+    This option does not change what will be copied; consider using `--all` at the same time.
 
-**--remove-signatures** Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.
+**--remove-signatures**
+
+:   Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.
 
 **--sign-by** _key-id_
 
-Add a “simple signing” signature using that key ID for an image name corresponding to _destination-image_
+:   Add a “simple signing” signature using that key ID for an image name corresponding to _destination-image_
 
 **--sign-by-sigstore** _param-file_
 
-Add a sigstore signature based on the options in the specified containers sigstore signing parameter file, _param-file_.
-See containers-sigstore-signing-params.yaml(5) for details about the file format.
+:   Add a sigstore signature based on the options in the specified containers sigstore signing parameter file, _param-file_.
+    See containers-sigstore-signing-params.yaml(5) for details about the file format.
 
 **--sign-by-sigstore-private-key** _path_
 
-Add a sigstore signature using a private key at _path_ for an image name corresponding to _destination-image_
+:   Add a sigstore signature using a private key at _path_ for an image name corresponding to _destination-image_
 
 **--sign-by-sq-fingerprint** _fingerprint_
 
-Add a “simple signing” signature using a Sequoia-PGP key with the specified _fingerprint_.
+:   Add a “simple signing” signature using a Sequoia-PGP key with the specified _fingerprint_.
 
 **--sign-passphrase-file** _path_
 
-The passphrase to use when signing with `--sign-by`, `--sign-by-sigstore-private-key` or `--sign-by-sq-fingerprint`.
-Only the first line will be read. A passphrase stored in a file is of questionable security if other users can read this file. Do not use this option if at all avoidable.
+:   The passphrase to use when signing with `--sign-by`, `--sign-by-sigstore-private-key` or `--sign-by-sq-fingerprint`.
+    Only the first line will be read. A passphrase stored in a file is of questionable security if other users can read this file. Do not use this option if at all avoidable.
 
-**--src-creds** _username[:password]_ for accessing the source registry.
+**--src-creds** _username[:password]_
 
-**--dest-creds** _username[:password]_ for accessing the destination registry.
+:   For accessing the source registry.
 
-**--src-cert-dir** _path_ Use certificates (*.crt, *.cert, *.key) at _path_ to connect to the source registry or daemon.
+**--dest-creds** _username[:password]_
 
-**--src-no-creds** Access the registry anonymously.
+:   For accessing the destination registry.
 
-**--src-tls-verify**=_bool_ Require HTTPS and verify certificates when talking to a container source registry or daemon. Default to source registry entry in registry.conf setting.
+**--src-cert-dir** _path_
 
-**--dest-cert-dir** _path_ Use certificates (*.crt, *.cert, *.key) at _path_ to connect to the destination registry or daemon.
+:   Use certificates (*.crt, *.cert, *.key) at _path_ to connect to the source registry or daemon.
 
-**--dest-no-creds** Access the registry anonymously.
+**--src-no-creds**
 
-**--dest-tls-verify**=_bool_ Require HTTPS and verify certificates when talking to a container destination registry or daemon. Default to destination registry entry in registry.conf setting.
+:   Access the registry anonymously.
 
-**--src-registry-token** _Bearer token_ for accessing the source registry.
+**--src-tls-verify**=_bool_
 
-**--dest-registry-token** _Bearer token_ for accessing the destination registry.
+:   Require HTTPS and verify certificates when talking to a container source registry or daemon. Default to source registry entry in registry.conf setting.
+
+**--dest-cert-dir** _path_
+
+:   Use certificates (*.crt, *.cert, *.key) at _path_ to connect to the destination registry or daemon.
+
+**--dest-no-creds**
+
+:   Access the registry anonymously.
+
+**--dest-tls-verify**=_bool_
+
+:   Require HTTPS and verify certificates when talking to a container destination registry or daemon. Default to destination registry entry in registry.conf setting.
+
+**--src-registry-token** _Bearer token_
+
+:   For accessing the source registry.
+
+**--dest-registry-token** _Bearer token_
+
+:   For accessing the destination registry.
 
 **--retry-times**
 
-The number of times to retry.
+:   The number of times to retry.
 
 **--retry-delay**
 
-Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
+:   Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
 
 **--keep-going**
-If any errors occur during copying of images, those errors are logged and the process continues syncing rest of the images and finally fails at the end.
+
+:   If any errors occur during copying of images, those errors are logged and the process continues syncing rest of the images and finally fails at the end.
 
 **--src-username**
 
-The username to access the source registry.
+:   The username to access the source registry.
 
 **--src-password**
 
-The password to access the source registry.
+:   The password to access the source registry.
 
 **--dest-username**
 
-The username to access the destination registry.
+:   The username to access the destination registry.
 
 **--dest-password**
 
-The password to access the destination registry.
+:   The password to access the destination registry.
 
 ## EXAMPLES
 
