@@ -22,8 +22,6 @@ packages:
 # https://packit.dev/docs/configuration/actions
 actions:
   get-current-version: bash -c 'grep "^const Version" version/version.go | cut -f2 -d\" | tr \- \~'
-  prepare-files: >-
-    bash -c "sed -i 's/^\(\s*\)ref: .*/\1ref: \"${PACKIT_PROJECT_TAG}\"/' ${PACKIT_DOWNSTREAM_REPO}/plans/main.fmf"
 
 srpm_build_deps:
   - make
@@ -121,6 +119,9 @@ jobs:
     update_release: false
     dist_git_branches: &fedora_targets
       - fedora-all
+    actions:
+        post-modifications: >-
+          bash -c "sed -i 's/^\(\s*\)ref: .*/\1ref: \"v${PACKIT_PROJECT_VERSION}\"/' ${PACKIT_DOWNSTREAM_REPO}/plans/main.fmf"
 
   # Sync to CentOS Stream
   # FIXME: Switch trigger whenever we're ready to update CentOS Stream via
