@@ -80,11 +80,11 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 :   Control what is copied if _source-image_ refers to a multi-architecture image. Default is system.
 
 :   Options:
-    - system: Copy only the image that matches the system architecture
-    - all: Copy the full multi-architecture image
-    - index-only: Copy only the index
+        - system: Copy only the image that matches the system architecture
+        - all: Copy the full multi-architecture image
+        - index-only: Copy only the index
 
-   The index-only option usually fails unless the referenced per-architecture images are already present in the destination, or the target registry supports sparse indexes.
+:   The index-only option usually fails unless the referenced per-architecture images are already present in the destination, or the target registry supports sparse indexes.
 
 **--quiet**, **-q**
 

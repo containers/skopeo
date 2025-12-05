@@ -25,7 +25,7 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--creds** _username[:password]_
 
-:   For accessing the registry
+:   Credentials for accessing the registry
 
 **--cert-dir** _path_
 
