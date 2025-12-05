@@ -56,7 +56,7 @@ Most commands refer to container images, using a _transport_`:`_details_ format.
 
 :   An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
 
-    See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
+See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
 
 ## OPTIONS
 
