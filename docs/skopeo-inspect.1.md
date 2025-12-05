@@ -95,6 +95,12 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 :   Do not list the available tags from the repository in the output. When `true`, the `RepoTags` array will be empty.  Defaults to `false`, which includes all available tags.
 
+**--manifest-digest**=_algorithm_ **EXPERIMENTAL**
+
+Algorithm to use for computing manifest digest (sha256, sha512); defaults to algorithm used in config digest.
+
+**Note:** This flag is experimental and its behavior may change in future releases.
+
 ## EXAMPLES
 
 To review information for the image fedora from the docker.io registry:
@@ -184,6 +190,12 @@ amd64
 ```console
 $ /bin/skopeo inspect --format '{{ .Env }}' docker://registry.access.redhat.com/ubi8
 [PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin container=oci]
+```
+
+To get the digest using a specific algorithm:
+```console
+$ skopeo inspect --manifest-digest=sha512 docker://docker.io/library/alpine:latest --format "Digest: {{.Digest}}"
+Digest: sha512:5acb33fb56a7791bf0c69d5b19a1c70272148e4107be5261d57305d14e9509792bbca53e5277c456181ecfa1c20ad8427f9b8ba46868020584a819de1128dbd2
 ```
 
 # SEE ALSO

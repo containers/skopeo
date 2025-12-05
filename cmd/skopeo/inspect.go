@@ -9,6 +9,7 @@ import (
 
 	"github.com/containers/skopeo/cmd/skopeo/inspect"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -22,13 +23,14 @@ import (
 )
 
 type inspectOptions struct {
-	global        *globalOptions
-	image         *imageOptions
-	retryOpts     *retry.Options
-	format        string
-	raw           bool // Output the raw manifest instead of parsing information about the image
-	config        bool // Output the raw config blob instead of parsing information about the image
-	doNotListTags bool // Do not list all tags available in the same repository
+	global         *globalOptions
+	image          *imageOptions
+	retryOpts      *retry.Options
+	format         string
+	raw            bool             // Output the raw manifest instead of parsing information about the image
+	config         bool             // Output the raw config blob instead of parsing information about the image
+	doNotListTags  bool             // Do not list all tags available in the same repository
+	manifestDigest digest.Algorithm // Algorithm to use for computing manifest digest
 }
 
 func inspectCmd(global *globalOptions) *cobra.Command {
@@ -64,6 +66,7 @@ skopeo inspect --format "Name: {{.Name}} Digest: {{.Digest}}" docker://registry.
 	flags.BoolVar(&opts.config, "config", false, "output configuration")
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output to a Go template")
 	flags.BoolVarP(&opts.doNotListTags, "no-tags", "n", false, "Do not list the available tags from the repository in the output")
+	flags.Var(newAlgorithmValue(&opts.manifestDigest), "manifest-digest", "Algorithm to use for computing manifest digest (sha256, sha512); defaults to algorithm used in config digest")
 	return cmd
 }
 
@@ -176,7 +179,7 @@ func (opts *inspectOptions) run(args []string, stdout io.Writer) (retErr error) 
 		LayersData:    imgInspect.LayersData,
 		Env:           imgInspect.Env,
 	}
-	outputData.Digest, err = manifest.Digest(rawManifest)
+	outputData.Digest, err = manifestDigestFromManifest(rawManifest, img, opts.manifestDigest)
 	if err != nil {
 		return fmt.Errorf("Error computing manifest digest: %w", err)
 	}
@@ -234,4 +237,49 @@ func (opts *inspectOptions) writeOutput(stdout io.Writer, data any) error {
 	}
 	defer rpt.Flush()
 	return rpt.Execute([]any{data})
+}
+
+func manifestDigestFromManifest(manifestBlob []byte, img types.Image, userAlgorithm digest.Algorithm) (digest.Digest, error) {
+	if userAlgorithm != "" {
+		if !userAlgorithm.Available() {
+			return "", fmt.Errorf("digest algorithm %q is not available", userAlgorithm)
+		}
+		return manifest.DigestWithAlgorithm(manifestBlob, userAlgorithm)
+	}
+
+	configInfo := img.ConfigInfo()
+	if configInfo.Digest != "" {
+		alg := configInfo.Digest.Algorithm()
+		if !alg.Available() {
+			return "", fmt.Errorf("config digest algorithm %q is not available", alg)
+		}
+		return manifest.DigestWithAlgorithm(manifestBlob, alg)
+	}
+
+	return manifest.Digest(manifestBlob)
+}
+
+type algorithmValue digest.Algorithm
+
+func newAlgorithmValue(alg *digest.Algorithm) *algorithmValue {
+	return (*algorithmValue)(alg)
+}
+
+func (a *algorithmValue) Set(value string) error {
+	algorithm := digest.Algorithm(value)
+
+	*a = algorithmValue(algorithm)
+	if algorithm == "" {
+		*a = algorithmValue(digest.Canonical)
+	}
+
+	return nil
+}
+
+func (a *algorithmValue) String() string {
+	return digest.Algorithm(*a).String()
+}
+
+func (a *algorithmValue) Type() string {
+	return "algorithm"
 }
