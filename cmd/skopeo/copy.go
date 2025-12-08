@@ -9,6 +9,7 @@ import (
 
 	encconfig "github.com/containers/ocicrypt/config"
 	enchelpers "github.com/containers/ocicrypt/helpers"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/spf13/cobra"
 	commonFlag "go.podman.io/common/pkg/flag"
 	"go.podman.io/common/pkg/retry"
@@ -29,6 +30,7 @@ type copyOptions struct {
 	additionalTags      []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these
 	signIdentity        string                    // Identity of the signed image, must be a fully specified docker reference
 	digestFile          string                    // Write digest to this file
+	forceDigest         string                    // Force a specific digest algorithm (sha256, sha384, or sha512)
 	quiet               bool                      // Suppress output information when copying images
 	all                 bool                      // Copy all of the images if the source is a list
 	multiArch           commonFlag.OptionalString // How to handle multi architecture images
@@ -81,6 +83,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.Var(commonFlag.NewOptionalStringValue(&opts.multiArch), "multi-arch", `How to handle multi-architecture images (system, all, or index-only)`)
 	flags.StringVar(&opts.signIdentity, "sign-identity", "", "Identity of signed image, must be a fully specified docker reference. Defaults to the target docker reference.")
 	flags.StringVar(&opts.digestFile, "digestfile", "", "Write the digest of the pushed image to the specified file")
+	flags.StringVar(&opts.forceDigest, "force-digest", "", "Force a specific digest algorithm (sha256, sha384, or sha512)")
 	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", []string{}, "*Experimental* key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
 	flags.IntSliceVar(&opts.encryptLayer, "encrypt-layer", []int{}, "*Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)")
 	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", []string{}, "*Experimental* key needed to decrypt the image")
@@ -241,6 +244,14 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	copyOpts.OciEncryptConfig = encConfig
 	copyOpts.MaxParallelDownloads = opts.imageParallelCopies
 	copyOpts.ForceCompressionFormat = opts.destImage.forceCompressionFormat
+
+	// Handle force-digest option
+	if opts.forceDigest != "" {
+		algo := digest.Algorithm(opts.forceDigest)
+		if err := copyOpts.SetForceDigestAlgorithm(algo); err != nil {
+			return err
+		}
+	}
 
 	return retry.IfNecessary(ctx, func() error {
 		manifestBytes, err := copy.Image(ctx, policyContext, destRef, srcRef, copyOpts)
