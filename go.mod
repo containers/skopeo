@@ -84,7 +84,7 @@ require (
 	github.com/proglottis/gpgme v0.1.6 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.9.1 // indirect
-	github.com/sigstore/fulcio v1.8.1 // indirect
+	github.com/sigstore/fulcio v1.8.3 // indirect
 	github.com/sigstore/protobuf-specs v0.5.0 // indirect
 	github.com/sigstore/sigstore v1.9.6-0.20251111174640-d8ab8afb1326 // indirect
 	github.com/smallstep/pkcs7 v0.1.1 // indirect
