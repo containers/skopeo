@@ -21,79 +21,79 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
+:   Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
+    See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
 
-Use `skopeo login` to manage the credentials.
+    Use `skopeo login` to manage the credentials.
 
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+    The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
 
 **--cert-dir** _path_
 
-Use certificates at _path_ (\*.crt, \*.cert, \*.key) to connect to the registry.
+:   Use certificates at _path_ (\*.crt, \*.cert, \*.key) to connect to the registry.
 
 **--config**
 
-Output configuration in OCI format, default is to format in JSON format.
+:   Output configuration in OCI format, default is to format in JSON format.
 
 **--creds** _username[:password]_
 
-Username and password for accessing the registry.
+:   Username and password for accessing the registry.
 
 **--daemon-host** _host_
 
-Use docker daemon host at _host_ (`docker-daemon:` transport only)
+:   Use docker daemon host at _host_ (`docker-daemon:` transport only)
 
 **--format**, **-f**=*format*
 
-Format the output using the given Go template.
-The keys of the returned JSON can be used as the values for the --format flag (see examples below).
-Supports the Go templating functions available at https://pkg.go.dev/github.com/containers/common/pkg/report#hdr-Template_Functions
+:   Format the output using the given Go template.
+    The keys of the returned JSON can be used as the values for the --format flag (see examples below).
+    Supports the Go templating functions available at https://pkg.go.dev/github.com/containers/common/pkg/report#hdr-Template_Functions
 
 **--help**, **-h**
 
-Print usage statement
+:   Print usage statement
 
 **--no-creds**
 
-Access the registry anonymously.
+:   Access the registry anonymously.
 
 **--raw**
 
-Output raw manifest or config data depending on --config option.
-The --format option is not supported with --raw option.
+:   Output raw manifest or config data depending on --config option.
+    The --format option is not supported with --raw option.
 
 **--registry-token** _Bearer token_
 
-Registry token for accessing the registry.
+:   Registry token for accessing the registry.
 
 **--retry-times**
 
-The number of times to retry.
+:   The number of times to retry.
 
 **--retry-delay**
 
-Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
+:   Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
 
 **--shared-blob-dir** _directory_
 
-Directory to use to share blobs across OCI repositories.
+:   Directory to use to share blobs across OCI repositories.
 
 **--tls-verify**=_bool_
 
-Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
+:   Require HTTPS and verify certificates when talking to the container registry or daemon. Default to registry.conf setting.
 
 **--username**
 
-The username to access the registry.
+:   The username to access the registry.
 
 **--password**
 
-The password to access the registry.
+:   The password to access the registry.
 
 **--no-tags**, **-n**
 
-Do not list the available tags from the repository in the output. When `true`, the `RepoTags` array will be empty.  Defaults to `false`, which includes all available tags.
+:   Do not list the available tags from the repository in the output. When `true`, the `RepoTags` array will be empty.  Defaults to `false`, which includes all available tags.
 
 **--manifest-digest**=_algorithm_ **EXPERIMENTAL**
 
