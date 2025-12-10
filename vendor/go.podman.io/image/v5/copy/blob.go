@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/sirupsen/logrus"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/private"
 	compressiontypes "go.podman.io/image/v5/pkg/compression/types"
 	"go.podman.io/image/v5/types"
@@ -101,6 +102,11 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 		Cache:      ic.c.blobInfoCache,
 		IsConfig:   isConfig,
 		EmptyLayer: emptyLayer,
+		Digests:    ic.c.options.digestOptions,
+		// CannotChangeDigestReason requires stream.info.Digest to always be set, and it is:
+		// If ic.cannotModifyManifestReason, stream.info was not modified since its initialization at the top of this
+		// function, and the caller is required to provide a digest.
+		CannotChangeDigestReason: ic.cannotModifyManifestReason,
 	}
 	if !isConfig {
 		options.LayerIndex = &layerIndex
@@ -132,8 +138,20 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 	if digestingReader.validationFailed { // Coverage: This should never happen.
 		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, digest verification failed but was ignored", srcInfo.Digest)
 	}
+	// Verify that the uploaded digest is compatible with our digest options
 	if stream.info.Digest != "" && uploadedInfo.Digest != stream.info.Digest {
-		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, blob with digest %s saved with digest %s", srcInfo.Digest, stream.info.Digest, uploadedInfo.Digest)
+		// Use Miloslav's digest infrastructure to determine if this digest change is acceptable
+		expectedAlgo, err := ic.c.options.digestOptions.Choose(digests.Situation{
+			Preexisting:                 stream.info.Digest,
+			CannotChangeAlgorithmReason: ic.cannotModifyManifestReason,
+		})
+		if err != nil {
+			return types.BlobInfo{}, err
+		}
+		// If we're forcing a different algorithm and the uploaded digest uses that algorithm, it's acceptable
+		if uploadedInfo.Digest.Algorithm() != expectedAlgo {
+			return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, blob with digest %s saved with digest %s", srcInfo.Digest, stream.info.Digest, uploadedInfo.Digest)
+		}
 	}
 	if digestingReader.validationSucceeded {
 		if err := compressionStep.recordValidatedDigestData(ic.c, uploadedInfo, srcInfo, encryptionStep, decryptionStep); err != nil {

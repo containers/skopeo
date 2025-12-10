@@ -592,8 +592,18 @@ func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanc
 		return nil, "", fmt.Errorf("reading manifest: %w", err)
 	}
 
-	if err := ic.copyConfig(ctx, pendingImage); err != nil {
+	newConfigDigest, err := ic.copyConfig(ctx, pendingImage)
+	if err != nil {
 		return nil, "", err
+	}
+
+	// If the config digest changed (due to forcing a different digest algorithm),
+	// update it in the manifest using typed manifest structures
+	if newConfigDigest != nil {
+		man, err = ic.updateManifestConfigDigest(man, pendingImage, *newConfigDigest)
+		if err != nil {
+			return nil, "", fmt.Errorf("updating manifest config digest: %w", err)
+		}
 	}
 
 	ic.c.Printf("Writing manifest to image destination\n")
@@ -611,13 +621,45 @@ func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanc
 	return man, manifestDigest, nil
 }
 
+// updateManifestConfigDigest updates the config digest in a manifest blob using typed manifest structures.
+// This leverages the existing manifest parsing and serialization infrastructure.
+func (ic *imageCopier) updateManifestConfigDigest(manifestBlob []byte, src types.Image, newConfigDigest digest.Digest) ([]byte, error) {
+	// Get the manifest MIME type to parse it correctly
+	_, mt, err := src.Manifest(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("getting manifest type: %w", err)
+	}
+
+	// Parse the manifest using the typed manifest infrastructure
+	m, err := manifest.FromBlob(manifestBlob, mt)
+	if err != nil {
+		return nil, fmt.Errorf("parsing manifest: %w", err)
+	}
+
+	// Update the config digest based on manifest type
+	switch typedManifest := m.(type) {
+	case *manifest.OCI1:
+		typedManifest.Config.Digest = newConfigDigest
+		return typedManifest.Serialize()
+	case *manifest.Schema2:
+		typedManifest.ConfigDescriptor.Digest = newConfigDigest
+		return typedManifest.Serialize()
+	case *manifest.Schema1:
+		// Schema1 doesn't have a separate config blob, so this shouldn't happen
+		return nil, fmt.Errorf("cannot update config digest for schema1 manifest")
+	default:
+		return nil, fmt.Errorf("unsupported manifest type for config digest update: %T", m)
+	}
+}
+
 // copyConfig copies config.json, if any, from src to dest.
-func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
+// It returns the new config digest if it changed (due to digest algorithm forcing), or nil otherwise.
+func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) (*digest.Digest, error) {
 	srcInfo := src.ConfigInfo()
 	if srcInfo.Digest != "" {
 		if err := ic.c.concurrentBlobCopiesSemaphore.Acquire(ctx, 1); err != nil {
 			// This can only fail with ctx.Err(), so no need to blame acquiring the semaphore.
-			return fmt.Errorf("copying config: %w", err)
+			return nil, fmt.Errorf("copying config: %w", err)
 		}
 		defer ic.c.concurrentBlobCopiesSemaphore.Release(1)
 
@@ -645,13 +687,20 @@ func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
 			return destInfo, nil
 		}()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if destInfo.Digest != srcInfo.Digest {
-			return fmt.Errorf("Internal error: copying uncompressed config blob %s changed digest to %s", srcInfo.Digest, destInfo.Digest)
+			// Allow digest algorithm changes when forcing a specific digest algorithm
+			forcingDifferentAlgo := ic.c.options.digestOptions.MustUseSet() != "" &&
+				destInfo.Digest.Algorithm() != srcInfo.Digest.Algorithm()
+			if !forcingDifferentAlgo {
+				return nil, fmt.Errorf("Internal error: copying uncompressed config blob %s changed digest to %s", srcInfo.Digest, destInfo.Digest)
+			}
+			// Return the new digest so the manifest can be updated
+			return &destInfo.Digest, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // diffIDResult contains both a digest value and an error from diffIDComputationGoroutine.

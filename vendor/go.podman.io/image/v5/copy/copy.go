@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker/reference"
 	internalblobinfocache "go.podman.io/image/v5/internal/blobinfocache"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/image"
 	"go.podman.io/image/v5/internal/imagedestination"
 	"go.podman.io/image/v5/internal/imagesource"
@@ -155,6 +156,35 @@ type Options struct {
 	// In oci-archive: destinations, this will set the create/mod/access timestamps in each tar entry
 	// (but not a timestamp of the created archive file).
 	DestinationTimestamp *time.Time
+
+	// FIXME:
+	// - this reference to an internal type is unusable from the outside even if we made the field public
+	// - what is the actual semantics? Right now it is probably “choices to use when writing to the destination”, TBD
+	// - anyway do we want to expose _all_ of the digests.Options tunables, or fewer?
+	// - … do we want to expose _more_ granularity than that?
+	//   - (“must have at least sha512 integrity when reading”, what does “at least” mean for random pairs of algorithms?)
+	//   - should some of this be in config files, maybe ever per-registry?
+	digestOptions digests.Options
+}
+
+// SetDigestOptions sets the digest options for this copy operation.
+// This allows callers to force the use of a specific digest algorithm.
+func (o *Options) SetDigestOptions(opts digests.Options) {
+	o.digestOptions = opts
+}
+
+// SetForceDigestAlgorithm forces the use of a specific digest algorithm for this copy operation.
+// algo should be one of "sha256", "sha384", or "sha512".
+func (o *Options) SetForceDigestAlgorithm(algo digest.Algorithm) error {
+	if !algo.Available() {
+		return fmt.Errorf("digest algorithm %q is not available", algo.String())
+	}
+	digestOpts, err := digests.MustUse(algo)
+	if err != nil {
+		return fmt.Errorf("failed to set force-digest algorithm: %w", err)
+	}
+	o.digestOptions = digestOpts
+	return nil
 }
 
 // OptionCompressionVariant allows to supply information about
@@ -200,6 +230,15 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 	if options == nil {
 		options = &Options{}
 	}
+	// FIXME: Currently, digestsOptions is not implemented at all, and exists in the codebase
+	// only to allow gradually building the feature set.
+	// After c/image/copy consistently implements it, provide a public digest options API of some kind.
+	optionsCopy := *options
+	// Only set default if not already configured
+	if optionsCopy.digestOptions.MustUseSet() == "" {
+		optionsCopy.digestOptions = digests.CanonicalDefault()
+	}
+	options = &optionsCopy
 
 	if err := validateImageListSelection(options.ImageListSelection); err != nil {
 		return nil, err

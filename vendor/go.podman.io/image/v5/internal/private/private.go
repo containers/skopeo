@@ -9,6 +9,7 @@ import (
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/internal/blobinfocache"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/signature"
 	compression "go.podman.io/image/v5/pkg/compression/types"
 	"go.podman.io/image/v5/types"
@@ -111,8 +112,10 @@ type PutBlobOptions struct {
 	// if they use internal/imagedestination/impl.Compat;
 	// in that case, they will all be consistently zero-valued.
 
-	EmptyLayer bool // True if the blob is an "empty"/"throwaway" layer, and may not necessarily be physically represented.
-	LayerIndex *int // If the blob is a layer, a zero-based index of the layer within the image; nil otherwise.
+	EmptyLayer               bool            // True if the blob is an "empty"/"throwaway" layer, and may not necessarily be physically represented.
+	LayerIndex               *int            // If the blob is a layer, a zero-based index of the layer within the image; nil otherwise.
+	Digests                  digests.Options // Unlike other private fields, this is always initialized, and mandatory requests are enforced by the compatibility wrapper.
+	CannotChangeDigestReason string          // The reason why PutBlobWithOptions is provided with a digest and the destination must use precisely that one (in particular, use that algorithm).
 }
 
 // PutBlobPartialOptions are used in PutBlobPartial.
