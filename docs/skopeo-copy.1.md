@@ -71,6 +71,12 @@ This option does not change what will be copied; consider using `--all` at the s
 
 MANIFEST TYPE (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)
 
+**--force-digest**=_algorithm_ **EXPERIMENTAL**
+
+Algorithm to use for computing digests (sha256, sha512). When specified, all digests will be recomputed using the specified algorithm during the copy operation, regardless of the digest algorithm used in the source image.
+
+**Note:** This flag is experimental and its behavior may change in future releases.
+
 **--help**, **-h**
 
 Print usage statement
@@ -265,6 +271,11 @@ $ skopeo copy docker://busybox:latest docker-archive:archive-file.tar:busybox:la
 To copy and sign an image:
 ```console
 $ skopeo copy --sign-by dev@example.com containers-storage:example/busybox:streaming docker://example/busybox:gold
+```
+
+To copy an image and force all digests to use sha512:
+```console
+$ skopeo copy --force-digest=sha512 docker://docker.io/library/alpine:latest dir:/tmp/alpine
 ```
 
 To encrypt an image:

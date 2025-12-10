@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/opencontainers/go-digest"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/imagedestination/stubs"
 	"go.podman.io/image/v5/internal/private"
 	"go.podman.io/image/v5/internal/signature"
@@ -53,6 +54,15 @@ func (w *wrapped) PutBlobWithOptions(ctx context.Context, stream io.Reader, inpu
 	if err != nil {
 		return private.UploadedBlob{}, err
 	}
+	// Check that the returned digest is compatible with options.Digests. If it isn’t, there’s nothing we can do, but at least the callers of PutBlobWithOptions
+	// won’t need to double-check.
+	if _, err := options.Digests.Choose(digests.Situation{
+		Preexisting:                 res.Digest,
+		CannotChangeAlgorithmReason: "external transport API does not allow choosing a digest algorithm",
+	}); err != nil {
+		return private.UploadedBlob{}, err
+	}
+
 	return private.UploadedBlob{
 		Digest: res.Digest,
 		Size:   res.Size,

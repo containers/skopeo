@@ -11,6 +11,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/image/v5/internal/digests"
 	"go.podman.io/image/v5/internal/imagedestination/impl"
 	"go.podman.io/image/v5/internal/imagedestination/stubs"
 	"go.podman.io/image/v5/internal/private"
@@ -150,7 +151,11 @@ func (d *dirImageDestination) PutBlobWithOptions(ctx context.Context, stream io.
 		}
 	}()
 
-	digester, stream := putblobdigest.DigestIfUnknown(stream, inputInfo)
+	algorithm, err := options.Digests.Choose(digests.Situation{Preexisting: inputInfo.Digest, CannotChangeAlgorithmReason: options.CannotChangeDigestReason})
+	if err != nil {
+		return private.UploadedBlob{}, err
+	}
+	digester, stream := putblobdigest.DigestIfAlgorithmUnknown(stream, inputInfo, algorithm)
 
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
 	size, err := io.Copy(blobFile, stream)
@@ -227,6 +232,9 @@ func (d *dirImageDestination) TryReusingBlobWithOptions(ctx context.Context, inf
 // If the destination is in principle available, refuses this manifest type (e.g. it does not recognize the schema),
 // but may accept a different manifest type, the returned error must be an ManifestTypeRejectedError.
 func (d *dirImageDestination) PutManifest(ctx context.Context, manifest []byte, instanceDigest *digest.Digest) error {
+	if instanceDigest != nil && instanceDigest.Algorithm() != digest.Canonical { // compare the special case in manifestPath
+		d.usesNonSHA256Digest = true
+	}
 	path, err := d.ref.manifestPath(instanceDigest)
 	if err != nil {
 		return err
@@ -239,6 +247,9 @@ func (d *dirImageDestination) PutManifest(ctx context.Context, manifest []byte, 
 // (when the primary manifest is a manifest list); this should always be nil if the primary manifest is not a manifest list.
 // MUST be called after PutManifest (signatures may reference manifest contents).
 func (d *dirImageDestination) PutSignaturesWithFormat(ctx context.Context, signatures []signature.Signature, instanceDigest *digest.Digest) error {
+	if instanceDigest != nil && instanceDigest.Algorithm() != digest.Canonical { // compare the special case in signaturePath
+		d.usesNonSHA256Digest = true
+	}
 	for i, sig := range signatures {
 		blob, err := signature.Blob(sig)
 		if err != nil {

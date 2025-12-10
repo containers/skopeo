@@ -367,7 +367,7 @@ go.podman.io/common/pkg/password
 go.podman.io/common/pkg/report
 go.podman.io/common/pkg/report/camelcase
 go.podman.io/common/pkg/retry
-# go.podman.io/image/v5 v5.38.1-0.20251209145320-afd10d86c8a5
+# go.podman.io/image/v5 v5.38.1-0.20251209145320-afd10d86c8a5 => /home/lsm5/repositories/containers/container-libs/image/
 ## explicit; go 1.24.6
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -380,6 +380,7 @@ go.podman.io/image/v5/docker/policyconfiguration
 go.podman.io/image/v5/docker/reference
 go.podman.io/image/v5/image
 go.podman.io/image/v5/internal/blobinfocache
+go.podman.io/image/v5/internal/digests
 go.podman.io/image/v5/internal/image
 go.podman.io/image/v5/internal/imagedestination
 go.podman.io/image/v5/internal/imagedestination/impl
@@ -488,7 +489,7 @@ go.podman.io/storage/pkg/tarlog
 go.podman.io/storage/pkg/truncindex
 go.podman.io/storage/pkg/unshare
 go.podman.io/storage/types
-# golang.org/x/crypto v0.45.0
+# golang.org/x/crypto v0.46.0
 ## explicit; go 1.24.0
 golang.org/x/crypto/cast5
 golang.org/x/crypto/cryptobyte
@@ -515,11 +516,11 @@ golang.org/x/net/idna
 golang.org/x/net/internal/httpcommon
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.33.0
+# golang.org/x/oauth2 v0.34.0
 ## explicit; go 1.24.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.18.0
+# golang.org/x/sync v0.19.0
 ## explicit; go 1.24.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
@@ -532,7 +533,7 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.38.0
 ## explicit; go 1.24.0
 golang.org/x/term
-# golang.org/x/text v0.31.0
+# golang.org/x/text v0.32.0
 ## explicit; go 1.24.0
 golang.org/x/text/feature/plural
 golang.org/x/text/internal
@@ -661,3 +662,4 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# go.podman.io/image/v5 => /home/lsm5/repositories/containers/container-libs/image/
