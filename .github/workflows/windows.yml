@@ -1,0 +1,49 @@
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+
+name: build windows binary
+
+jobs:
+
+  windows-binary:
+
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: curl mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-gpgme pkg-config
+      - run: |
+          choco install -y golang
+        shell: powershell
+      - id: build
+        run: |
+          # Build
+          export PATH=$PATH:/c/Program\ Files/Go/bin
+          # Setting PKG_CONFIG_PATH does not work, symlink everything
+          for pc in /mingw64/lib/pkgconfig/*.pc; do ln -s $pc /usr/lib/pkgconfig || true; done
+
+          CGO_ENABLED=1 CC=${MSYSTEM_CHOST}-gcc CXX=${MSYSTEM_CHOST}-g++ mingw32-make.exe bin/skopeo
+
+          export version=`./bin/skopeo --version | awk '{ print $NF; }'`
+          rm -rf skopeo-${version}
+          mkdir -p skopeo-${version}
+          cp bin/skopeo skopeo-${version}/skopeo.exe
+          cp `ldd bin/skopeo  | grep mingw | awk ' { print $3; } '` skopeo-${version}
+          libdir="`ldd bin/skopeo | grep mingw | head -1  | awk ' { print $3; } '`"
+          cp "`dirname ${libdir}`/gpgme-w32spawn.exe" skopeo-${version}
+          echo "version=${version}" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skopeo-windows
+          path: skopeo-${{ steps.build.outputs.version }}
+          if-no-files-found: error
