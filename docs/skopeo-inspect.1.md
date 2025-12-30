@@ -97,9 +97,9 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--manifest-digest**=_algorithm_ **EXPERIMENTAL**
 
-Algorithm to use for computing manifest digest (sha256, sha512); defaults to algorithm used in config digest.
+:   Algorithm to use for computing manifest digest (sha256, sha512); defaults to algorithm used in config digest.
 
-**Note:** This flag is experimental and its behavior may change in future releases.
+    **Note:** This flag is experimental and its behavior may change in future releases.
 
 ## EXAMPLES
 
