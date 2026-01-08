@@ -26,7 +26,7 @@ env:
     # package is not available in earlier releases; once we update to a future
     # Fedora release (or if the package is backported), switch back from Rawhide
     # to the latest Fedora release.
-    IMAGE_SUFFIX: "c20250910t092246z-f42f41d13"
+    IMAGE_SUFFIX: "c20251211t152018z-f43f42d14"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     RAWHIDE_CACHE_IMAGE_NAME: "rawhide-${IMAGE_SUFFIX}"
 
