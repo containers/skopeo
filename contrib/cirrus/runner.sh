@@ -121,7 +121,7 @@ _podman_reset() {
 
 _run_integration() {
     _podman_reset
-    make test-integration-local BUILDTAGS="$BUILDTAGS"
+    make test-integration BUILDTAGS="$BUILDTAGS"
 }
 
 _run_system() {
