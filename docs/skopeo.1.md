@@ -21,7 +21,7 @@ skopeo -- Command line utility used to interact with local and remote container 
 `skopeo` can delete container images from a remote container registry.
 
 Note: `skopeo` does not require any container runtimes to be running, to do most of
-its functionality.  It also does not require root, unless you are copying images into a container runtime storage backend, like the docker daemon or github.com/containers/storage.
+its functionality.  It also does not require root, unless you are copying images into a container runtime storage backend, like the docker daemon or https://github.com/containers/container-libs/tree/main/storage.
 
 ## IMAGE NAMES
 Most commands refer to container images, using a _transport_`:`_details_ format. The following formats are supported:
@@ -49,7 +49,7 @@ Most commands refer to container images, using a _transport_`:`_details_ format.
   **oci-archive:**_path_**:**_tag_
   An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
 
-See [containers-transports(5)](https://github.com/containers/image/blob/main/docs/containers-transports.5.md) for details.
+See [containers-transports(5)](https://github.com/containers/container-libs/blob/main/image/docs/containers-transports.5.md) for details.
 
 ## OPTIONS
 
@@ -136,11 +136,11 @@ Details about the exit statuses:
 ## FILES
   **/etc/containers/policy.json**
   Default trust policy file, if **--policy** is not specified.
-  The policy format is documented in [containers-policy.json(5)](https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md) .
+  The policy format is documented in [containers-policy.json(5)](https://github.com/containers/container-libs/blob/main/image/docs/containers-policy.json.5.md) .
 
   **/etc/containers/registries.d**
   Default directory containing registry configuration, if **--registries.d** is not specified.
-  The contents of this directory are documented in [containers-registries.d(5)](https://github.com/containers/image/blob/main/docs/containers-registries.d.5.md).
+  The contents of this directory are documented in [containers-registries.d(5)](https://github.com/containers/container-libs/blob/main/image/docs/containers-registries.d.5.md).
 
 ## SEE ALSO
 skopeo-login(1), docker-login(1), containers-auth.json(5), containers-storage.conf(5), containers-policy.json(5), containers-transports(5)
