@@ -164,13 +164,23 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 	if opts.insecurePolicy {
 		policy = &signature.Policy{Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()}}
 	} else if opts.policyPath == "" {
-		policy, err = signature.DefaultPolicy(opts.newSystemContext())
+		sys, err := opts.newSystemContext()
+		if err != nil {
+			return nil, err
+		}
+		p, err := signature.DefaultPolicy(sys)
+		if err != nil {
+			return nil, err
+		}
+		policy = p
 	} else {
-		policy, err = signature.NewPolicyFromFile(opts.policyPath)
+		p, err := signature.NewPolicyFromFile(opts.policyPath)
+		if err != nil {
+			return nil, err
+		}
+		policy = p
 	}
-	if err != nil {
-		return nil, err
-	}
+
 	pc, err := signature.NewPolicyContext(policy)
 	if err != nil {
 		return nil, err
@@ -194,7 +204,7 @@ func (opts *globalOptions) commandTimeoutContext() (context.Context, context.Can
 
 // newSystemContext returns a *types.SystemContext corresponding to opts.
 // It is guaranteed to return a fresh instance, so it is safe to make additional updates to it.
-func (opts *globalOptions) newSystemContext() *types.SystemContext {
+func (opts *globalOptions) newSystemContext() (*types.SystemContext, error) {
 	userAgent := defaultUserAgent
 	if opts.userAgentPrefix != "" {
 		userAgent = opts.userAgentPrefix + " " + defaultUserAgent
@@ -212,5 +222,5 @@ func (opts *globalOptions) newSystemContext() *types.SystemContext {
 	if opts.tlsVerify.Present() {
 		ctx.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!opts.tlsVerify.Value())
 	}
-	return ctx
+	return ctx, nil
 }
