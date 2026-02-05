@@ -164,7 +164,7 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 	if opts.insecurePolicy {
 		policy = &signature.Policy{Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()}}
 	} else if opts.policyPath == "" {
-		policy, err = signature.DefaultPolicy(nil)
+		policy, err = signature.DefaultPolicy(opts.newSystemContext())
 	} else {
 		policy, err = signature.NewPolicyFromFile(opts.policyPath)
 	}
