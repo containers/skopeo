@@ -357,7 +357,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.66.2-0.20260202154637-0e2aefda57c9
+# go.podman.io/common v0.66.2-0.20260202154637-0e2aefda57c9 => github.com/mtrmac/container-libs/common v0.0.0-20260206230407-dd4f8de3b32a
 ## explicit; go 1.24.6
 go.podman.io/common/pkg/auth
 go.podman.io/common/pkg/capabilities
@@ -367,7 +367,7 @@ go.podman.io/common/pkg/password
 go.podman.io/common/pkg/report
 go.podman.io/common/pkg/report/camelcase
 go.podman.io/common/pkg/retry
-# go.podman.io/image/v5 v5.38.1-0.20260202154637-0e2aefda57c9
+# go.podman.io/image/v5 v5.38.1-0.20260202154637-0e2aefda57c9 => github.com/mtrmac/container-libs/image/v5 v5.0.0-20260206230407-dd4f8de3b32a
 ## explicit; go 1.24.6
 go.podman.io/image/v5/copy
 go.podman.io/image/v5/directory
@@ -662,3 +662,5 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# go.podman.io/image/v5 => github.com/mtrmac/container-libs/image/v5 v5.0.0-20260206230407-dd4f8de3b32a
+# go.podman.io/common => github.com/mtrmac/container-libs/common v0.0.0-20260206230407-dd4f8de3b32a

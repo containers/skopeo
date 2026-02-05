@@ -139,6 +139,10 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJ
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee h1:W5t00kpgFdJifH4BDsTlE89Zl93FEloxaWZfGcifgq8=
 github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
+github.com/mtrmac/container-libs/common v0.0.0-20260206230407-dd4f8de3b32a h1:UQCMUz3GDyHwVebsqtA+sOosd6948olmOaae7vt9Vd4=
+github.com/mtrmac/container-libs/common v0.0.0-20260206230407-dd4f8de3b32a/go.mod h1:VmtRqeaeFq7DrgWmx9TeUcwGh72jtyyBHWjHEENgZfU=
+github.com/mtrmac/container-libs/image/v5 v5.0.0-20260206230407-dd4f8de3b32a h1:fiZHujzws0/wh52B0CJClu6+jAZs2jaipIKfuVUIydg=
+github.com/mtrmac/container-libs/image/v5 v5.0.0-20260206230407-dd4f8de3b32a/go.mod h1:d3wkDEdmkuEkXEMP6qqmc85P7fvhlT1BsdMqkfubuTU=
 github.com/onsi/ginkgo/v2 v2.27.5 h1:ZeVgZMx2PDMdJm/+w5fE/OyG6ILo1Y3e+QX4zSR0zTE=
 github.com/onsi/ginkgo/v2 v2.27.5/go.mod h1:ArE1D/XhNXBXCBkKOLkbsb2c81dQHCRcF5zwn/ykDRo=
 github.com/onsi/gomega v1.39.0 h1:y2ROC3hKFmQZJNFeGAMeHZKkjBL65mIZcvrLQBF9k6Q=
@@ -233,10 +237,6 @@ go.opentelemetry.io/otel/sdk/metric v1.38.0 h1:aSH66iL0aZqo//xXzQLYozmWrXxyFkBJ6
 go.opentelemetry.io/otel/sdk/metric v1.38.0/go.mod h1:dg9PBnW9XdQ1Hd6ZnRz689CbtrUp0wMMs9iPcgT9EZA=
 go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJrmcNLE=
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
-go.podman.io/common v0.66.2-0.20260202154637-0e2aefda57c9 h1:iLJYwHeJ548eWlrOgFFnE2QW7A4SHgTHjw+4QJqJ0kY=
-go.podman.io/common v0.66.2-0.20260202154637-0e2aefda57c9/go.mod h1:+4bMKfBbfK+qgURkCj6vUtghP5ASjsWyYDI/udLOKxk=
-go.podman.io/image/v5 v5.38.1-0.20260202154637-0e2aefda57c9 h1:RFtNtYD33WvYJKAoCzONX2AjP7Ey1MtikfKfJ+dcWCk=
-go.podman.io/image/v5 v5.38.1-0.20260202154637-0e2aefda57c9/go.mod h1:imQIBRN6114qH01ttrueVkVCHj28jhsiN7Yubh0CzGc=
 go.podman.io/storage v1.61.1-0.20260202154637-0e2aefda57c9 h1:ab5KO2VjxG/VsARN5gBsQoCuQvJr1MYSYf50hpn1ROI=
 go.podman.io/storage v1.61.1-0.20260202154637-0e2aefda57c9/go.mod h1:yuLB1ikwsdGrGqSGBWv7fMbOeHupCaMn5iJ1biqxrpI=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=

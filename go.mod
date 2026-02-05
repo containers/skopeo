@@ -110,3 +110,7 @@ require (
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace go.podman.io/image/v5 => github.com/mtrmac/container-libs/image/v5 v5.0.0-20260206230407-dd4f8de3b32a
+
+replace go.podman.io/common => github.com/mtrmac/container-libs/common v0.0.0-20260206230407-dd4f8de3b32a
