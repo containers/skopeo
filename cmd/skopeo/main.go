@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	commonFlag "go.podman.io/common/pkg/flag"
+	"go.podman.io/image/v5/pkg/cli/basetls"
 	"go.podman.io/image/v5/signature"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/reexec"
@@ -21,6 +22,7 @@ var defaultUserAgent = "skopeo/" + version.Version
 type globalOptions struct {
 	debug              bool                    // Enable debug output
 	tlsVerify          commonFlag.OptionalBool // Require HTTPS and verify certificates (for docker: and docker-daemon:)
+	tlsDetailsPath     string                  // Path to a containers-tls-details.yaml(5) file
 	policyPath         string                  // Path to a signature verification policy file
 	insecurePolicy     bool                    // Use an "allow everything" signature verification policy
 	registriesDirPath  string                  // Path to a "registries.d" registry configuration directory
@@ -80,6 +82,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	var dummyVersion bool
 	rootCommand.Flags().BoolVarP(&dummyVersion, "version", "v", false, "Version for Skopeo")
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
+	rootCommand.PersistentFlags().StringVar(&opts.tlsDetailsPath, "tls-details", "", "path to a containers-tls-details.yaml(5) file")
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().BoolVar(&opts.requireSigned, "require-signed", false, "require any pulled image to be signed")
@@ -209,6 +212,10 @@ func (opts *globalOptions) newSystemContext() (*types.SystemContext, error) {
 	if opts.userAgentPrefix != "" {
 		userAgent = opts.userAgentPrefix + " " + defaultUserAgent
 	}
+	baseTLSConfig, err := basetls.NewFromOptionalFile(opts.tlsDetailsPath)
+	if err != nil {
+		return nil, err
+	}
 	ctx := &types.SystemContext{
 		RegistriesDirPath:        opts.registriesDirPath,
 		ArchitectureChoice:       opts.overrideArch,
@@ -216,6 +223,7 @@ func (opts *globalOptions) newSystemContext() (*types.SystemContext, error) {
 		VariantChoice:            opts.overrideVariant,
 		SystemRegistriesConfPath: opts.registriesConfPath,
 		BigFilesTemporaryDir:     opts.tmpDir,
+		BaseTLSConfig:            baseTLSConfig.TLSConfig(),
 		DockerRegistryUserAgent:  userAgent,
 	}
 	// DEPRECATED: We support this for backward compatibility, but override it if a per-image flag is provided.
