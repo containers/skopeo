@@ -96,6 +96,15 @@ Use registry configuration files in _dir_ (e.g. for container signature storage)
 
 Require that any pulled image must be signed regardless of what the default or provided trust policy file says.
 
+**--tls-details** _path_
+
+Path to a containers-tls-details(5) file, affecting TLS behavior throughout the program.
+
+If not set, defaults to a reasonable default that may change over time (depending on system’s global policy,
+version of the program, version of the Go language, and the like).
+
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
 **--tmpdir** _dir_
 
 Directory used to store temporary files. Defaults to /var/tmp.

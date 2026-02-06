@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.podman.io/image/v5/types"
 )
 
@@ -22,7 +23,8 @@ func runSkopeo(args ...string) (string, error) {
 func TestGlobalOptionsNewSystemContext(t *testing.T) {
 	// Default state
 	opts, _ := fakeGlobalOptions(t, []string{})
-	res := opts.newSystemContext()
+	res, err := opts.newSystemContext()
+	require.NoError(t, err)
 	assert.Equal(t, &types.SystemContext{
 		// User-Agent is set by default.
 		DockerRegistryUserAgent: defaultUserAgent,
@@ -37,7 +39,8 @@ func TestGlobalOptionsNewSystemContext(t *testing.T) {
 		"--registries-conf", "/srv/registries.conf",
 		"--tls-verify=false",
 	})
-	res = opts.newSystemContext()
+	res, err = opts.newSystemContext()
+	require.NoError(t, err)
 	assert.Equal(t, &types.SystemContext{
 		RegistriesDirPath:           "/srv/registries.d",
 		ArchitectureChoice:          "overridden-arch",

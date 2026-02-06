@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	commonFlag "go.podman.io/common/pkg/flag"
+	"go.podman.io/image/v5/pkg/cli/basetls"
 	"go.podman.io/image/v5/signature"
 	"go.podman.io/image/v5/types"
 	"go.podman.io/storage/pkg/reexec"
@@ -21,6 +22,7 @@ var defaultUserAgent = "skopeo/" + version.Version
 type globalOptions struct {
 	debug              bool                    // Enable debug output
 	tlsVerify          commonFlag.OptionalBool // Require HTTPS and verify certificates (for docker: and docker-daemon:)
+	tlsDetailsPath     string                  // Path to a containers-tls-details.yaml(5) file
 	policyPath         string                  // Path to a signature verification policy file
 	insecurePolicy     bool                    // Use an "allow everything" signature verification policy
 	registriesDirPath  string                  // Path to a "registries.d" registry configuration directory
@@ -80,6 +82,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	var dummyVersion bool
 	rootCommand.Flags().BoolVarP(&dummyVersion, "version", "v", false, "Version for Skopeo")
 	rootCommand.PersistentFlags().BoolVar(&opts.debug, "debug", false, "enable debug output")
+	rootCommand.PersistentFlags().StringVar(&opts.tlsDetailsPath, "tls-details", "", "path to a containers-tls-details.yaml(5) file")
 	rootCommand.PersistentFlags().StringVar(&opts.policyPath, "policy", "", "Path to a trust policy file")
 	rootCommand.PersistentFlags().BoolVar(&opts.insecurePolicy, "insecure-policy", false, "run the tool without any policy check")
 	rootCommand.PersistentFlags().BoolVar(&opts.requireSigned, "require-signed", false, "require any pulled image to be signed")
@@ -164,13 +167,23 @@ func (opts *globalOptions) getPolicyContext() (*signature.PolicyContext, error) 
 	if opts.insecurePolicy {
 		policy = &signature.Policy{Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()}}
 	} else if opts.policyPath == "" {
-		policy, err = signature.DefaultPolicy(nil)
+		sys, err := opts.newSystemContext()
+		if err != nil {
+			return nil, err
+		}
+		p, err := signature.DefaultPolicy(sys)
+		if err != nil {
+			return nil, err
+		}
+		policy = p
 	} else {
-		policy, err = signature.NewPolicyFromFile(opts.policyPath)
+		p, err := signature.NewPolicyFromFile(opts.policyPath)
+		if err != nil {
+			return nil, err
+		}
+		policy = p
 	}
-	if err != nil {
-		return nil, err
-	}
+
 	pc, err := signature.NewPolicyContext(policy)
 	if err != nil {
 		return nil, err
@@ -194,10 +207,14 @@ func (opts *globalOptions) commandTimeoutContext() (context.Context, context.Can
 
 // newSystemContext returns a *types.SystemContext corresponding to opts.
 // It is guaranteed to return a fresh instance, so it is safe to make additional updates to it.
-func (opts *globalOptions) newSystemContext() *types.SystemContext {
+func (opts *globalOptions) newSystemContext() (*types.SystemContext, error) {
 	userAgent := defaultUserAgent
 	if opts.userAgentPrefix != "" {
 		userAgent = opts.userAgentPrefix + " " + defaultUserAgent
+	}
+	baseTLSConfig, err := basetls.NewFromOptionalFile(opts.tlsDetailsPath)
+	if err != nil {
+		return nil, err
 	}
 	ctx := &types.SystemContext{
 		RegistriesDirPath:        opts.registriesDirPath,
@@ -206,11 +223,12 @@ func (opts *globalOptions) newSystemContext() *types.SystemContext {
 		VariantChoice:            opts.overrideVariant,
 		SystemRegistriesConfPath: opts.registriesConfPath,
 		BigFilesTemporaryDir:     opts.tmpDir,
+		BaseTLSConfig:            baseTLSConfig.TLSConfig(),
 		DockerRegistryUserAgent:  userAgent,
 	}
 	// DEPRECATED: We support this for backward compatibility, but override it if a per-image flag is provided.
 	if opts.tlsVerify.Present() {
 		ctx.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!opts.tlsVerify.Value())
 	}
-	return ctx
+	return ctx, nil
 }

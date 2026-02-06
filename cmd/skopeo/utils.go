@@ -200,7 +200,10 @@ func retryFlags() (pflag.FlagSet, *retry.Options) {
 func (opts *imageOptions) newSystemContext() (*types.SystemContext, error) {
 	// *types.SystemContext instance from globalOptions
 	//  imageOptions option overrides the instance if both are present.
-	ctx := opts.global.newSystemContext()
+	ctx, err := opts.global.newSystemContext()
+	if err != nil {
+		return nil, err
+	}
 	ctx.DockerCertPath = opts.dockerCertPath
 	ctx.OCISharedBlobDirPath = opts.sharedBlobDir
 	ctx.AuthFilePath = opts.shared.authFilePath
