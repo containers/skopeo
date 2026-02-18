@@ -19,14 +19,12 @@ Available _source_ transports:
  - _dir_ (i.e. `--src dir`): _source_ is a local directory path (e.g.: `/media/usb/`). Refer to skopeo(1) **dir:**_path_ for the local image format.
  - _yaml_ (i.e. `--src yaml`): _source_ is local YAML file path.
 - _oci_ (i.e. `--src oci`): _source_ is a oci directory path (e.g.: `/media/usb/`).
-- _oci-archive_ (i.e. `--src oci-archive`): _source_ is a oci archive file path (e.g.: `/media/usb/archive`).
  The YAML file should specify the list of images copied from different container registries (local directories are not supported). Refer to EXAMPLES for the file format.
 
 Available _destination_ transports:
  - _docker_ (i.e. `--dest docker`): _destination_ is a container registry (e.g.: `my-registry.local.lan`).
  - _dir_ (i.e. `--dest dir`): _destination_ is a local directory path (e.g.: `/media/usb/`).
  - _oci_ (i.e. `--dest oci`): _destination_ is a oci directory path (e.g.: `/media/usb/`).
- - _oci-archive_ (i.e. `--dest oci-archive`): _destination_ is a oci archive file path (e.g.: `/media/usb/archive`).
  One directory per source 'image:tag' is created for each copied image.
 
 When the `--scoped` option is specified, images are prefixed with the source image path so that multiple images with the same

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"archive/tar"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -27,7 +25,6 @@ import (
 	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
-	"go.podman.io/image/v5/oci/archive"
 	oci "go.podman.io/image/v5/oci/layout"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
@@ -195,9 +192,6 @@ func destinationReference(destination string, transport string) (types.ImageRefe
 	case oci.Transport.Name():
 		destination = strings.Replace(destination, "/", ":", 1)
 		imageTransport = oci.Transport
-	case archive.Transport.Name():
-		destination = strings.Replace(destination, "/", ":", 1)
-		imageTransport = archive.Transport
 	default:
 		return nil, fmt.Errorf("%q is not a valid destination transport", transport)
 	}
@@ -438,71 +432,6 @@ func imagesToCopyFromOCI(ociPath string) ([]types.ImageReference, error) {
 	return sourceReferences, nil
 }
 
-// extractIndexJSON extracts index.json from a tar archive
-func extractIndexJSON(tarPath string) ([]byte, error) {
-	file, err := os.Open(tarPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	tr := tar.NewReader(file)
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error reading tar: %w", err)
-		}
-
-		if header.Name == "index.json" ||
-			header.Name == "./index.json" ||
-			filepath.Base(header.Name) == "index.json" {
-
-			data, err := io.ReadAll(tr)
-			if err != nil {
-				return nil, fmt.Errorf("error reading index.json: %w", err)
-			}
-
-			return data, nil
-		}
-	}
-
-	return nil, fmt.Errorf("index.json not found in archive")
-}
-
-// imagesToCopyFromOCIArchive builds a list of image references from the images found
-// in the OCI archive file.
-// It returns an image reference slice with as many elements as the images found
-// and any error encountered.
-func imagesToCopyFromOCIArchive(ociPath string) ([]types.ImageReference, error) {
-	var sourceReferences []types.ImageReference
-
-	indexBytes, err := extractIndexJSON(ociPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract index.json: %w", err)
-	}
-
-	indexManifest, err := v1.ParseIndexManifest(bytes.NewReader(indexBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse manifest: %w", err)
-	}
-
-	for _, el := range indexManifest.Manifests {
-		if refName, ok := el.Annotations[specsv1.AnnotationRefName]; ok {
-			ref, err := archive.Transport.ParseReference(fmt.Sprintf("%s:%s", ociPath, refName))
-			if err != nil {
-				return nil, fmt.Errorf("Cannot obtain a valid image reference for transport %q and reference %q: %w", oci.Transport.Name(), refName, err)
-			}
-			sourceReferences = append(sourceReferences, ref)
-		}
-	}
-
-	return sourceReferences, nil
-}
-
 // filterFunc is a function used to limit the initial set of image references
 // using tags, patterns, semver, etc.
 type filterFunc func(*logrus.Entry, types.ImageReference) bool
@@ -698,16 +627,6 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 			return descriptors, fmt.Errorf("Failed to retrieve list of images from oci %q: %w", source, err)
 		}
 		descriptors = append(descriptors, desc)
-	case archive.Transport.Name():
-		desc := repoDescriptor{
-			Context: sourceCtx,
-		}
-		var err error
-		desc.ImageRefs, err = imagesToCopyFromOCIArchive(source)
-		if err != nil {
-			return descriptors, fmt.Errorf("Failed to retrieve list of images from oci archive %q: %w", source, err)
-		}
-		descriptors = append(descriptors, desc)
 	}
 
 	return descriptors, nil
@@ -733,14 +652,14 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if len(opts.source) == 0 {
 		return errors.New("A source transport must be specified")
 	}
-	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), "yaml", oci.Transport.Name(), archive.Transport.Name()}, opts.source) {
+	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), "yaml", oci.Transport.Name()}, opts.source) {
 		return fmt.Errorf("%q is not a valid source transport", opts.source)
 	}
 
 	if len(opts.destination) == 0 {
 		return errors.New("A destination transport must be specified")
 	}
-	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), oci.Transport.Name(), archive.Transport.Name()}, opts.destination) {
+	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), oci.Transport.Name()}, opts.destination) {
 		return fmt.Errorf("%q is not a valid destination transport", opts.destination)
 	}
 
@@ -823,9 +742,6 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 					destSuffix = path.Base(srcRepo.DirBasePath)
 				}
 			case oci.Transport:
-				// removed transport prefix
-				destSuffix = strings.SplitN(ref.StringWithinTransport(), ":", 2)[1]
-			case archive.Transport:
 				// removed transport prefix
 				destSuffix = strings.SplitN(ref.StringWithinTransport(), ":", 2)[1]
 			}
