@@ -11,6 +11,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containers/ocicrypt v1.2.1
 	github.com/docker/distribution v2.8.3+incompatible
+	github.com/google/go-containerregistry v0.20.6
 	github.com/moby/sys/capability v0.4.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.2-0.20251016170850-26647a49f642
@@ -53,7 +54,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/go-containerregistry v0.20.6 // indirect
 	github.com/google/go-intervals v0.0.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
