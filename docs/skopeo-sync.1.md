@@ -23,6 +23,8 @@ Available _source_ transports:
 Available _destination_ transports:
  - _docker_ (i.e. `--dest docker`): _destination_ is a container registry (e.g.: `my-registry.local.lan`).
  - _dir_ (i.e. `--dest dir`): _destination_ is a local directory path (e.g.: `/media/usb/`).
+ - _oci_ (i.e. `--dest oci`): _destination_ is a oci directory path (e.g.: `/media/usb/`).
+ - _oci-archive_ (i.e. `--dest oci-archive`): _destination_ is a oci archive file path (e.g.: `/media/usb/archive`).
  One directory per source 'image:tag' is created for each copied image.
 
 When the `--scoped` option is specified, images are prefixed with the source image path so that multiple images with the same

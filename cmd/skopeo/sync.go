@@ -23,6 +23,8 @@ import (
 	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/oci/archive"
+	oci "go.podman.io/image/v5/oci/layout"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 	"gopkg.in/yaml.v3"
@@ -186,6 +188,12 @@ func destinationReference(destination string, transport string) (types.ImageRefe
 			return nil, fmt.Errorf("Error creating directory for image %s: %w", destination, err)
 		}
 		imageTransport = directory.Transport
+	case oci.Transport.Name():
+		destination = strings.Replace(destination, "/", ":", 1)
+		imageTransport = oci.Transport
+	case archive.Transport.Name():
+		destination = strings.Replace(destination, "/", ":", 1)
+		imageTransport = archive.Transport
 	default:
 		return nil, fmt.Errorf("%q is not a valid destination transport", transport)
 	}
@@ -612,7 +620,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if len(opts.destination) == 0 {
 		return errors.New("A destination transport must be specified")
 	}
-	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name()}, opts.destination) {
+	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), oci.Transport.Name(), archive.Transport.Name()}, opts.destination) {
 		return fmt.Errorf("%q is not a valid destination transport", opts.destination)
 	}
 
