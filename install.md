@@ -118,9 +118,83 @@ sudo apt-get -y install skopeo
 [Package Info](https://packages.ubuntu.com/jammy/skopeo)
 
 ### Windows
-Skopeo has not yet been packaged for Windows. There is an [open feature
-request](https://github.com/containers/skopeo/issues/715) and contributions are
-always welcome.
+
+Skopeo does not have an official Windows binary release yet
+([#715](https://github.com/containers/skopeo/issues/715)).
+The following options are available for Windows users.
+
+#### Option 1 — Windows Subsystem for Linux (WSL 2) — Recommended
+
+The simplest approach on Windows 10/11 is to install WSL 2 and then install
+skopeo inside the Linux distribution of your choice.
+
+1. [Enable WSL 2](https://learn.microsoft.com/en-us/windows/wsl/install) and
+   install a Linux distribution (e.g. Ubuntu):
+
+   ```powershell
+   wsl --install
+   ```
+
+2. Open a WSL terminal and follow the Fedora / Ubuntu / Debian installation
+   steps above, for example on Ubuntu:
+
+   ```bash
+   sudo apt-get update && sudo apt-get -y install skopeo
+   ```
+
+3. Run skopeo from within the WSL terminal as you would on Linux.
+
+#### Option 2 — Container Image via Docker or Podman
+
+If you already have Docker Desktop or Podman Desktop installed you can run
+skopeo without installing it natively at all:
+
+**Docker:**
+```powershell
+docker run quay.io/skopeo/stable:latest copy --help
+```
+
+**Podman Desktop / Podman:**
+```powershell
+podman run quay.io/skopeo/stable:latest copy --help
+```
+
+To copy an image from one registry to another:
+```powershell
+docker run quay.io/skopeo/stable:latest copy \
+  docker://docker.io/library/ubuntu:24.04 \
+  docker://registry.example.com/ubuntu:24.04
+```
+
+#### Option 3 — Cross-compile from Linux / macOS
+
+If you have a Linux or macOS build environment, you can produce a
+Windows binary using the cross-compilation target:
+
+```bash
+# Build a Windows AMD64 binary from Linux / macOS
+make bin/skopeo.windows.amd64
+```
+
+This creates `bin/skopeo.windows.amd64.exe`. Copy the binary to your
+Windows machine and run it from a Command Prompt or PowerShell.
+
+> **Important:** The cross-compiled binary uses the
+> `containers_image_openpgp` build tag (no CGO), which disables features
+> that depend on `libgpgme`. GPG signing and verification are therefore
+> not available in the Windows binary.
+
+#### Option 4 — Scoop (community package)
+
+A community-maintained [Scoop](https://scoop.sh) manifest may be available
+for skopeo. Check the Scoop bucket directory for the latest status:
+
+```powershell
+scoop search skopeo
+```
+
+> **Note:** Community packages are not officially maintained by the Skopeo
+> team. Use at your own risk and verify the source before installing.
 
 ## Container Images
 
