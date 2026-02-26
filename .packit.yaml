@@ -121,7 +121,7 @@ jobs:
       - fedora-all
     actions:
         post-modifications: >-
-          bash -c "sed -i 's/^\(\s*\)ref: .*/\1ref: \"v${PACKIT_PROJECT_VERSION}\"/' ${PACKIT_DOWNSTREAM_REPO}/plans/main.fmf"
+          bash -c 'sed -i "s/^\(\s*\)ref: .*/\1ref: v${PACKIT_PROJECT_VERSION}/" ${PACKIT_DOWNSTREAM_REPO}/plans/main.fmf'
 
   # Sync to CentOS Stream
   # FIXME: Switch trigger whenever we're ready to update CentOS Stream via
