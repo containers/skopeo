@@ -9,21 +9,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type proxyOptions struct {
-	global *globalOptions
-}
-
 func proxyCmd(global *globalOptions) *cobra.Command {
-	opts := proxyOptions{global: global}
-	cmd := &cobra.Command{
-		RunE: commandAction(opts.run),
-		Args: cobra.ExactArgs(0),
-		// Not stabilized yet
+	return &cobra.Command{
+		RunE: commandAction(func(args []string, stdout io.Writer) error {
+			return fmt.Errorf("this command is not supported on Windows")
+		}),
+		Args:   cobra.ExactArgs(0),
 		Hidden: true,
 	}
-	return cmd
-}
-
-func (opts *proxyOptions) run(args []string, stdout io.Writer) error {
-	return fmt.Errorf("This command is not supported on Windows")
 }
