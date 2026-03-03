@@ -109,3 +109,5 @@ require (
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace go.podman.io/common => github.com/giuseppe/container-libs/common v0.0.0-20260303210658-7deee87cb390

@@ -56,6 +56,8 @@ github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
+github.com/giuseppe/container-libs/common v0.0.0-20260303210658-7deee87cb390 h1:9eiNKWHZDTjkduglmg4NdOZZE5UL0lHfQoQC26xiDBo=
+github.com/giuseppe/container-libs/common v0.0.0-20260303210658-7deee87cb390/go.mod h1:ej/rUzFJ27a3nxsDtZdQnp1+2EzuAA8dgv2Cl9BcBjg=
 github.com/go-jose/go-jose/v4 v4.1.3 h1:CVLmWDhDVRa6Mi/IgCgaopNosCaHz7zrMeF9MlZRkrs=
 github.com/go-jose/go-jose/v4 v4.1.3/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
@@ -231,8 +233,6 @@ go.opentelemetry.io/otel/sdk/metric v1.38.0 h1:aSH66iL0aZqo//xXzQLYozmWrXxyFkBJ6
 go.opentelemetry.io/otel/sdk/metric v1.38.0/go.mod h1:dg9PBnW9XdQ1Hd6ZnRz689CbtrUp0wMMs9iPcgT9EZA=
 go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJrmcNLE=
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
-go.podman.io/common v0.67.1-0.20260227183033-854aaaf0575d h1:q7CNhgTr9BdZw/SPPKEIYYI/jvEkG6euv56DdtQUmWU=
-go.podman.io/common v0.67.1-0.20260227183033-854aaaf0575d/go.mod h1:0DeDsVv70xdub5XMurYkseMEwQQ2NdwtG1+Es24VzX4=
 go.podman.io/image/v5 v5.39.2-0.20260227183033-854aaaf0575d h1:Sed29xjo/w1gJ6RWjb6Sbz5TT7hcQg9wb1cGf/Ku+Ys=
 go.podman.io/image/v5 v5.39.2-0.20260227183033-854aaaf0575d/go.mod h1:aOKcsA9y3xfvAW5jGk8evBoQyJGJzhOIrXjwc4iRXcw=
 go.podman.io/storage v1.62.1-0.20260227183033-854aaaf0575d h1:jw6mZJGLjOvxJqQenwzHBYCO44Ya9G/0RM6ifXSBr6I=
