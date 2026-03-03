@@ -14,7 +14,9 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/opencontainers/go-digest"
+	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.podman.io/common/pkg/retry"
@@ -23,6 +25,7 @@ import (
 	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
+	oci "go.podman.io/image/v5/oci/layout"
 	"go.podman.io/image/v5/transports"
 	"go.podman.io/image/v5/types"
 	"gopkg.in/yaml.v3"
@@ -186,6 +189,9 @@ func destinationReference(destination string, transport string) (types.ImageRefe
 			return nil, fmt.Errorf("Error creating directory for image %s: %w", destination, err)
 		}
 		imageTransport = directory.Transport
+	case oci.Transport.Name():
+		destination = strings.Replace(destination, "/", ":", 1)
+		imageTransport = oci.Transport
 	default:
 		return nil, fmt.Errorf("%q is not a valid destination transport", transport)
 	}
@@ -395,6 +401,37 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 	return repoDescList, nil
 }
 
+// imagesToCopyFromOCI builds a list of image references from the images found
+// in the OCI directory.
+// It returns an image reference slice with as many elements as the images found
+// and any error encountered.
+func imagesToCopyFromOCI(ociPath string) ([]types.ImageReference, error) {
+	var sourceReferences []types.ImageReference
+	file, err := os.Open(path.Join(ociPath, specsv1.ImageIndexFile))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	indexManifest, err := v1.ParseIndexManifest(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
+	for _, el := range indexManifest.Manifests {
+		if refName, ok := el.Annotations[specsv1.AnnotationRefName]; ok {
+			ociRef := fmt.Sprintf("%s:%s", ociPath, refName)
+			ref, err := oci.Transport.ParseReference(ociRef)
+			if err != nil {
+				return nil, fmt.Errorf("Cannot obtain a valid image reference for transport %q and reference %q: %w", oci.Transport.Name(), ociRef, err)
+			}
+			sourceReferences = append(sourceReferences, ref)
+		}
+	}
+
+	return sourceReferences, nil
+}
+
 // filterFunc is a function used to limit the initial set of image references
 // using tags, patterns, semver, etc.
 type filterFunc func(*logrus.Entry, types.ImageReference) bool
@@ -580,6 +617,16 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 			}
 			descriptors = append(descriptors, descs...)
 		}
+	case oci.Transport.Name():
+		desc := repoDescriptor{
+			Context: sourceCtx,
+		}
+		var err error
+		desc.ImageRefs, err = imagesToCopyFromOCI(source)
+		if err != nil {
+			return descriptors, fmt.Errorf("Failed to retrieve list of images from oci %q: %w", source, err)
+		}
+		descriptors = append(descriptors, desc)
 	}
 
 	return descriptors, nil
@@ -605,14 +652,14 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if len(opts.source) == 0 {
 		return errors.New("A source transport must be specified")
 	}
-	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), "yaml"}, opts.source) {
+	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), "yaml", oci.Transport.Name()}, opts.source) {
 		return fmt.Errorf("%q is not a valid source transport", opts.source)
 	}
 
 	if len(opts.destination) == 0 {
 		return errors.New("A destination transport must be specified")
 	}
-	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name()}, opts.destination) {
+	if !slices.Contains([]string{docker.Transport.Name(), directory.Transport.Name(), oci.Transport.Name()}, opts.destination) {
 		return fmt.Errorf("%q is not a valid destination transport", opts.destination)
 	}
 
@@ -694,6 +741,9 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 					// if source is a full path to an image, have destPath scoped to repo:tag
 					destSuffix = path.Base(srcRepo.DirBasePath)
 				}
+			case oci.Transport:
+				// removed transport prefix
+				destSuffix = strings.SplitN(ref.StringWithinTransport(), ":", 2)[1]
 			}
 
 			if !opts.scoped {
