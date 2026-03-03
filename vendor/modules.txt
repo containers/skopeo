@@ -353,12 +353,13 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# go.podman.io/common v0.67.1-0.20260227183033-854aaaf0575d
+# go.podman.io/common v0.67.1-0.20260227183033-854aaaf0575d => github.com/giuseppe/container-libs/common v0.0.0-20260303210658-7deee87cb390
 ## explicit; go 1.24.6
 go.podman.io/common/pkg/auth
 go.podman.io/common/pkg/capabilities
 go.podman.io/common/pkg/completion
 go.podman.io/common/pkg/flag
+go.podman.io/common/pkg/json-proxy
 go.podman.io/common/pkg/password
 go.podman.io/common/pkg/report
 go.podman.io/common/pkg/report/camelcase
@@ -660,3 +661,4 @@ google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# go.podman.io/common => github.com/giuseppe/container-libs/common v0.0.0-20260303210658-7deee87cb390
