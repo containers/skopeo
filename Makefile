@@ -5,12 +5,6 @@ export GOPROXY=https://proxy.golang.org
 # The following variables very roughly follow https://www.gnu.org/prep/standards/standards.html#Makefile-Conventions .
 DESTDIR ?=
 PREFIX ?= /usr/local
-ifeq ($(shell uname -s),FreeBSD)
-CONTAINERSCONFDIR ?= /usr/local/etc/containers
-else
-CONTAINERSCONFDIR ?= /etc/containers
-endif
-REGISTRIESDDIR ?= ${CONTAINERSCONFDIR}/registries.d
 LOOKASIDEDIR ?= /var/lib/containers/sigstore
 BINDIR ?= ${PREFIX}/bin
 MANDIR ?= ${PREFIX}/share/man
@@ -159,10 +153,6 @@ clean:
 
 install: install-binary install-docs install-completions
 	install -d -m 755 ${DESTDIR}${LOOKASIDEDIR}
-	install -d -m 755 ${DESTDIR}${CONTAINERSCONFDIR}
-	install -m 644 default-policy.json ${DESTDIR}${CONTAINERSCONFDIR}/policy.json
-	install -d -m 755 ${DESTDIR}${REGISTRIESDDIR}
-	install -m 644 default.yaml ${DESTDIR}${REGISTRIESDDIR}/default.yaml
 
 install-binary: bin/skopeo
 	install -d -m 755 ${DESTDIR}${BINDIR}
