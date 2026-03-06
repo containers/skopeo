@@ -156,7 +156,7 @@ $ skopeo inspect docker://registry.fedoraproject.org/fedora:latest | jq '.Digest
 
 * Container Storage backends
 
-  -  [github.com/containers/storage](https://github.com/containers/storage) (Backend for [Podman](https://podman.io), [CRI-O](https://cri-o.io), [Buildah](https://buildah.io) and friends)
+  -  [https://github.com/containers/container-libs/tree/main/storage](https://github.com/containers/container-libs/tree/main/storage) (Backend for [Podman](https://podman.io), [CRI-O](https://cri-o.io), [Buildah](https://buildah.io) and friends)
 
   -  Docker daemon storage
 
