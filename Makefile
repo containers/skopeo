@@ -29,7 +29,7 @@ SEQUOIA_SONAME_DIR =
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
 # (i.e. DO NOT ADD A 'v' prefix!)
-GOLANGCI_LINT_VERSION := 2.10.1
+GOLANGCI_LINT_VERSION := 2.11.2
 
 ifeq ($(GOBIN),)
 GOBIN := $(GOPATH)/bin
