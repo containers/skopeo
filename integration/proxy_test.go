@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -477,6 +478,11 @@ func (s *proxySuite) TestProxyMetadata() {
 	t := s.T()
 	p, err := newProxy()
 	require.NoError(t, err)
+
+	// https://github.com/containers/skopeo/issues/2829
+	if runtime.GOARCH != "amd64" {
+		t.Skip("test image is only available on amd64")
+	}
 
 	err = runTestMetadataAPIs(p, knownNotManifestListedImageX8664)
 	if err != nil {
