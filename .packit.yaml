@@ -5,7 +5,7 @@
 downstream_package_name: skopeo
 upstream_tag_template: v{version}
 
-specfile_path: skopeo.spec
+specfile_path: rpm/skopeo.spec
 
 # Disable automatic merging for Copr builds (and subsequent Testing Farm)
 merge_pr_in_ci: false
@@ -13,53 +13,26 @@ merge_pr_in_ci: false
 jobs:
   - job: copr_build
     trigger: pull_request
-    notifications: &packit_failure_notification
+    notifications:
       failure_comment:
         message: "Packit jobs failed. @containers/packit-build please check."
-    enable_net: true
-    targets:
-      - epel-10-x86_64
-      - epel-10-aarch64
-    actions:
-      post-upstream-clone: "curl --fail -O https://gitlab.com/redhat/centos-stream/rpms/skopeo/-/raw/c10s/skopeo.spec"
-
-  - job: copr_build
-    trigger: pull_request
-    notifications: *packit_failure_notification
-    enable_net: true
     targets:
       - epel-9-x86_64
       - epel-9-aarch64
-    actions:
-      post-upstream-clone: "curl --fail -O https://gitlab.com/redhat/centos-stream/rpms/skopeo/-/raw/c9s/skopeo.spec"
+      - epel-10-x86_64
+      - epel-10-aarch64
+    enable_net: true
 
+  # Tests on RHEL 9 and RHEL 10 using internal Testing Farm ranch
   - job: tests
     trigger: pull_request
     use_internal_tf: true
-    notifications: *packit_failure_notification
     targets:
-      epel-10-x86_64:
-        distros: [RHEL-10-Nightly,RHEL-10.0-Nightly]
-      epel-10-aarch64:
-        distros: [RHEL-10-Nightly,RHEL-10.0-Nightly]
-      epel-9-x86_64:
-        distros: [RHEL-9-Nightly,RHEL-9.6.0-Nightly]
-      epel-9-aarch64:
-        distros: [RHEL-9-Nightly,RHEL-9.6.0-Nightly]
-    tmt_plan: "/plans/system"
-    identifier: "rpm"
-
-  - job: tests
-    trigger: pull_request
-    use_internal_tf: true
-    notifications: *packit_failure_notification
-    skip_build: true
-    targets:
-      # RHEL-N-Nightly can often have newer toolchain packages, breaking
-      # vendoring. So, only test on N.Y here
-      epel-10-x86_64:
-        distros: [RHEL-10.0-Nightly]
       epel-9-x86_64:
         distros: [RHEL-9.6.0-Nightly]
-    tmt_plan: "/plans/no-rpm"
-    identifier: "no-rpm"
+      epel-9-aarch64:
+        distros: [RHEL-9.6.0-Nightly]
+      epel-10-x86_64:
+        distros: [RHEL-10.0-Nightly]
+      epel-10-aarch64:
+        distros: [RHEL-10.0-Nightly]
