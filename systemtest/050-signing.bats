@@ -157,7 +157,7 @@ END_PUSH
     done <<END_TESTS
 /myns/alice:signed
 /myns/bob:signedbyalice    (Invalid GPG signature|Missing key)
-/myns/alice:unsigned       Signature for identity \\\\\\\\"localhost:5000/myns/alice:signed\\\\\\\\" is not accepted
+/myns/alice:unsigned       Signature for identity "localhost:5000/myns/alice:signed" is not accepted
 /myns/carol:latest         Running image docker://localhost:5000/myns/carol:latest is rejected by policy.
 /open/forall:latest
 END_TESTS

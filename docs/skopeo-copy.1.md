@@ -86,6 +86,7 @@ Options:
 - _platform-list_: Copy only specific platforms (comma-separated list of OS/Architecture pairs, e.g., `linux/amd64,linux/arm64`)
 
 The index-only option and platform-list both create sparse manifest lists, which usually fail unless the referenced per-architecture images are already present in the destination, or the target registry supports sparse indexes.
+To keep only the remaining platforms in the manifest when a platform-list is given use **--strip-removed-platforms** in addition.
 
 When specifying a platform list, all compression variants and other variations for each platform are copied.
 
@@ -283,7 +284,7 @@ To copy only specific platforms from a multi-architecture image (creates a spars
 $ skopeo copy --multi-arch=linux/amd64,linux/arm64 docker://quay.io/skopeo/stable:latest docker://registry.example.com/skopeo:latest
 ```
 
-To copy specific platforms and strip the sparse manifest list (for registries that don't support sparse lists):
+To copy specific platforms and strip the sparse manifest list (for registries that don't support sparse lists or in case the additional platforms are not wanted in the final registry manifest):
 ```console
 $ skopeo copy --multi-arch=linux/amd64,linux/arm64 --strip-removed-platforms --remove-list-signatures docker://quay.io/skopeo/stable:latest docker://registry.example.com/skopeo:latest
 ```

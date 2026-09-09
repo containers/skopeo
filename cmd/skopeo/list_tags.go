@@ -88,7 +88,7 @@ func parseDockerRepositoryReference(refString string) (types.ImageReference, err
 	}
 
 	if !reference.IsNameOnly(ref) {
-		return nil, errors.New(`No tag or digest allowed in reference`)
+		return nil, errors.New(`no tag or digest allowed in reference`)
 	}
 
 	// Checks ok, now return a reference. This is a hack because the tag listing code expects a full image reference even though the tag is ignored
@@ -101,7 +101,7 @@ func listDockerTags(ctx context.Context, sys *types.SystemContext, imgRef types.
 
 	tags, err := docker.GetRepositoryTags(ctx, sys, imgRef)
 	if err != nil {
-		return ``, nil, fmt.Errorf("Error listing repository tags: %w", err)
+		return ``, nil, fmt.Errorf("listing repository tags: %w", err)
 	}
 	return repositoryName, tags, nil
 }
@@ -163,7 +163,7 @@ func (opts *tagsOptions) run(args []string, stdout io.Writer) (retErr error) {
 	defer cancel()
 
 	if len(args) != 1 {
-		return errorShouldDisplayUsage{errors.New("Exactly one non-option argument expected")}
+		return errorShouldDisplayUsage{errors.New("exactly one non-option argument expected")}
 	}
 
 	sys, err := opts.image.newSystemContext()
@@ -173,7 +173,7 @@ func (opts *tagsOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	transport := alltransports.TransportFromImageName(args[0])
 	if transport == nil {
-		return fmt.Errorf("Invalid %q: does not specify a transport", args[0])
+		return fmt.Errorf("invalid %q: does not specify a transport", args[0])
 	}
 
 	var repositoryName string
@@ -185,7 +185,7 @@ func (opts *tagsOptions) run(args []string, stdout io.Writer) (retErr error) {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Unsupported transport '%s' for tag listing. Only supported: %s",
+		return fmt.Errorf("unsupported transport '%s' for tag listing. Only supported: %s",
 			transport.Name(), supportedTransports(", "))
 	}
 

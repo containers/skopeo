@@ -49,7 +49,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 
 func (opts *deleteOptions) run(args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return errors.New("Usage: delete imageReference")
+		return errorShouldDisplayUsage{errors.New("exactly one argument expected")}
 	}
 	imageName := args[0]
 
@@ -59,7 +59,7 @@ func (opts *deleteOptions) run(args []string, stdout io.Writer) error {
 
 	ref, err := alltransports.ParseImageName(imageName)
 	if err != nil {
-		return fmt.Errorf("Invalid source name %s: %v", imageName, err)
+		return fmt.Errorf("invalid source name %s: %w", imageName, err)
 	}
 
 	sys, err := opts.image.newSystemContext()

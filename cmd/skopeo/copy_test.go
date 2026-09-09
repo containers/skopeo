@@ -16,7 +16,7 @@ func TestCopy(t *testing.T) {
 		{"a1", "a2", "a3"},
 	} {
 		out, err := runSkopeo(append([]string{"--insecure-policy", "copy"}, args...)...)
-		assertTestFailed(t, out, err, "Exactly two arguments expected")
+		assertTestFailed(t, out, err, "exactly two arguments expected")
 	}
 
 	// FIXME: Much more test coverage

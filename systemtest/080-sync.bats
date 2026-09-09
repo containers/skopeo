@@ -15,7 +15,7 @@ function setup() {
 
     run_skopeo sync --dry-run --src docker --dest dir --scoped $remote_image $dir
     expect_output --substring "Would have copied image"
-    expect_output --substring "from=\"docker://${remote_image}\" to=\"dir:${dir}/${remote_image}\""
+    expect_output --substring "from=docker://${remote_image} to=dir:${dir}/${remote_image}"
     expect_output --substring "Would have synced 1 images from 1 sources"
 }
 

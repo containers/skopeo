@@ -25,5 +25,5 @@ func proxyCmd(global *globalOptions) *cobra.Command {
 }
 
 func (opts *proxyOptions) run(args []string, stdout io.Writer) error {
-	return fmt.Errorf("This command is not supported on Windows")
+	return fmt.Errorf("this command is not supported on Windows")
 }

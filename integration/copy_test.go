@@ -872,7 +872,7 @@ func (s *copySuite) TestCopySignatures() {
 
 	// Verify that signed identity is verified.
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "copy", "atomic:localhost:5006/myns/official:official", "atomic:localhost:5006/myns/naming:test1")
-	assertSkopeoFails(t, `.*Source image rejected: Signature for identity \\"localhost:5006/myns/official:official\\" is not accepted.*`,
+	assertSkopeoFails(t, `.*Source image rejected: Signature for identity "localhost:5006/myns/official:official" is not accepted.*`,
 		"--tls-verify=false", "--policy", policy, "copy", "atomic:localhost:5006/myns/naming:test1", dirDest)
 	// signedIdentity works
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "copy", "atomic:localhost:5006/myns/official:official", "atomic:localhost:5006/myns/naming:naming")
@@ -933,7 +933,7 @@ func (s *copySuite) TestCopyDirSignatures() {
 	// Verify that the signed identity is verified.
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "--policy", policy, "copy", "--sign-by", "official@example.com", topDirDest+"/dir1", "atomic:localhost:5000/myns/personal:dirstaging2")
 	assertSkopeoSucceeds(t, "", "--tls-verify=false", "copy", "atomic:localhost:5000/myns/personal:dirstaging2", topDirDest+"/restricted/badidentity")
-	assertSkopeoFails(t, `.*Source image rejected: .*Signature for identity \\"localhost:5000/myns/personal:dirstaging2\\" is not accepted.*`,
+	assertSkopeoFails(t, `.*Source image rejected: .*Signature for identity "localhost:5000/myns/personal:dirstaging2" is not accepted.*`,
 		"--policy", policy, "copy", topDirDest+"/restricted/badidentity", topDirDest+"/dest")
 }
 
@@ -1191,11 +1191,11 @@ func (s *copySuite) TestCopyVerifyingMirroredSignatures() {
 	// … but verify that while it is accessible using the primary location redirecting to the mirror, …
 	assertSkopeoSucceeds(t, "" /* no --policy */, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"primary:mirror-signed", dirDest)
 	// … verify it is NOT accessible when requiring a signature.
-	assertSkopeoFails(t, `.*Source image rejected: None of the signatures were accepted, reasons: Signature for identity \\"localhost:5006/myns/mirroring-primary:direct\\" is not accepted; Signature for identity \\"localhost:5006/myns/mirroring-mirror:mirror-signed\\" is not accepted.*`,
+	assertSkopeoFails(t, `.*Source image rejected: None of the signatures were accepted, reasons: Signature for identity "localhost:5006/myns/mirroring-primary:direct" is not accepted; Signature for identity "localhost:5006/myns/mirroring-mirror:mirror-signed" is not accepted.*`,
 		"--policy", policy, "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"primary:mirror-signed", dirDest)
 
 	// Fail if we specify an unqualified identity
-	assertSkopeoFails(t, ".*Could not parse --sign-identity: repository name must be canonical.*",
+	assertSkopeoFails(t, ".*parsing --sign-identity: repository name must be canonical.*",
 		"--registries.d", registriesDir, "copy", "--src-tls-verify=false", "--dest-tls-verify=false", "--sign-by=personal@example.com", "--sign-identity=this-is-not-fully-specified", regPrefix+"primary:unsigned", regPrefix+"mirror:primary-signed")
 
 	// Create a signature for mirroring-primary:primary-signed without pushing there.
@@ -1205,14 +1205,14 @@ func (s *copySuite) TestCopyVerifyingMirroredSignatures() {
 	// … but verify that while it is accessible using the mirror location
 	assertSkopeoSucceeds(t, "" /* no --policy */, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"mirror:primary-signed", dirDest)
 	// … verify it is NOT accessible when requiring a signature.
-	assertSkopeoFails(t, `.*Source image rejected: None of the signatures were accepted, reasons: Signature for identity \\"localhost:5006/myns/mirroring-primary:direct\\" is not accepted; Signature for identity \\"localhost:5006/myns/mirroring-mirror:mirror-signed\\" is not accepted; Signature for identity \\"localhost:5006/myns/mirroring-primary:primary-signed\\" is not accepted.*`,
+	assertSkopeoFails(t, `.*Source image rejected: None of the signatures were accepted, reasons: Signature for identity "localhost:5006/myns/mirroring-primary:direct" is not accepted; Signature for identity "localhost:5006/myns/mirroring-mirror:mirror-signed" is not accepted; Signature for identity "localhost:5006/myns/mirroring-primary:primary-signed" is not accepted.*`,
 		"--policy", policy, "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"mirror:primary-signed", dirDest)
 
 	assertSkopeoSucceeds(t, "", "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", "--dest-tls-verify=false", regPrefix+"primary:unsigned", regPrefix+"remap:remapped")
 	// Verify that while a remapIdentity image is accessible using the remapped (mirror) location
 	assertSkopeoSucceeds(t, "" /* no --policy */, "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"remap:remapped", dirDest)
 	// … it is NOT accessible when requiring a signature …
-	assertSkopeoFails(t, `.*Source image rejected: None of the signatures were accepted, reasons: Signature for identity \\"localhost:5006/myns/mirroring-primary:direct\\" is not accepted; Signature for identity \\"localhost:5006/myns/mirroring-mirror:mirror-signed\\" is not accepted; Signature for identity \\"localhost:5006/myns/mirroring-primary:primary-signed\\" is not accepted.*`, "--policy", policy, "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"remap:remapped", dirDest)
+	assertSkopeoFails(t, `.*Source image rejected: None of the signatures were accepted, reasons: Signature for identity "localhost:5006/myns/mirroring-primary:direct" is not accepted; Signature for identity "localhost:5006/myns/mirroring-mirror:mirror-signed" is not accepted; Signature for identity "localhost:5006/myns/mirroring-primary:primary-signed" is not accepted.*`, "--policy", policy, "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"remap:remapped", dirDest)
 	// … until signed.
 	assertSkopeoSucceeds(t, "", "--registries.d", registriesDir, "copy", "--src-tls-verify=false", "--dest-tls-verify=false", "--sign-by=personal@example.com", "--sign-identity=localhost:5006/myns/mirroring-primary:remapped", regPrefix+"remap:remapped", regPrefix+"remap:remapped")
 	assertSkopeoSucceeds(t, "", "--policy", policy, "--registries.d", registriesDir, "--registries-conf", "fixtures/registries.conf", "copy", "--src-tls-verify=false", regPrefix+"remap:remapped", dirDest)

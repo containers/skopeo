@@ -232,7 +232,7 @@ func (s *syncSuite) TestDirIsNotOverwritten() {
 	require.NoError(t, err)
 
 	// sync local registry image to dir, not scoped
-	assertSkopeoFails(t, ".*Refusing to overwrite destination directory.*", "sync", "--src-tls-verify=false", "--src", "docker", "--dest", "dir", path.Join(v2DockerRegistryURL, reference.Path(imageRef.DockerReference())), dir1)
+	assertSkopeoFails(t, ".*refusing to overwrite destination directory.*", "sync", "--src-tls-verify=false", "--src", "docker", "--dest", "dir", path.Join(v2DockerRegistryURL, reference.Path(imageRef.DockerReference())), dir1)
 
 	// sync local registry image to dir, scoped
 	imageRef, err = docker.ParseReference(fmt.Sprintf("//%s", path.Join(v2DockerRegistryURL, reference.Path(imageRef.DockerReference()))))
@@ -556,10 +556,10 @@ func (s *syncSuite) TestFailsNoSourceImages() {
 	t := s.T()
 	tmpDir := t.TempDir()
 
-	assertSkopeoFails(t, ".*No images to sync found in .*",
+	assertSkopeoFails(t, ".*no images to sync found in .*",
 		"sync", "--scoped", "--dest-tls-verify=false", "--src", "dir", "--dest", "docker", tmpDir, v2DockerRegistryURL)
 
-	assertSkopeoFails(t, ".*Error determining repository tags for repo docker.io/library/hopefully_no_images_will_ever_be_called_like_this: fetching tags list: requested access to the resource is denied.*",
+	assertSkopeoFails(t, ".*determining repository tags for repo docker.io/library/hopefully_no_images_will_ever_be_called_like_this: fetching tags list: requested access to the resource is denied.*",
 		"sync", "--scoped", "--dest-tls-verify=false", "--src", "docker", "--dest", "docker", "hopefully_no_images_will_ever_be_called_like_this", v2DockerRegistryURL)
 }
 

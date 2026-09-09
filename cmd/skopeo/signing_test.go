@@ -45,17 +45,18 @@ func TestStandaloneSign(t *testing.T) {
 	for _, args := range [][]string{
 		{},
 		{"a1", "a2"},
-		{"a1", "a2", "a3"},
 		{"a1", "a2", "a3", "a4"},
 		{"-o", "o", "a1", "a2"},
 		{"-o", "o", "a1", "a2", "a3", "a4"},
 	} {
 		out, err := runSkopeo(append([]string{"standalone-sign"}, args...)...)
-		assertTestFailed(t, out, err, "Usage")
+		assertTestFailed(t, out, err, "exactly three arguments expected")
 	}
+	out, err := runSkopeo("standalone-sign", "a1", "a2", "a3")
+	assertTestFailed(t, out, err, "--output must be specified")
 
 	// Error reading manifest
-	out, err := runSkopeo("standalone-sign", "-o", "/dev/null",
+	out, err = runSkopeo("standalone-sign", "-o", "/dev/null",
 		"/this/does/not/exist", dockerReference, fixturesTestKeyFingerprint)
 	assertTestFailed(t, out, err, "/this/does/not/exist")
 
@@ -105,7 +106,7 @@ func TestStandaloneVerify(t *testing.T) {
 		{"a1", "a2", "a3", "a4", "a5"},
 	} {
 		out, err := runSkopeo(append([]string{"standalone-verify"}, args...)...)
-		assertTestFailed(t, out, err, "Usage")
+		assertTestFailed(t, out, err, "exactly four arguments expected")
 	}
 
 	// Error reading manifest
@@ -121,12 +122,12 @@ func TestStandaloneVerify(t *testing.T) {
 	// Error verifying signature
 	out, err = runSkopeo("standalone-verify", manifestPath,
 		dockerReference, fixturesTestKeyFingerprint, "fixtures/corrupt.signature")
-	assertTestFailed(t, out, err, "Error verifying signature")
+	assertTestFailed(t, out, err, "verifying signature")
 
 	// Error using any without a public key file
 	out, err = runSkopeo("standalone-verify", manifestPath,
 		dockerReference, "any", signaturePath)
-	assertTestFailed(t, out, err, "Cannot use any fingerprint without a public key file")
+	assertTestFailed(t, out, err, "cannot use any fingerprint without a public key file")
 
 	// Success
 	out, err = runSkopeo("standalone-verify", manifestPath,
@@ -163,7 +164,7 @@ func TestUntrustedSignatureDump(t *testing.T) {
 		{"a1", "a2", "a3", "a4"},
 	} {
 		out, err := runSkopeo(append([]string{"untrusted-signature-dump-without-verification"}, args...)...)
-		assertTestFailed(t, out, err, "Usage")
+		assertTestFailed(t, out, err, "exactly one argument expected")
 	}
 
 	// Error reading manifest
@@ -173,7 +174,7 @@ func TestUntrustedSignatureDump(t *testing.T) {
 
 	// Error reading signature (input is not a signature)
 	out, err = runSkopeo("untrusted-signature-dump-without-verification", "fixtures/image.manifest.json")
-	assertTestFailed(t, out, err, "Error decoding untrusted signature")
+	assertTestFailed(t, out, err, "decoding untrusted signature")
 
 	// Success
 	for _, path := range []string{"fixtures/image.signature", "fixtures/corrupt.signature"} {

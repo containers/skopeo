@@ -25,10 +25,10 @@ func maybeReexec() error {
 	// if we already have the capabilities we need.
 	capabilities, err := capability.NewPid2(0)
 	if err != nil {
-		return fmt.Errorf("error reading the current capabilities sets: %w", err)
+		return fmt.Errorf("reading the current capabilities sets: %w", err)
 	}
 	if err := capabilities.Load(); err != nil {
-		return fmt.Errorf("error loading the current capabilities sets: %w", err)
+		return fmt.Errorf("loading the current capabilities sets: %w", err)
 	}
 	if slices.ContainsFunc(neededCapabilities, func(cap capability.Cap) bool {
 		return !capabilities.Get(capability.EFFECTIVE, cap)

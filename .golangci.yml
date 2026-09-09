@@ -5,14 +5,10 @@ formatters:
     - gofumpt
 
 linters:
-  settings:
-    staticcheck:
-      checks:
-        # Compared to golangci-lint v2.0.2 defaults, we don’t exclude
-        # ST1003, ST1016, ST1020, ST1021, ST1022 as we don't hit those.
-        - all
-        - -ST1000 # Incorrect or missing package comment.
-        - -ST1005 # Incorrectly formatted error string.
   exclusions:
     presets:
       - std-error-handling
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

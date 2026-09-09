@@ -3,11 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
+	"log/slog"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	lslog "github.com/sirupsen/logrus/hooks/slog"
 	"github.com/spf13/cobra"
 	commonFlag "go.podman.io/common/pkg/flag"
 	"go.podman.io/image/v5/pkg/cli/basetls/tlsdetails"
@@ -15,6 +20,7 @@ import (
 	"go.podman.io/image/v5/types"
 	"go.podman.io/skopeo/version"
 	"go.podman.io/storage/pkg/reexec"
+	"golang.org/x/term"
 )
 
 var defaultUserAgent = "skopeo/" + version.Version
@@ -44,11 +50,11 @@ func requireSubcommand(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		suggestions := cmd.SuggestionsFor(args[0])
 		if len(suggestions) == 0 {
-			return fmt.Errorf("Unrecognized command `%[1]s %[2]s`\nTry '%[1]s --help' for more information", cmd.CommandPath(), args[0])
+			return fmt.Errorf("unrecognized command `%[1]s %[2]s`\nTry '%[1]s --help' for more information", cmd.CommandPath(), args[0])
 		}
-		return fmt.Errorf("Unrecognized command `%[1]s %[2]s`\n\nDid you mean this?\n\t%[3]s\n\nTry '%[1]s --help' for more information", cmd.CommandPath(), args[0], strings.Join(suggestions, "\n\t"))
+		return fmt.Errorf("unrecognized command `%[1]s %[2]s`\n\nDid you mean this?\n\t%[3]s\n\nTry '%[1]s --help' for more information", cmd.CommandPath(), args[0], strings.Join(suggestions, "\n\t"))
 	}
-	return fmt.Errorf("Missing command '%[1]s COMMAND'\nTry '%[1]s --help' for more information", cmd.CommandPath())
+	return fmt.Errorf("missing command '%[1]s COMMAND'\nTry '%[1]s --help' for more information", cmd.CommandPath())
 }
 
 // createApp returns a cobra.Command, and the underlying globalOptions object, to be run or tested.
@@ -93,7 +99,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 	rootCommand.PersistentFlags().DurationVar(&opts.commandTimeout, "command-timeout", 0, "timeout for the command execution (e.g. 30s, 10m)")
 	rootCommand.PersistentFlags().StringVar(&opts.registriesConfPath, "registries-conf", "", "path to the registries.conf file")
 	if err := rootCommand.PersistentFlags().MarkHidden("registries-conf"); err != nil {
-		logrus.Fatal("unable to mark registries-conf flag as hidden")
+		panic("unable to mark registries-conf flag as hidden")
 	}
 	rootCommand.PersistentFlags().StringVar(&opts.tmpDir, "tmpdir", "", "directory used to store temporary files")
 	rootCommand.PersistentFlags().StringVar(&opts.userAgentPrefix, "user-agent-prefix", "", "prefix to add to the user agent string")
@@ -122,7 +128,7 @@ func createApp() (*cobra.Command, *globalOptions) {
 func gitCommit() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {
-		logrus.Fatal("runtime.ReadBuildInfo failed")
+		panic("runtime.ReadBuildInfo failed")
 	}
 	for _, e := range bi.Settings {
 		if e.Key == "vcs.revision" {
@@ -136,9 +142,10 @@ func gitCommit() string {
 func (opts *globalOptions) before(cmd *cobra.Command, args []string) error {
 	if opts.debug {
 		logrus.SetLevel(logrus.DebugLevel)
+		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 	if opts.tlsVerify.Present() {
-		logrus.Warn("'--tls-verify' is deprecated, please set this on the specific subcommand")
+		slog.Warn("'--tls-verify' is deprecated, please set this on the specific subcommand")
 	}
 	if opts.insecurePolicy && opts.requireSigned {
 		return fmt.Errorf("--insecure-policy and --require-signed are mutually exclusive")
@@ -150,13 +157,21 @@ func main() {
 	if reexec.Init() {
 		return
 	}
+
+	logrus.SetOutput(io.Discard)
+	logrus.AddHook(lslog.NewHook(slog.Default(), nil))
+	if term.IsTerminal(int(os.Stderr.Fd())) {
+		log.SetFlags(0) // We don’t want date/time in interactive output
+	}
+
 	rootCmd, _ := createApp()
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		exitCode := 1
 		if isNotFoundImageError(err) {
-			logrus.StandardLogger().Log(logrus.FatalLevel, err)
-			logrus.Exit(2)
+			exitCode = 2
 		}
-		logrus.Fatal(err)
+		os.Exit(exitCode)
 	}
 }
 

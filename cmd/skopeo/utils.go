@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -12,7 +13,6 @@ import (
 	dockerdistributionerrcode "github.com/docker/distribution/registry/api/errcode"
 	dockerdistributionapi "github.com/docker/distribution/registry/api/v2"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	commonFlag "go.podman.io/common/pkg/flag"
@@ -67,8 +67,7 @@ func noteCloseFailure(err error, description string, closeErr error) error {
 func commandAction(handler func(args []string, stdout io.Writer) error) func(cmd *cobra.Command, args []string) error {
 	return func(c *cobra.Command, args []string) error {
 		err := handler(args, c.OutOrStdout())
-		var shouldDisplayUsage errorShouldDisplayUsage
-		if errors.As(err, &shouldDisplayUsage) {
+		if _, ok := errors.AsType[errorShouldDisplayUsage](err); ok {
 			c.SetOut(c.ErrOrStderr()) // This mutates c, but we are failing anyway.
 			_ = c.Help()              // Even if this failed, we prefer to report the original error
 		}
@@ -91,7 +90,7 @@ type deprecatedTLSVerifyOption struct {
 // ends up being used.
 func (opts *deprecatedTLSVerifyOption) warnIfUsed(alternatives []string) {
 	if opts.tlsVerify.Present() {
-		logrus.Warnf("'--tls-verify' is deprecated, instead use: %s", strings.Join(alternatives, ", "))
+		slog.Warn(fmt.Sprintf("'--tls-verify' is deprecated, instead use: %s", strings.Join(alternatives, ", ")))
 	}
 }
 
@@ -321,10 +320,10 @@ func (opts *imageDestOptions) newSystemContext() (*types.SystemContext, error) {
 func (opts *imageDestOptions) warnAboutIneffectiveOptions(destTransport types.ImageTransport) {
 	if destTransport.Name() != directory.Transport.Name() {
 		if opts.dirForceCompression {
-			logrus.Warnf("--%s can only be used if the destination transport is 'dir'", opts.imageDestFlagPrefix+"compress")
+			slog.Warn(fmt.Sprintf("--%s can only be used if the destination transport is 'dir'", opts.imageDestFlagPrefix+"compress"))
 		}
 		if opts.dirForceDecompression {
-			logrus.Warnf("--%s can only be used if the destination transport is 'dir'", opts.imageDestFlagPrefix+"decompress")
+			slog.Warn(fmt.Sprintf("--%s can only be used if the destination transport is 'dir'", opts.imageDestFlagPrefix+"decompress"))
 		}
 	}
 }
@@ -371,7 +370,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 	}
 
 	if opts.removeSignatures && opts.removeListSignatures {
-		return nil, nil, fmt.Errorf("Only one of --remove-signatures and --remove-list-signatures can be specified")
+		return nil, nil, fmt.Errorf("only one of --remove-signatures and --remove-list-signatures can be specified")
 	}
 
 	// c/image/copy.Image does allow creating both simple signing and sigstore signatures simultaneously,
@@ -389,7 +388,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 			count++
 		}
 		if count > 1 {
-			return nil, nil, fmt.Errorf("Only one of --sign-by, --sign-by-sq-fingerprint and --sign-by-sigstore-private-key can be used with --sign-passphrase-file")
+			return nil, nil, fmt.Errorf("only one of --sign-by, --sign-by-sq-fingerprint and --sign-by-sigstore-private-key can be used with --sign-passphrase-file")
 		}
 	}
 	// Simple signing does not really allow empty but present passphrases — but for sigstore, cosign does support creating keys encrypted with an empty passphrase;
@@ -438,7 +437,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 			Stdout: stdout,
 		})
 		if err != nil {
-			return nil, nil, fmt.Errorf("Error using --sign-by-sigstore: %w", err)
+			return nil, nil, fmt.Errorf("using --sign-by-sigstore: %w", err)
 		}
 		signers = append(signers, signer)
 	}
@@ -449,9 +448,9 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		if passphraseSet {
 			sqOpts = append(sqOpts, simplesequoia.WithPassphrase(passphrase))
 		}
-		signer, err := simplesequoia.NewSigner(sqOpts...)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Error using --sign-by-sq-fingerprint: %w", err)
+		signer, err := simplesequoia.NewSigner(sqOpts...) //nolint:staticcheck // SA4023: without the containers_image_sequoia build tag, this always fails.
+		if err != nil {                                   //nolint:staticcheck // SA4023 … and staticcheck reports both the comparison and the "related" call.
+			return nil, nil, fmt.Errorf("using --sign-by-sq-fingerprint: %w", err)
 		}
 		signers = append(signers, signer)
 	}
@@ -557,13 +556,13 @@ func adjustUsage(c *cobra.Command) {
 func promptForPassphrase(privateKeyFile string, stdin, stdout *os.File) (string, error) {
 	stdinFd := int(stdin.Fd())
 	if !term.IsTerminal(stdinFd) {
-		return "", fmt.Errorf("Cannot prompt for a passphrase for key %s, standard input is not a TTY", privateKeyFile)
+		return "", fmt.Errorf("cannot prompt for a passphrase for key %s, standard input is not a TTY", privateKeyFile)
 	}
 
 	fmt.Fprintf(stdout, "Passphrase for key %s: ", privateKeyFile)
 	passphrase, err := term.ReadPassword(stdinFd)
 	if err != nil {
-		return "", fmt.Errorf("Error reading password: %w", err)
+		return "", fmt.Errorf("reading password: %w", err)
 	}
 	fmt.Fprintf(stdout, "\n")
 	return string(passphrase), nil
@@ -574,12 +573,17 @@ func promptForPassphrase(privateKeyFile string, stdin, stdout *os.File) (string,
 // authentication error, an I/O error etc.)
 // TODO drive this into containers/image properly
 func isNotFoundImageError(err error) bool {
-	var layoutImageNotFoundError ocilayout.ImageNotFoundError
-	var archiveImageNotFoundError ociarchive.ImageNotFoundError
-	return isDockerManifestUnknownError(err) ||
-		errors.Is(err, storage.ErrNoSuchImage) ||
-		errors.As(err, &layoutImageNotFoundError) ||
-		errors.As(err, &archiveImageNotFoundError)
+	if isDockerManifestUnknownError(err) ||
+		errors.Is(err, storage.ErrNoSuchImage) {
+		return true
+	}
+	if _, ok := errors.AsType[ocilayout.ImageNotFoundError](err); ok {
+		return true
+	}
+	if _, ok := errors.AsType[ociarchive.ImageNotFoundError](err); ok {
+		return true
+	}
+	return false
 }
 
 // isDockerManifestUnknownError is a copy of code from containers/image,

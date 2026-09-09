@@ -15,7 +15,12 @@ jobs:
   # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   closed_issue_discussion_lock:
     uses: podman-container-tools/podman/.github/workflows/issue_pr_lock.yml@main
-    secrets: inherit
+    secrets:
+      STALE_LOCKING_APP_PRIVATE_KEY: ${{ secrets.STALE_LOCKING_APP_PRIVATE_KEY }}
+      ACTION_MAIL_SERVER: ${{ secrets.ACTION_MAIL_SERVER }}
+      ACTION_MAIL_USERNAME: ${{ secrets.ACTION_MAIL_USERNAME }}
+      ACTION_MAIL_PASSWORD: ${{ secrets.ACTION_MAIL_PASSWORD }}
+      ACTION_MAIL_SENDER: ${{ secrets.ACTION_MAIL_SENDER }}
     permissions:
       contents: read
       issues: write

@@ -127,7 +127,7 @@ func parseMultiArch(multiArch string) (copy.ImageListSelection, []copy.InstanceP
 
 func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if len(args) != 2 {
-		return errorShouldDisplayUsage{errors.New("Exactly two arguments expected")}
+		return errorShouldDisplayUsage{errors.New("exactly two arguments expected")}
 	}
 	opts.deprecatedTLSVerify.warnIfUsed([]string{"--src-tls-verify", "--dest-tls-verify"})
 	imageNames := args
@@ -138,7 +138,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	policyContext, err := opts.global.getPolicyContext()
 	if err != nil {
-		return fmt.Errorf("Error loading trust policy: %v", err)
+		return fmt.Errorf("loading trust policy: %w", err)
 	}
 	defer func() {
 		if err := policyContext.Destroy(); err != nil {
@@ -148,11 +148,11 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	srcRef, err := alltransports.ParseImageName(imageNames[0])
 	if err != nil {
-		return fmt.Errorf("Invalid source name %s: %v", imageNames[0], err)
+		return fmt.Errorf("invalid source name %s: %w", imageNames[0], err)
 	}
 	destRef, err := alltransports.ParseImageName(imageNames[1])
 	if err != nil {
-		return fmt.Errorf("Invalid destination name %s: %v", imageNames[1], err)
+		return fmt.Errorf("invalid destination name %s: %w", imageNames[1], err)
 	}
 
 	sourceCtx, err := opts.srcImage.newSystemContext()
@@ -167,7 +167,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	for _, image := range opts.additionalTags {
 		ref, err := reference.ParseNormalizedNamed(image)
 		if err != nil {
-			return fmt.Errorf("error parsing additional-tag '%s': %v", image, err)
+			return fmt.Errorf("parsing additional-tag '%s': %w", image, err)
 		}
 		namedTagged, isNamedTagged := ref.(reference.NamedTagged)
 		if !isNamedTagged {
@@ -186,7 +186,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	imageListSelection := copy.CopySystemImage
 	var instancePlatforms []copy.InstancePlatformFilter
 	if opts.multiArch.Present() && opts.all {
-		return fmt.Errorf("Cannot use --all and --multi-arch flags together")
+		return fmt.Errorf("cannot use --all and --multi-arch flags together")
 	}
 	if opts.multiArch.Present() {
 		imageListSelection, instancePlatforms, err = parseMultiArch(opts.multiArch.Value())
@@ -212,12 +212,11 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	if len(opts.encryptionKeys) > 0 {
 		// encryption
-		p := opts.encryptLayer
-		encLayers = &p
+		encLayers = new(opts.encryptLayer)
 		encryptionKeys := opts.encryptionKeys
 		ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
 		if err != nil {
-			return fmt.Errorf("Invalid encryption keys: %v", err)
+			return fmt.Errorf("invalid encryption keys: %w", err)
 		}
 		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
 		encConfig = cc.EncryptConfig
@@ -228,7 +227,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 		decryptionKeys := opts.decryptionKeys
 		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)
 		if err != nil {
-			return fmt.Errorf("Invalid decryption keys: %v", err)
+			return fmt.Errorf("invalid decryption keys: %w", err)
 		}
 		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{dcc})
 		decConfig = cc.DecryptConfig
@@ -238,7 +237,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if opts.signIdentity != "" {
 		signIdentity, err = reference.ParseNamed(opts.signIdentity)
 		if err != nil {
-			return fmt.Errorf("Could not parse --sign-identity: %v", err)
+			return fmt.Errorf("parsing --sign-identity: %w", err)
 		}
 	}
 
@@ -276,7 +275,7 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 				return err
 			}
 			if err = os.WriteFile(opts.digestFile, []byte(manifestDigest.String()), 0o644); err != nil {
-				return fmt.Errorf("Failed to write digest to file %q: %w", opts.digestFile, err)
+				return fmt.Errorf("writing digest to file %q: %w", opts.digestFile, err)
 			}
 		}
 		return nil

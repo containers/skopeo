@@ -13,7 +13,7 @@ func TestManifestDigest(t *testing.T) {
 		{"a1", "a2"},
 	} {
 		out, err := runSkopeo(append([]string{"manifest-digest"}, args...)...)
-		assertTestFailed(t, out, err, "Usage")
+		assertTestFailed(t, out, err, "exactly one argument expected")
 	}
 
 	// Error reading manifest

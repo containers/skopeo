@@ -48,7 +48,7 @@ func layersCmd(global *globalOptions) *cobra.Command {
 func (opts *layersOptions) run(args []string, stdout io.Writer) (retErr error) {
 	fmt.Fprintln(os.Stderr, `DEPRECATED: skopeo layers is deprecated in favor of skopeo copy`)
 	if len(args) == 0 {
-		return errors.New("Usage: layers imageReference [layer...]")
+		return errorShouldDisplayUsage{errors.New("at least one argument expected")}
 	}
 	imageName := args[0]
 
