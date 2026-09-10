@@ -74,12 +74,6 @@ jobs:
           persist-credentials: false
       - name: fix git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: remove pre-installed skopeo package
-        run: dnf remove -y skopeo
-      - name: build + install
-        run: |
-          make BUILDTAGS=containers_image_openpgp bin/skopeo
-          make BUILDTAGS=containers_image_openpgp install PREFIX=/usr/local
       - run: make BUILDTAGS=containers_image_openpgp validate-docs
 
   cross:
