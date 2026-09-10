@@ -98,7 +98,9 @@ function compare_usage() {
 
     # Args in man page are '_foo_', in --help are 'FOO'. Convert all to
     # UPCASE simply because it stands out better to the eye.
-    from_man=$(sed -E -e 's/_([a-z-]+)_/\U\1/g' <<<"$from_man")
+    # Use perl, not sed: \U is a GNU sed extension, and BSD sed (macOS)
+    # substitutes a literal 'U' instead.
+    from_man=$(perl -pe 's/_([a-z-]+)_/\U$1/g' <<<"$from_man")
 
     # Compare man-page and --help usage strings. Skip 'skopeo' itself,
     # because the man page includes '[global options]' which we don't grok.
