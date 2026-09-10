@@ -35,6 +35,7 @@ jobs:
         id: filter
         with:
           filters: .github/filters.yaml
+          predicate-quantifier: some-with-excludes
       # For some reason github decided that using ${{ env }} is not valid inside a container image name.
       # As such we must work around this, using outputs there is valid so we need this job to convert the
       # env into an output. Since we already have the path-filter job we might as well reuse it.
