@@ -32,7 +32,10 @@ SEQUOIA_SONAME_DIR =
 GOLANGCI_LINT_VERSION := 2.13.2
 
 ifeq ($(GOBIN),)
-GOBIN := $(GOPATH)/bin
+# Ask the go tool for GOPATH; $(GOPATH) is only set if it happens to be exported into
+# make's environment, and would silently expand to "/bin" otherwise. GOPATH is a list,
+# and the go tool installs into the first element, so use that one.
+GOBIN := $(firstword $(subst :, ,$(shell $(GO) env GOPATH)))/bin
 endif
 
 # Scripts may also use CONTAINER_RUNTIME, so we need to export it.
@@ -44,6 +47,10 @@ endif
 #   https://savannah.gnu.org/bugs/index.php?57625 ).
 export CONTAINER_RUNTIME ?= $(if $(shell command -v podman ;),podman,docker)
 GOMD2MAN ?= $(if $(shell command -v go-md2man ;),go-md2man,$(GOBIN)/go-md2man)
+# Prefer a golangci-lint from $PATH (e.g. the one installed by golangci-lint-action in CI),
+# but only if it is the expected version; otherwise use the copy (make tools) installs
+# into $(GOBIN).
+GOLANGCI_LINT ?= $(if $(shell golangci-lint --version 2>/dev/null | grep -wF "$(GOLANGCI_LINT_VERSION)"),golangci-lint,$(GOBIN)/golangci-lint)
 
 ifeq ($(DEBUG), 1)
   override GOGCFLAGS += -N -l
@@ -187,9 +194,10 @@ install-completions: completions
 shell:
 	$(CONTAINER_RUN) bash
 
+.PHONY: tools
 tools:
-	if [ ! -x "$(GOBIN)/golangci-lint" ]; then \
-		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(GOBIN) v$(GOLANGCI_LINT_VERSION) ; \
+	if ! $(GOLANGCI_LINT) --version 2>/dev/null | grep -qwF "$(GOLANGCI_LINT_VERSION)"; then \
+		curl -sSfL --retry 5 https://golangci-lint.run/install.sh | sh -s -- -b "$(GOBIN)" "v$(GOLANGCI_LINT_VERSION)" ; \
 	fi
 
 check: validate test-unit test-integration test-system
@@ -245,16 +253,16 @@ test-all-local: validate-local validate-docs test-unit-local
 
 .PHONY: fmt
 fmt: tools
-	$(GOBIN)/golangci-lint fmt
+	$(GOLANGCI_LINT) fmt
 
 .PHONY: validate-local
 validate-local: tools
 	hack/validate-git-marks.sh
-	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"
+	$(GOLANGCI_LINT) run --build-tags "${BUILDTAGS}"
 	# An extra run with --tests=false allows detecting code unused outside of tests;
 	# ideally the linter should be able to find this automatically.
 	# Since everything is already cached, this additional run doesn't take much time.
-	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}" --tests=false
+	$(GOLANGCI_LINT) run --build-tags "${BUILDTAGS}" --tests=false
 	BUILDTAGS="${BUILDTAGS}" hack/validate-vet.sh
 
 # This invokes bin/skopeo, hence cannot be run as part of validate-local

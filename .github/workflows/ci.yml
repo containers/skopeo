@@ -27,6 +27,7 @@ jobs:
       code: ${{ steps.filter.outputs.code }}
       docs: ${{ steps.filter.outputs.docs }}
       AUTOMATION_RELEASE: ${{ steps.automation.outputs.AUTOMATION_RELEASE }}
+      golangci_lint_version: ${{ steps.golangci_lint.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -41,6 +42,15 @@ jobs:
       - name: set AUTOMATION_RELEASE output
         id: automation
         run: echo "AUTOMATION_RELEASE=${AUTOMATION_RELEASE}" >> $GITHUB_OUTPUT
+      # The Makefile is the single source of truth for this version; it is what Renovate
+      # updates. Read it here once instead of repeating the parsing in every job that
+      # needs to install golangci-lint.
+      - name: set golangci-lint version output
+        id: golangci_lint
+        run: |
+          v=$(awk -F':=' '/^GOLANGCI_LINT_VERSION/ {gsub(/ /,"",$2); print $2; exit}' Makefile)
+          test -n "$v"  # Fail loudly rather than installing an unexpected version.
+          echo "version=v${v}" >> "$GITHUB_OUTPUT"
 
 
   validate:
@@ -55,7 +65,11 @@ jobs:
           persist-credentials: false
       - name: fix git safe.directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - run: make tools
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
+        with:
+          version: ${{ needs.path-filter.outputs.golangci_lint_version }}
+          install-only: true
+          skip-cache: true  # cache causes flaky results https://github.com/podman-container-tools/podman/issues/28893
       - run: make validate-local
       - name: vendor + tree status
         run: |
@@ -116,15 +130,13 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: stable
-      - name: configure GOPATH (Makefile resolves GOBIN as $(GOPATH)/bin)
-        run: |
-          GOPATH="$(go env GOPATH)"
-          mkdir -p "$GOPATH/bin"
-          echo "GOPATH=$GOPATH" >> "$GITHUB_ENV"
-          echo "$GOPATH/bin" >> "$GITHUB_PATH"
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
+        with:
+          version: ${{ needs.path-filter.outputs.golangci_lint_version }}
+          install-only: true
+          skip-cache: true  # cache causes flaky results https://github.com/podman-container-tools/podman/issues/28893
       - name: brew install gpgme (CGo dep for github.com/proglottis/gpgme)
         run: brew install gpgme
-      - run: make tools
       - run: make validate-local test-unit-local bin/skopeo
       - run: ./bin/skopeo -v
 
