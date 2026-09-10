@@ -88,6 +88,12 @@ Preserve the digests during copying. Fail if the digest cannot be preserved.
 
 This option does not change what will be copied; consider using `--all` at the same time.
 
+**--download-foreign-layers**
+
+Download layer contents for nondistributable ("foreign") layers — e.g., Windows base layers — that would otherwise be skipped in favor of URL references to their original location. By default, foreign layers are not downloaded when the destination can store URL references instead (notably `oci:` and `docker://`). Other destinations already fetch them.
+
+Useful for air-gapped or offline copies of images whose original source may later become unreachable. The destination manifest is not rewritten: layers retain their original nondistributable media type and `urls` field.
+
 **--remove-signatures** Do not copy signatures, if any, from _source-image_. This is necessary when copying a signed image to a destination which does not support signatures.
 
 **--remove-list-signatures**

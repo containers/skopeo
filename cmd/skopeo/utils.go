@@ -338,6 +338,7 @@ type sharedCopyOptions struct {
 	signBySigstorePrivateKey string                    // Sign the image using a sigstore private key
 	signPassphraseFile       string                    // Path pointing to a passphrase file when signing
 	preserveDigests          bool                      // Preserve digests during copy
+	downloadForeignLayers    bool                      // Download foreign layers during copy
 	format                   commonFlag.OptionalString // Force conversion of the image to a specified format
 }
 
@@ -354,6 +355,7 @@ func sharedCopyFlags() (pflag.FlagSet, *sharedCopyOptions) {
 	fs.StringVar(&opts.signPassphraseFile, "sign-passphrase-file", "", "Read a passphrase for signing an image from `PATH`")
 	fs.VarP(commonFlag.NewOptionalStringValue(&opts.format), "format", "f", `MANIFEST TYPE (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)`)
 	fs.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
+	fs.BoolVar(&opts.downloadForeignLayers, "download-foreign-layers", false, "Download nondistributable (foreign) layers")
 	return fs, &opts
 }
 
@@ -468,6 +470,7 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		ReportWriter: stdout,
 
 		PreserveDigests:       opts.preserveDigests,
+		DownloadForeignLayers: opts.downloadForeignLayers,
 		ForceManifestMIMEType: manifestType,
 	}, closeSigners, nil
 }
