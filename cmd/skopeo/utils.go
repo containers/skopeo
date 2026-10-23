@@ -450,8 +450,8 @@ func (opts *sharedCopyOptions) copyOptions(stdout io.Writer) (*copy.Options, fun
 		if passphraseSet {
 			sqOpts = append(sqOpts, simplesequoia.WithPassphrase(passphrase))
 		}
-		signer, err := simplesequoia.NewSigner(sqOpts...) //nolint:staticcheck // SA4023: without the containers_image_sequoia build tag, this always fails.
-		if err != nil {                                   //nolint:staticcheck // SA4023 … and staticcheck reports both the comparison and the "related" call.
+		signer, err := simplesequoia.NewSigner(sqOpts...)
+		if err != nil {
 			return nil, nil, fmt.Errorf("using --sign-by-sq-fingerprint: %w", err)
 		}
 		signers = append(signers, signer)
