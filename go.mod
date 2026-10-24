@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/containers/ocicrypt v1.3.2
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/moby/sys/capability v0.4.0
+	github.com/moby/sys/capability v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.2-0.20260709172216-af26a05fba5e
 	github.com/opencontainers/image-tools v1.0.0-rc3
